@@ -82,3 +82,4 @@ npm run dev
 - หน้าจัดการหลังบ้าน Admin: `http://localhost:3000/admin`
 - ตัวอย่างลิงก์ย่อ: `http://localhost:3000/s/promo`
 # linktreethai
+# linktreethai
