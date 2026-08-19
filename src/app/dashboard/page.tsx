@@ -14,7 +14,7 @@ import {
   Save, LogOut, Check, Eye, Upload, Image as ImageIcon, Sparkles, Globe, Youtube, RefreshCw, Share2, LayoutTemplate, Crown, Coins, Lock, AlertCircle, Users, Download, ShieldCheck, Zap, QrCode, X, MessageCircle, Scissors, Copy, Smartphone, Menu, ChevronRight, CheckCircle2, ArrowUpRight, Clock, KeyRound, Edit2, Camera, Sun, Moon
 } from 'lucide-react'
 
-export interface LandingPageFormData {
+interface LandingPageFormData {
   slug: string
   title: string
   headline: string
@@ -57,7 +57,7 @@ export interface LandingPageFormData {
   line_tag_id: string
 }
 
-export const DEFAULT_LANDING_PAGE_FORM: LandingPageFormData = {
+const DEFAULT_LANDING_PAGE_FORM: LandingPageFormData = {
   slug: '',
   title: '',
   headline: '',
