@@ -159,13 +159,16 @@ export default function DashboardPage() {
   const [shortLinks, setShortLinks] = useState<any[]>([])
 
   // Modal States
+  const [accountModalOpen, setAccountModalOpen] = useState(false)
+  const [pointsDetailModalOpen, setPointsDetailModalOpen] = useState(false)
+  const [topUpModalOpen, setTopUpModalOpen] = useState(false)
+  const [unlockingPixels, setUnlockingPixels] = useState(false)
   const [qrModalOpen, setQrModalOpen] = useState(false)
   const [qrTargetUrl, setQrTargetUrl] = useState('')
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false)
   const [copiedLink, setCopiedLink] = useState<string | null>(null)
   const [unlockingShortener, setUnlockingShortener] = useState(false)
   const [adminContactModal, setAdminContactModal] = useState(false)
-  const [pointsDetailModalOpen, setPointsDetailModalOpen] = useState(false)
   const [redeemingTier, setRedeemingTier] = useState<string | null>(null)
 
   // Form States
@@ -3423,7 +3426,7 @@ export default function DashboardPage() {
       )}
 
       {/* ACCOUNT STATUS, POINTS & PERMISSIONS DETAIL MODAL */}
-      {pointsDetailModalOpen && (
+      {(accountModalOpen || pointsDetailModalOpen) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 my-8 max-h-[90vh] overflow-y-auto no-scrollbar relative animate-in fade-in zoom-in-95 duration-150">
             
