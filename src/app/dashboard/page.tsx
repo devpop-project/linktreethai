@@ -628,11 +628,11 @@ export default function DashboardPage() {
     }
   }
 
-  const handleAddLandingPage = async (e: React.FormEvent) => {
+    const handleAddLandingPage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newLandingPage.title || !newLandingPage.headline || !newLandingPage.cta_url || !user) return
 
-    if (isLandingQuotaFull) {
+    if (!editingLandingPageId && isLandingQuotaFull) {
       showToast('❌ โควตาเซลเพจของคุณเต็มแล้ว กรุณาใช้ 350 แต้มเพื่อปลดล็อกเพิ่ม')
       return
     }
@@ -647,81 +647,78 @@ export default function DashboardPage() {
       rawCtaUrl = 'https://' + rawCtaUrl
     }
 
-    const featuresArray = newLandingPage.features_text
-      .split('\n')
-      .map(s => s.trim())
-      .filter(s => s.length > 0)
+    const payload = {
+      slug,
+      title: newLandingPage.title.trim(),
+      headline: newLandingPage.headline.trim(),
+      subheadline: newLandingPage.subheadline.trim() || null,
+      hero_image_url: newLandingPage.hero_image_url.trim() || newLandingPage.hero_media_url.trim() || null,
+      video_url: newLandingPage.video_url.trim() || null,
+      hero_media_url: newLandingPage.hero_image_url.trim() || newLandingPage.hero_media_url.trim() || newLandingPage.video_url.trim() || null,
+      hero_media_type: newLandingPage.video_url ? 'youtube' : 'image',
+      offer_price: parseFloat(newLandingPage.offer_price) || 0,
+      original_price: parseFloat(newLandingPage.original_price) || null,
+      cta_text: newLandingPage.cta_text.trim() || 'สั่งซื้อโปรโมชั่นพิเศษนี้ทันที',
+      cta_url: rawCtaUrl,
+      countdown_minutes: parseInt(String(newLandingPage.countdown_minutes), 10) || 15,
+      features: newLandingPage.features_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
+      gallery_images: newLandingPage.gallery_images_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
+      review_images: newLandingPage.review_images_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
+      pain_headline: newLandingPage.pain_headline.trim() || 'คุณกำลังเจอปัญหาเหล่านี้อยู่ใช่หรือไม่?',
+      pain_points: newLandingPage.pain_points_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
+      benefits_headline: newLandingPage.benefits_headline.trim() || 'ทางออกและผลลัพธ์ที่คุณจะได้รับ',
+      benefits: newLandingPage.benefits_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
+      testimonials: newLandingPage.testimonials_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
+      faqs: newLandingPage.faqs_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
+      guarantee_text: newLandingPage.guarantee_text.trim() || null,
+      trust_badge_1: newLandingPage.trust_badge_1.trim() || 'ส่งฟรีด่วน',
+      trust_badge_2: newLandingPage.trust_badge_2.trim() || 'ของแท้ 100%',
+      trust_badge_3: newLandingPage.trust_badge_3.trim() || 'ชำระเงินปลอดภัย',
+      enable_cod_form: newLandingPage.enable_cod_form,
+      seo_title: newLandingPage.seo_title.trim() || null,
+      seo_description: newLandingPage.seo_description.trim() || null,
+      seo_keywords: newLandingPage.seo_keywords.trim() || null,
+      og_image_url: newLandingPage.og_image_url.trim() || null,
+      body_content: newLandingPage.body_content.trim() || null,
+      theme_color: newLandingPage.theme_color || '#EF4444',
+      bg_color: newLandingPage.bg_color || '#0B0F17',
+      bg_image_url: newLandingPage.bg_image_url.trim() || null,
+      card_style: newLandingPage.card_style || 'glass',
+      fb_pixel_id: newLandingPage.fb_pixel_id.trim() || null,
+      tiktok_pixel_id: newLandingPage.tiktok_pixel_id.trim() || null,
+      google_pixel_id: newLandingPage.google_pixel_id.trim() || null,
+      line_tag_id: newLandingPage.line_tag_id.trim() || null
+    }
 
-    const { data, error } = await supabase
-      .from('landing_pages')
-      .insert([{
-        user_id: user.id,
-        slug,
-        title: newLandingPage.title.trim(),
-        headline: newLandingPage.headline.trim(),
-        subheadline: newLandingPage.subheadline.trim() || null,
-        hero_image_url: newLandingPage.hero_image_url.trim() || newLandingPage.hero_media_url.trim() || null,
-        video_url: newLandingPage.video_url.trim() || null,
-        hero_media_url: newLandingPage.hero_image_url.trim() || newLandingPage.hero_media_url.trim() || newLandingPage.video_url.trim() || null,
-        hero_media_type: newLandingPage.video_url ? 'youtube' : 'image',
-        offer_price: parseFloat(newLandingPage.offer_price) || 0,
-        original_price: parseFloat(newLandingPage.original_price) || null,
-        cta_text: newLandingPage.cta_text.trim() || 'สั่งซื้อโปรโมชั่นพิเศษนี้ทันที',
-        cta_url: rawCtaUrl,
-        countdown_minutes: parseInt(String(newLandingPage.countdown_minutes), 10) || 15,
-        features: featuresArray,
-        gallery_images: newLandingPage.gallery_images_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
-        review_images: newLandingPage.review_images_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
-        pain_headline: newLandingPage.pain_headline.trim() || 'คุณกำลังเจอปัญหาเหล่านี้อยู่ใช่หรือไม่?',
-        pain_points: newLandingPage.pain_points_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
-        benefits_headline: newLandingPage.benefits_headline.trim() || 'ทางออกและผลลัพธ์ที่คุณจะได้รับ',
-        benefits: newLandingPage.benefits_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
-        testimonials: newLandingPage.testimonials_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
-        faqs: newLandingPage.faqs_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
-        guarantee_text: newLandingPage.guarantee_text.trim() || null,
-        seo_title: newLandingPage.seo_title.trim() || null,
-        seo_description: newLandingPage.seo_description.trim() || null,
-        seo_keywords: newLandingPage.seo_keywords.trim() || null,
-        og_image_url: newLandingPage.og_image_url.trim() || null,
-        body_content: newLandingPage.body_content.trim() || null,
-        theme_color: newLandingPage.theme_color || '#EF4444',
-        bg_color: newLandingPage.bg_color || '#0B0F17',
-        bg_image_url: newLandingPage.bg_image_url.trim() || null,
-        card_style: newLandingPage.card_style || 'glass',
-        fb_pixel_id: newLandingPage.fb_pixel_id.trim() || null,
-        tiktok_pixel_id: newLandingPage.tiktok_pixel_id.trim() || null,
-        google_pixel_id: newLandingPage.google_pixel_id.trim() || null,
-        line_tag_id: newLandingPage.line_tag_id.trim() || null
-      }])
-      .select()
+    if (editingLandingPageId) {
+      // Update existing Landing Page
+      const { data, error } = await supabase
+        .from('landing_pages')
+        .update(payload)
+        .eq('id', editingLandingPageId)
+        .select()
 
-    if (!error && data) {
-      setLandingPages([data[0], ...landingPages])
-      setNewLandingPage({
-        slug: '',
-        title: '',
-        headline: '',
-        subheadline: '',
-        hero_image_url: '',
-        video_url: '',
-        hero_media_url: '',
-        hero_media_type: 'image',
-        offer_price: '990',
-        original_price: '1990',
-        cta_text: 'สั่งซื้อโปรโมชั่นพิเศษนี้ทันที',
-        cta_url: '',
-        countdown_minutes: 15,
-        features_text: '✓ ส่งฟรีทั่วไทย (จัดส่งด่วน 1-2 วัน)\n✓ มีบริการเก็บเงินปลายทาง (COD)\n✓ รับประกันของแท้ 100% ตรงจากผู้ผลิต\n✓ มีทีมงานผู้เชี่ยวชาญให้คำแนะนำตลอด 24 ชม.',
-        body_content: '',
-        theme_color: '#EF4444',
-        fb_pixel_id: '',
-        tiktok_pixel_id: '',
-        google_pixel_id: '',
-        line_tag_id: ''
-      })
-      showToast('🚀 สร้างเซลเพจสำเร็จ: /p/' + slug)
-    } else if (error) {
-      showToast('❌ ข้อผิดพลาด: ชื่อ URL ซ้ำ หรือไม่ถูกต้อง (' + error.message + ')')
+      if (!error && data) {
+        setLandingPages(landingPages.map(p => p.id === editingLandingPageId ? data[0] : p))
+        handleCancelEditLandingPage()
+        showToast('💾 บันทึกการแก้ไขเซลเพจสำเร็จ: /p/' + slug)
+      } else if (error) {
+        showToast('❌ แก้ไขไม่สำเร็จ: ' + error.message)
+      }
+    } else {
+      // Create new Landing Page
+      const { data, error } = await supabase
+        .from('landing_pages')
+        .insert([{ ...payload, user_id: user.id }])
+        .select()
+
+      if (!error && data) {
+        setLandingPages([data[0], ...landingPages])
+        handleCancelEditLandingPage()
+        showToast('🚀 สร้างเซลเพจสำเร็จ: /p/' + slug)
+      } else if (error) {
+        showToast('❌ ข้อผิดพลาด: ชื่อ URL ซ้ำ หรือไม่ถูกต้อง (' + error.message + ')')
+      }
     }
   }
 
