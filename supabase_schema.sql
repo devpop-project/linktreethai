@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- 🚀 COMPLETE SUPABASE SCHEMA & DATABASE SETUP
--- Project: Linktree Pro + Digital Shop + Admin Suite + URL Shortener
+-- Project: LinkTreeThai Suite (V27) + Dedicated Ads Sales Pages + Auto Pixel Injection
 -- Supabase URL: https://dkidksohprjhkcokdbja.supabase.co
 -- ==============================================================================
 
@@ -27,14 +27,22 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     points INT DEFAULT 0,
     pro_expires_at TIMESTAMP WITH TIME ZONE,
     master_expires_at TIMESTAMP WITH TIME ZONE,
+    shortener_expires_at TIMESTAMP WITH TIME ZONE,
+    extra_landing_page_slots INT DEFAULT 0, -- โควตาเซลเพจเพิ่มเติม (350 แต้ม / 1 URL)
     hide_branding BOOLEAN DEFAULT FALSE,
+
+    -- Tracking Pixels (FB, TikTok, Google GA4/GAds, LINE Tag)
+    fb_pixel_id TEXT,
+    tiktok_pixel_id TEXT,
+    google_pixel_id TEXT,
+    line_tag_id TEXT,
 
     og_title TEXT,
     og_description TEXT,
     og_image_url TEXT,
 
-    custom_button_color TEXT DEFAULT '#1e293b',
-    custom_button_text_color TEXT DEFAULT '#ffffff',
+    custom_button_color TEXT DEFAULT '#1E1B4B',
+    custom_button_text_color TEXT DEFAULT '#FFFFFF',
     theme_name TEXT DEFAULT 'default',
     
     social_facebook TEXT,
@@ -52,19 +60,25 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Ensure all columns exist in case of upgrading existing tables
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS template_id TEXT DEFAULT 'template_1';
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS points INT DEFAULT 0;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS pro_expires_at TIMESTAMP WITH TIME ZONE;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS master_expires_at TIMESTAMP WITH TIME ZONE;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS hide_branding BOOLEAN DEFAULT FALSE;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS og_title TEXT;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS og_description TEXT;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS og_image_url TEXT;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS custom_button_color TEXT DEFAULT '#1e293b';
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS custom_button_text_color TEXT DEFAULT '#ffffff';
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS theme_name TEXT DEFAULT 'default';
+-- Migration for existing profiles
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'fb_pixel_id') THEN
+        ALTER TABLE public.profiles ADD COLUMN fb_pixel_id TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'tiktok_pixel_id') THEN
+        ALTER TABLE public.profiles ADD COLUMN tiktok_pixel_id TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'google_pixel_id') THEN
+        ALTER TABLE public.profiles ADD COLUMN google_pixel_id TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'line_tag_id') THEN
+        ALTER TABLE public.profiles ADD COLUMN line_tag_id TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'extra_landing_page_slots') THEN
+        ALTER TABLE public.profiles ADD COLUMN extra_landing_page_slots INT DEFAULT 0;
+    END IF;
+END $$;
 
 -- ==============================================================================
 -- 2. LINKS TABLE (ตารางลิ้งก์โซเชียลและปุ่มกด)
@@ -75,10 +89,10 @@ CREATE TABLE IF NOT EXISTS public.links (
     title TEXT NOT NULL,
     subtitle TEXT,
     url TEXT NOT NULL,
-    icon TEXT DEFAULT 'facebook',
+    icon TEXT DEFAULT 'website',
     logo_url TEXT,
-    bg_color TEXT DEFAULT '#1e293b',
-    text_color TEXT DEFAULT '#ffffff',
+    bg_color TEXT DEFAULT '#1E1B4B',
+    text_color TEXT DEFAULT '#FFFFFF',
     starts_at TIMESTAMP WITH TIME ZONE,
     ends_at TIMESTAMP WITH TIME ZONE,
     position INT DEFAULT 0,
@@ -109,7 +123,125 @@ CREATE TABLE IF NOT EXISTS public.products (
 );
 
 -- ==============================================================================
--- 4. LEADS TABLE (ตารางข้อมูลผู้ติดต่อ/ลูกค้าเป้าหมาย)
+-- 4. LANDING PAGES TABLE (ตารางเซลเพจสำหรับยิงแอดโดยเฉพาะ) 🚀
+-- ==============================================================================
+
+-- Migration for landing_pages custom pixels
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'fb_pixel_id') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN fb_pixel_id TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'tiktok_pixel_id') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN tiktok_pixel_id TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'google_pixel_id') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN google_pixel_id TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'line_tag_id') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN line_tag_id TEXT;
+    END IF;
+END $$;
+
+
+-- Migration for 6-section Direct Response & SEO columns in landing_pages
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'pain_headline') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN pain_headline TEXT DEFAULT 'คุณกำลังเจอปัญหาเหล่านี้อยู่ใช่หรือไม่?';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'pain_points') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN pain_points JSONB DEFAULT '[]'::JSONB;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'benefits_headline') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN benefits_headline TEXT DEFAULT 'ทางออกและผลลัพธ์ที่คุณจะได้รับ';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'benefits') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN benefits JSONB DEFAULT '[]'::JSONB;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'testimonials') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN testimonials JSONB DEFAULT '[]'::JSONB;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'faqs') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN faqs JSONB DEFAULT '[]'::JSONB;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'guarantee_text') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN guarantee_text TEXT DEFAULT 'รับประกันความพึงพอใจ ของแท้ 100%';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'seo_title') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN seo_title TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'seo_description') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN seo_description TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'seo_keywords') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN seo_keywords TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'og_image_url') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN og_image_url TEXT;
+    END IF;
+END $$;
+
+
+-- Migration for separate hero_image_url and video_url in landing_pages
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'hero_image_url') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN hero_image_url TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'video_url') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN video_url TEXT;
+    END IF;
+END $$;
+
+
+-- Migration for full styling & background image customization in landing_pages
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'bg_color') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN bg_color TEXT DEFAULT '#0B0F17';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'bg_image_url') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN bg_image_url TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'card_style') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN card_style TEXT DEFAULT 'glass';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'text_color') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN text_color TEXT DEFAULT '#FFFFFF';
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.landing_pages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    slug TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    headline TEXT NOT NULL,
+    subheadline TEXT,
+    hero_media_url TEXT,
+    hero_media_type TEXT DEFAULT 'image', -- 'image' | 'youtube'
+    body_content TEXT,
+    offer_price NUMERIC(10, 2),
+    original_price NUMERIC(10, 2),
+    cta_text TEXT DEFAULT 'สั่งซื้อโปรโมชั่นพิเศษนี้ทันที',
+    cta_url TEXT NOT NULL,
+    countdown_minutes INT DEFAULT 15,
+    features JSONB DEFAULT '[]'::JSONB,
+    theme_color TEXT DEFAULT '#EF4444',
+    fb_pixel_id TEXT,
+    tiktok_pixel_id TEXT,
+    google_pixel_id TEXT,
+    line_tag_id TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    views INT DEFAULT 0,
+    clicks INT DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ==============================================================================
+-- 5. LEADS TABLE (ตารางข้อมูลผู้ติดต่อ/ลูกค้าเป้าหมาย)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.leads (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -122,19 +254,7 @@ CREATE TABLE IF NOT EXISTS public.leads (
 );
 
 -- ==============================================================================
--- 5. ANALYTICS EVENTS TABLE (ตารางเก็บสถิติการคลิกและเข้าชม)
--- ==============================================================================
-CREATE TABLE IF NOT EXISTS public.analytics_events (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    event_type TEXT NOT NULL,
-    target_id TEXT,
-    referrer TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- ==============================================================================
--- 6. SHORT LINKS TABLE (ตารางระบบย่อลิงก์ / URL Shortener) 🚀
+-- 6. SHORT LINKS TABLE (ตารางระบบย่อลิงก์ / URL Shortener)
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.short_links (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -148,20 +268,63 @@ CREATE TABLE IF NOT EXISTS public.short_links (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+
 -- ==============================================================================
--- 7. SHORT LINK ANALYTICS TABLE (ตารางสถิติผู้เข้าชมลิงก์ย่อ)
+-- Migration for Gallery Images, Review Images & Pixel Events Tracking
 -- ==============================================================================
-CREATE TABLE IF NOT EXISTS public.short_link_analytics (
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'gallery_images') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN gallery_images JSONB DEFAULT '[]'::JSONB;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'review_images') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN review_images JSONB DEFAULT '[]'::JSONB;
+    END IF;
+END $$;
+
+-- 8. PIXEL EVENTS TABLE (ตารางบันทึกข้อมูลสถิติพิกเซลและคอนเวอร์ชัน)
+CREATE TABLE IF NOT EXISTS public.pixel_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    short_link_id UUID NOT NULL REFERENCES public.short_links(id) ON DELETE CASCADE,
-    referrer TEXT,
-    user_agent TEXT,
-    ip TEXT,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    landing_page_id UUID REFERENCES public.landing_pages(id) ON DELETE CASCADE,
+    pixel_type TEXT NOT NULL, -- 'facebook' | 'tiktok' | 'google' | 'line' | 'all'
+    pixel_id TEXT,
+    event_name TEXT NOT NULL, -- 'PageView' | 'ViewContent' | 'InitiateCheckout' | 'Purchase' | 'Lead' | 'Contact'
+    event_data JSONB DEFAULT '{}'::JSONB,
+    url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+ALTER TABLE public.pixel_events ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public insert pixel events" ON public.pixel_events;
+CREATE POLICY "Public insert pixel events" ON public.pixel_events FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Users view own pixel events" ON public.pixel_events;
+CREATE POLICY "Users view own pixel events" ON public.pixel_events FOR SELECT USING (
+    auth.uid() = user_id OR public.is_admin()
+);
+
+
+-- Migration for trust badges and COD form toggle in landing_pages
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'trust_badge_1') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN trust_badge_1 TEXT DEFAULT 'ส่งฟรีด่วน';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'trust_badge_2') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN trust_badge_2 TEXT DEFAULT 'ของแท้ 100%';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'trust_badge_3') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN trust_badge_3 TEXT DEFAULT 'ชำระเงินปลอดภัย';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'enable_cod_form') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN enable_cod_form BOOLEAN DEFAULT TRUE;
+    END IF;
+END $$;
+
 -- ==============================================================================
--- 8. HELPER FUNCTION: IS_ADMIN()
+-- 7. HELPER FUNCTION: IS_ADMIN()
 -- ==============================================================================
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN AS $$
@@ -174,17 +337,16 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ==============================================================================
--- 9. ROW LEVEL SECURITY (RLS) POLICIES
+-- 8. ROW LEVEL SECURITY (RLS) POLICIES
 -- ==============================================================================
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.landing_pages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.analytics_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.short_links ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.short_link_analytics ENABLE ROW LEVEL SECURITY;
 
--- 9.1 Profiles Policies
+-- Profiles
 DROP POLICY IF EXISTS "Public profiles viewable by everyone" ON public.profiles;
 CREATE POLICY "Public profiles viewable by everyone" ON public.profiles FOR SELECT USING (true);
 
@@ -197,35 +359,35 @@ CREATE POLICY "Users insert own profile" ON public.profiles FOR INSERT WITH CHEC
 DROP POLICY IF EXISTS "Admin manage profiles" ON public.profiles;
 CREATE POLICY "Admin manage profiles" ON public.profiles FOR ALL USING (public.is_admin());
 
--- 9.2 Links Policies
+-- Links
 DROP POLICY IF EXISTS "Public active links viewable by everyone" ON public.links;
 CREATE POLICY "Public active links viewable by everyone" ON public.links FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Users manage own links" ON public.links;
 CREATE POLICY "Users manage own links" ON public.links FOR ALL USING (auth.uid() = user_id OR public.is_admin());
 
--- 9.3 Products Policies
+-- Products
 DROP POLICY IF EXISTS "Public active products viewable by everyone" ON public.products;
 CREATE POLICY "Public active products viewable by everyone" ON public.products FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Users manage own products" ON public.products;
 CREATE POLICY "Users manage own products" ON public.products FOR ALL USING (auth.uid() = user_id OR public.is_admin());
 
--- 9.4 Leads Policies
+-- Landing Pages
+DROP POLICY IF EXISTS "Public view active landing pages" ON public.landing_pages;
+CREATE POLICY "Public view active landing pages" ON public.landing_pages FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Users manage own landing pages" ON public.landing_pages;
+CREATE POLICY "Users manage own landing pages" ON public.landing_pages FOR ALL USING (auth.uid() = user_id OR public.is_admin());
+
+-- Leads
 DROP POLICY IF EXISTS "Public insert leads" ON public.leads;
 CREATE POLICY "Public insert leads" ON public.leads FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Users manage own leads" ON public.leads;
 CREATE POLICY "Users manage own leads" ON public.leads FOR ALL USING (auth.uid() = user_id OR public.is_admin());
 
--- 9.5 Analytics Events Policies
-DROP POLICY IF EXISTS "Public insert analytics" ON public.analytics_events;
-CREATE POLICY "Public insert analytics" ON public.analytics_events FOR INSERT WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Users view own analytics" ON public.analytics_events;
-CREATE POLICY "Users view own analytics" ON public.analytics_events FOR SELECT USING (auth.uid() = user_id OR public.is_admin());
-
--- 9.6 Short Links Policies
+-- Short Links
 DROP POLICY IF EXISTS "Public view short links" ON public.short_links;
 CREATE POLICY "Public view short links" ON public.short_links FOR SELECT USING (true);
 
@@ -234,58 +396,11 @@ CREATE POLICY "Admin and creators manage short links" ON public.short_links FOR 
     public.is_admin() OR auth.uid() = created_by OR auth.role() = 'authenticated'
 );
 
--- 9.7 Short Link Analytics Policies
-DROP POLICY IF EXISTS "Public insert short link analytics" ON public.short_link_analytics;
-CREATE POLICY "Public insert short link analytics" ON public.short_link_analytics FOR INSERT WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Admin view short link analytics" ON public.short_link_analytics;
-CREATE POLICY "Admin view short link analytics" ON public.short_link_analytics FOR SELECT USING (public.is_admin());
-
 -- ==============================================================================
--- 10. AUTH TRIGGER (สร้าง Profile อัตโนมัติเมื่อมีการสมัครสมาชิกใหม่)
--- ==============================================================================
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-DECLARE
-    clean_username TEXT;
-    existing_count INT;
-BEGIN
-    clean_username := LOWER(SPLIT_PART(NEW.email, '@', 1));
-    
-    -- Check if username already exists
-    SELECT COUNT(*) INTO existing_count FROM public.profiles WHERE username = clean_username;
-    IF existing_count > 0 THEN
-        clean_username := clean_username || '_' || SUBSTRING(NEW.id::TEXT, 1, 4);
-    END IF;
-
-    INSERT INTO public.profiles (id, username, full_name, avatar_url, template_id, points, role)
-    VALUES (
-        NEW.id,
-        COALESCE(NEW.raw_user_meta_data->>'username', clean_username),
-        COALESCE(NEW.raw_user_meta_data->>'full_name', SPLIT_PART(NEW.email, '@', 1)),
-        'https://api.dicebear.com/7.x/bottts/svg?seed=' || NEW.id,
-        'template_1',
-        0,
-        COALESCE(NEW.raw_user_meta_data->>'role', 'user')
-    )
-    ON CONFLICT (id) DO UPDATE SET
-        username = EXCLUDED.username,
-        full_name = EXCLUDED.full_name;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
--- ==============================================================================
--- 11. RPC STORED PROCEDURES
+-- 9. RPC FUNCTIONS (Stored Procedures)
 -- ==============================================================================
 
--- 11.1 นับจำนวนคลิกลิ้งก์ทั่วไป
+-- 9.1 Counter Increments
 CREATE OR REPLACE FUNCTION public.increment_link_clicks(link_id UUID)
 RETURNS VOID AS $$
 BEGIN
@@ -293,7 +408,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 11.2 นับจำนวนคลิกลิงก์ย่อตาม ID
 CREATE OR REPLACE FUNCTION public.increment_short_link_clicks(link_id UUID)
 RETURNS VOID AS $$
 BEGIN
@@ -301,139 +415,108 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 11.3 นับจำนวนคลิกลิงก์ย่อตาม Slug
-CREATE OR REPLACE FUNCTION public.increment_short_link_clicks_by_slug(slug_text TEXT)
+CREATE OR REPLACE FUNCTION public.increment_landing_page_views(page_id UUID)
 RETURNS VOID AS $$
 BEGIN
-    UPDATE public.short_links SET clicks = clicks + 1 WHERE LOWER(slug) = LOWER(slug_text);
+    UPDATE public.landing_pages SET views = views + 1 WHERE id = page_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 11.4 ระบบเติมแต้ม (User / System)
-CREATE OR REPLACE FUNCTION public.topup_points(target_user_id UUID, amount INT)
-RETURNS INT AS $$
-DECLARE
-    updated_pts INT;
+CREATE OR REPLACE FUNCTION public.increment_landing_page_clicks(page_id UUID)
+RETURNS VOID AS $$
 BEGIN
-    UPDATE public.profiles 
-    SET points = GREATEST(0, points + amount) 
-    WHERE id = target_user_id 
-    RETURNING points INTO updated_pts;
-    
-    RETURN updated_pts;
+    UPDATE public.landing_pages SET clicks = clicks + 1 WHERE id = page_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 11.5 ระบบซื้อแพ็กเกจ Pro
-CREATE OR REPLACE FUNCTION public.buy_pro_subscription(target_user_id UUID, points_cost INT DEFAULT 100, duration_days INT DEFAULT 30)
+-- 9.2 Unlock Extra Landing Page Slot with 350 Points 🚀
+CREATE OR REPLACE FUNCTION public.unlock_landing_page_with_points(target_user_id UUID, points_cost INT DEFAULT 350)
 RETURNS JSONB AS $$
 DECLARE
     current_pts INT;
-    current_expires TIMESTAMP WITH TIME ZONE;
-    new_expires TIMESTAMP WITH TIME ZONE;
-    updated_pts INT;
+    current_slots INT;
 BEGIN
-    SELECT points, pro_expires_at INTO current_pts, current_expires FROM public.profiles WHERE id = target_user_id;
+    SELECT points, COALESCE(extra_landing_page_slots, 0) INTO current_pts, current_slots
+    FROM public.profiles
+    WHERE id = target_user_id;
 
     IF current_pts < points_cost THEN
-        RETURN jsonb_build_object('success', false, 'error', 'แต้มไม่เพียงพอ');
+        RETURN jsonb_build_object('success', false, 'message', 'แต้มของคุณไม่เพียงพอ (ต้องการ ' || points_cost || ' แต้ม แต่คุณมี ' || COALESCE(current_pts, 0) || ' แต้ม)');
     END IF;
 
-    IF current_expires IS NOT NULL AND current_expires > NOW() THEN
-        new_expires := current_expires + (duration_days || ' days')::INTERVAL;
-    ELSE
-        new_expires := NOW() + (duration_days || ' days')::INTERVAL;
-    END IF;
-
-    UPDATE public.profiles 
-    SET points = points - points_cost, pro_expires_at = new_expires 
-    WHERE id = target_user_id 
-    RETURNING points INTO updated_pts;
-
-    RETURN jsonb_build_object('success', true, 'remaining_points', updated_pts, 'pro_expires_at', new_expires);
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- 11.6 ระบบซื้อแพ็กเกจ Master VIP
-CREATE OR REPLACE FUNCTION public.buy_master_subscription(target_user_id UUID, points_cost INT DEFAULT 250, duration_days INT DEFAULT 30)
-RETURNS JSONB AS $$
-DECLARE
-    current_pts INT;
-    current_expires TIMESTAMP WITH TIME ZONE;
-    new_expires TIMESTAMP WITH TIME ZONE;
-    updated_pts INT;
-BEGIN
-    SELECT points, master_expires_at INTO current_pts, current_expires FROM public.profiles WHERE id = target_user_id;
-
-    IF current_pts < points_cost THEN
-        RETURN jsonb_build_object('success', false, 'error', 'แต้มไม่เพียงพอ');
-    END IF;
-
-    IF current_expires IS NOT NULL AND current_expires > NOW() THEN
-        new_expires := current_expires + (duration_days || ' days')::INTERVAL;
-    ELSE
-        new_expires := NOW() + (duration_days || ' days')::INTERVAL;
-    END IF;
-
-    UPDATE public.profiles 
-    SET points = points - points_cost, master_expires_at = new_expires 
-    WHERE id = target_user_id 
-    RETURNING points INTO updated_pts;
-
-    RETURN jsonb_build_object('success', true, 'remaining_points', updated_pts, 'master_expires_at', new_expires);
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- 11.7 Admin RPC: เพิ่มหรือลดแต้มแบบกำหนดเอง
-CREATE OR REPLACE FUNCTION public.admin_add_points(target_user_id UUID, amount INT)
-RETURNS INT AS $$
-DECLARE
-    updated_pts INT;
-BEGIN
     UPDATE public.profiles
-    SET points = GREATEST(0, points + amount)
-    WHERE id = target_user_id
-    RETURNING points INTO updated_pts;
+    SET points = points - points_cost,
+        extra_landing_page_slots = current_slots + 1
+    WHERE id = target_user_id;
 
-    RETURN updated_pts;
+    RETURN jsonb_build_object(
+        'success', true, 
+        'message', 'ปลดล็อกโควตาเซลเพจเพิ่ม 1 URL สำเร็จ!', 
+        'new_slots', current_slots + 1,
+        'remaining_points', current_pts - points_cost
+    );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 11.8 Admin RPC: มอบสิทธิ์ Pro / Master
+-- 9.3 Unlock Shortener with 100 Points for 30 Days
+CREATE OR REPLACE FUNCTION public.unlock_shortener_with_points(target_user_id UUID, points_cost INT DEFAULT 100, duration_days INT DEFAULT 30)
+RETURNS JSONB AS $$
+DECLARE
+    current_pts INT;
+    current_exp TIMESTAMP WITH TIME ZONE;
+    new_exp TIMESTAMP WITH TIME ZONE;
+BEGIN
+    SELECT points, shortener_expires_at INTO current_pts, current_exp
+    FROM public.profiles
+    WHERE id = target_user_id;
+
+    IF current_pts < points_cost THEN
+        RETURN jsonb_build_object('success', false, 'message', 'แต้มของคุณไม่เพียงพอ (ต้องการ ' || points_cost || ' แต้ม แต่คุณมี ' || COALESCE(current_pts, 0) || ' แต้ม)');
+    END IF;
+
+    IF current_exp IS NOT NULL AND current_exp > NOW() THEN
+        new_exp := current_exp + (duration_days || ' days')::INTERVAL;
+    ELSE
+        new_exp := NOW() + (duration_days || ' days')::INTERVAL;
+    END IF;
+
+    UPDATE public.profiles
+    SET points = points - points_cost,
+        shortener_expires_at = new_exp
+    WHERE id = target_user_id;
+
+    RETURN jsonb_build_object(
+        'success', true, 
+        'message', 'ปลดล็อกระบบย่อลิงก์สำเร็จ 30 วัน!', 
+        'new_expires_at', new_exp,
+        'remaining_points', current_pts - points_cost
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 9.4 Admin Subscriptions
 CREATE OR REPLACE FUNCTION public.admin_grant_subscription(target_user_id UUID, tier_type TEXT, duration_days INT DEFAULT 30)
 RETURNS TIMESTAMP WITH TIME ZONE AS $$
 DECLARE
     new_expires TIMESTAMP WITH TIME ZONE;
 BEGIN
-    new_expires := NOW() + (duration_days || ' days')::INTERVAL;
+    IF tier_type = 'free' THEN
+        UPDATE public.profiles 
+        SET pro_expires_at = NULL, 
+            master_expires_at = NULL, 
+            shortener_expires_at = NULL 
+        WHERE id = target_user_id;
+        RETURN NULL;
+    END IF;
 
+    new_expires := NOW() + (duration_days || ' days')::INTERVAL;
     IF tier_type = 'master' THEN
         UPDATE public.profiles SET master_expires_at = new_expires WHERE id = target_user_id;
     ELSIF tier_type = 'pro' THEN
         UPDATE public.profiles SET pro_expires_at = new_expires WHERE id = target_user_id;
+    ELSIF tier_type = 'shortener' THEN
+        UPDATE public.profiles SET shortener_expires_at = new_expires WHERE id = target_user_id;
     END IF;
-
     RETURN new_expires;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- ==============================================================================
--- 12. STORAGE BUCKET CONFIGURATION (อัปโหลดรูปภาพ Avatar/Cover/สินค้า)
--- ==============================================================================
-INSERT INTO storage.buckets (id, name, public) 
-VALUES ('media', 'media', true) 
-ON CONFLICT (id) DO NOTHING;
-
-DROP POLICY IF EXISTS "Public Access Media" ON storage.objects;
-CREATE POLICY "Public Access Media" ON storage.objects FOR SELECT USING (bucket_id = 'media');
-
-DROP POLICY IF EXISTS "Auth Upload Media" ON storage.objects;
-CREATE POLICY "Auth Upload Media" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'media' AND auth.role() = 'authenticated');
-
-DROP POLICY IF EXISTS "Auth Delete Media" ON storage.objects;
-CREATE POLICY "Auth Delete Media" ON storage.objects FOR DELETE USING (bucket_id = 'media' AND auth.role() = 'authenticated');
-
--- ==============================================================================
--- 🎉 สำเร็จ! คำสั่งสำหรับตั้งค่า User ให้เป็น Admin:
--- UPDATE public.profiles SET role = 'admin' WHERE username = 'YOUR_USERNAME';
--- ==============================================================================

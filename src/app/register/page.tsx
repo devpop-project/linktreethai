@@ -1,19 +1,37 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Link2, UserPlus } from 'lucide-react'
+import { Link2, UserPlus, Sparkles, ArrowRight, Mail, Lock, AtSign, CheckCircle2, ShieldCheck } from 'lucide-react'
 
-export default function RegisterPage() {
+function RegisterForm() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [isEmailSent, setIsEmailSent] = useState(false)
+  
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+
+  useEffect(() => {
+    const prefill = searchParams.get('username')
+    if (prefill) {
+      setUsername(prefill.toLowerCase().replace(/[^a-z0-9_]/g, ''))
+    }
+  }, [searchParams])
+
+  const getRedirectUrl = () => {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/auth/callback`
+    }
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : 'https://linktreethai.com')
+    return `${siteUrl}/auth/callback`
+  }
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -22,12 +40,20 @@ export default function RegisterPage() {
 
     const cleanUsername = username.toLowerCase().replace(/[^a-z0-9_]/g, '')
     if (!cleanUsername) {
-      setErrorMsg('กรุณากรอก Username ที่เป็นตัวอักษรภาษาอังกฤษหรือตัวเลข')
+      setErrorMsg('กรุณากรอก Username เป็นตัวอักษรภาษาอังกฤษ ตัวเลข หรือ _ เท่านั้น')
       setLoading(false)
       return
     }
 
-    const { error } = await supabase.auth.signUp({
+    if (cleanUsername.length < 3) {
+      setErrorMsg('Username ต้องมีความยาวอย่างน้อย 3 ตัวอักษร')
+      setLoading(false)
+      return
+    }
+
+    const redirectUrl = getRedirectUrl()
+
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -35,6 +61,7 @@ export default function RegisterPage() {
           username: cleanUsername,
           full_name: cleanUsername,
         },
+        emailRedirectTo: redirectUrl,
       },
     })
 
@@ -42,83 +69,175 @@ export default function RegisterPage() {
       setErrorMsg(error.message)
       setLoading(false)
     } else {
-      router.push('/dashboard')
+      if (data?.session) {
+        router.push('/dashboard')
+      } else {
+        setIsEmailSent(true)
+        setLoading(false)
+      }
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-slate-800/80 border border-slate-700 p-8 rounded-3xl backdrop-blur">
-        <div className="flex justify-center mb-6">
-          <div className="bg-emerald-500 p-3 rounded-2xl text-slate-950 font-bold">
-            <Link2 className="w-8 h-8" />
+    <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-xl">
+      {isEmailSent ? (
+        <div className="text-center py-4 space-y-4">
+          <div className="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+            <Mail className="w-8 h-8 animate-bounce" />
+          </div>
+          
+          <h2 className="text-xl font-extrabold text-[#1E1B4B]">ส่งอีเมลยืนยันแล้ว! ✉️</h2>
+          
+          <p className="text-slate-600 text-sm leading-relaxed">
+            ระบบได้ส่งลิงก์ยืนยันตัวตนไปยัง <span className="text-purple-700 font-bold">{email}</span> แล้ว กรุณาเปิดกล่องจดหมายแล้วกดยืนยันเพื่อเข้าสู่ระบบ
+          </p>
+
+          <div className="p-4 bg-purple-50 rounded-2xl border border-purple-200 text-xs text-purple-900 text-left">
+            <span className="font-bold">💡 คำแนะนำ:</span> เมื่อกดยืนยันในอีเมล ลิงก์จะพาท่านกลับมายังหน้า <strong>LinkTreeThai</strong> บนโดเมนจริงโดยอัตโนมัติ
+          </div>
+
+          <div className="pt-2">
+            <Link
+              href="/login"
+              className="w-full py-3.5 px-4 bg-[#34D399] hover:bg-[#10B981] text-white font-extrabold rounded-2xl transition flex items-center justify-center gap-2 text-sm shadow-md"
+            >
+              ไปยังหน้าเข้าสู่ระบบ <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         </div>
-        <h2 className="text-2xl font-bold text-center mb-2">สมัครสมาชิก MyBioLink</h2>
-        <p className="text-slate-400 text-sm text-center mb-6">สร้างลิ้งก์และหน้าร้านของคุณได้ฟรี</p>
-
-        {errorMsg && (
-          <div className="bg-red-500/10 border border-red-500/30 text-red-400 p-3 rounded-xl text-sm mb-4">
-            {errorMsg}
+      ) : (
+        <>
+          <div className="mb-6">
+            <h2 className="text-xl font-black text-[#1E1B4B]">สร้างบัญชีใหม่</h2>
+            <p className="text-slate-500 text-xs mt-0.5">จองชื่อลิงก์โปรไฟล์ของคุณก่อนใคร</p>
           </div>
-        )}
 
-        <form onSubmit={handleRegister} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">ชื่อผู้ใช้ (Username / Handle)</label>
-            <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl px-3 focus-within:border-emerald-500">
-              <span className="text-slate-500 text-sm font-mono select-none">mybiolink.com/</span>
-              <input
-                type="text"
-                required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-transparent py-3 text-sm focus:outline-none text-emerald-400 font-semibold"
-                placeholder="yourname"
-              />
+          {errorMsg && (
+            <div className="mb-5 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs leading-relaxed flex items-start gap-2">
+              <span className="font-bold">⚠️</span>
+              <span>{errorMsg}</span>
             </div>
+          )}
+
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-[#1E1B4B] mb-1.5 flex items-center justify-between">
+                <span>ชื่อผู้ใช้ (Username)</span>
+                <span className="text-[10px] text-purple-600">ลิงก์ของคุณ</span>
+              </label>
+              <div className="relative flex items-center">
+                <div className="absolute left-3.5 text-slate-400 pointer-events-none">
+                  <AtSign className="w-4 h-4" />
+                </div>
+                <input
+                  type="text"
+                  required
+                  placeholder="yourname"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                  className="w-full pl-10 pr-3.5 py-3 bg-white border border-slate-200 rounded-2xl text-[#1E1B4B] placeholder-slate-400 text-sm focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition font-mono font-bold"
+                />
+              </div>
+              <div className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-400">
+                <span>พรีวิว:</span>
+                <span className="text-purple-600 font-mono font-bold">linktreethai.com/{username || 'yourname'}</span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-[#1E1B4B] mb-1.5">อีเมล (Email)</label>
+              <div className="relative flex items-center">
+                <div className="absolute left-3.5 text-slate-400 pointer-events-none">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <input
+                  type="email"
+                  required
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-10 pr-3.5 py-3 bg-white border border-slate-200 rounded-2xl text-[#1E1B4B] placeholder-slate-400 text-sm focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-[#1E1B4B] mb-1.5">รหัสผ่าน (Password)</label>
+              <div className="relative flex items-center">
+                <div className="absolute left-3.5 text-slate-400 pointer-events-none">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  placeholder="•••••••• (อย่างน้อย 6 ตัวอักษร)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-3.5 py-3 bg-white border border-slate-200 rounded-2xl text-[#1E1B4B] placeholder-slate-400 text-sm focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 px-4 bg-[#34D399] hover:bg-[#10B981] text-white font-extrabold rounded-2xl transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 text-sm disabled:opacity-50 mt-2 active:scale-98"
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4" /> สมัครสมาชิกและเริ่มสร้าง Bio Link
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 pt-5 border-t border-slate-100 text-center">
+            <p className="text-xs text-slate-500">
+              มีบัญชีผู้ใช้งานอยู่แล้ว?{' '}
+              <Link href="/login" className="text-purple-600 font-bold hover:underline">
+                เข้าสู่ระบบที่นี่
+              </Link>
+            </p>
           </div>
+        </>
+      )}
+    </div>
+  )
+}
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">อีเมล (Email)</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 text-white"
-              placeholder="name@example.com"
-            />
-          </div>
+export default function RegisterPage() {
+  return (
+    <div className="min-h-screen bg-[#F9F9FF] flex items-center justify-center p-4 relative overflow-hidden font-sans">
+      <div className="absolute -top-32 -left-32 w-80 h-80 bg-purple-200/40 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute -bottom-32 -right-32 w-80 h-80 bg-teal-200/40 rounded-full blur-3xl pointer-events-none"></div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">รหัสผ่าน (Password)</label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 text-white"
-              placeholder="อย่างน้อย 6 ตัวอักษร"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3 rounded-xl transition flex items-center justify-center gap-2"
-          >
-            {loading ? 'กำลังสมัครสมาชิก...' : <><UserPlus className="w-4 h-4" /> ลงทะเบียนฟรี</>}
-          </button>
-        </form>
-
-        <p className="text-center text-xs text-slate-400 mt-6">
-          มีบัญชีอยู่แล้ว?{' '}
-          <Link href="/login" className="text-emerald-400 font-semibold hover:underline">
-            เข้าสู่ระบบ
+      <div className="max-w-md w-full relative z-10">
+        <div className="text-center mb-6">
+          <Link href="/" className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-gradient-to-tr from-purple-500 to-indigo-500 p-0.5 shadow-md shadow-purple-500/20 mb-3 hover:scale-105 transition">
+            <div className="w-full h-full bg-white rounded-[22px] flex items-center justify-center text-purple-600">
+              <Link2 className="w-8 h-8" />
+            </div>
           </Link>
-        </p>
+          <h1 className="text-2xl font-black text-[#1E1B4B]">
+            LinkTreeThai
+          </h1>
+          <p className="text-slate-500 text-xs mt-1">แอปสร้าง Bio Link & หน้าร้านค้าดิจิทัลฟรี</p>
+        </div>
+
+        <Suspense fallback={
+          <div className="bg-white border border-slate-200 p-8 rounded-3xl text-center text-xs text-slate-400">
+            กำลังโหลด...
+          </div>
+        }>
+          <RegisterForm />
+        </Suspense>
+
+        <div className="text-center mt-6 text-[11px] text-slate-400">
+          © 2026 LinkTreeThai. All rights reserved.
+        </div>
       </div>
     </div>
   )

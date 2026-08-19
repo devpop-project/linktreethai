@@ -1,10 +1,10 @@
-# 🚀 Linktree Pro Suite V12 + Complete Admin CRUD + URL Shortener
+# 📱 LinkTreeThai - Bio.link Style Mobile App Suite (V15)
 
-ระบบ Bio Link, ร้านค้าดิจิทัล (Digital Shop), ระบบจัดการหลังบ้านผู้ดูแลระบบแบบเต็มรูปแบบ (Full Admin CRUD) และระบบย่อลิงก์ (URL Shortener) พัฒนาด้วย **Next.js 14 (App Router)** และ **Supabase Database & Authentication**
+แอปพลิเคชัน Bio Link, Digital Shop, URL Shortener พร้อมระบบล็อกด้วยแต้ม และ Admin Master Suite สไตล์ Mobile App สวยงามเหมือน **Bio.link** พัฒนาด้วย **Next.js 14 (App Router)**, **Tailwind CSS** และ **Supabase**
 
 ---
 
-## ⚡ ข้อมูลการเชื่อมต่อ Supabase ใหม่ (Config)
+## ⚡ ข้อมูลการเชื่อมต่อ Supabase (`.env.local`)
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://dkidksohprjhkcokdbja.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_rV42rP4GC0GQaI7eK56X9Q_ADKY96PU
@@ -13,74 +13,50 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_rV42rP4GC0GQaI7eK56X9Q_ADKY9
 
 ---
 
-## 🌟 ฟีเจอร์ใหม่ที่ได้รับการอัปเกรด
+## 🌟 ฟีเจอร์ใหม่ใน LinkTreeThai V15
 
-### 1. 🛡️ ระบบหลังบ้านผู้ดูแลระบบ (Complete Admin CRUD Panel `/admin`)
-- **👥 จัดการสมาชิก (Users CRUD)**:
-  - เพิ่มผู้ใช้งานใหม่โดยตรงจากหลังบ้าน (Create User)
-  - ค้นหา กรองตามบทบาท (Role) หรือระดับสมาชิก (Free / Pro / Master)
-  - ปรับปรุง/แก้ไขโปรไฟล์ผู้ใช้ทุกฟิลด์ (Username, Name, Bio, Avatar, Cover, Role, Template, Hide Branding)
-  - เติมแต้ม / หักแต้มสะสมแบบระบุจำนวนเอง
-  - มอบสิทธิ์ VIP (Pro Member / Master VIP) พร้อมกำหนดจำนวนวันใช้งาน (30 วัน, 90 วัน, 1 ปี หรือกำหนดเอง)
-  - ลบสมาชิกและล้างข้อมูลที่เกี่ยวข้องแบบถาวร (Delete User with Cascade)
-- **🔗 จัดการลิ้งก์ทั้งหมด (Links CRUD)**:
-  - เพิ่มลิ้งก์ใหม่ให้ผู้ใช้คนใดก็ได้ในระบบ
-  - ดูรายการลิ้งก์ทั้งหมด กรองตามเจ้าของ ค้นหาตามชื่อ/URL
-  - แก้ไขข้อความปุ่ม คำอธิบายย่อย URL ไอคอน สีพื้นหลัง ยอดคลิก และสถานะเปิด/ปิด
-  - ลบลิ้งก์ที่ไม่เหมาะสม
-- **🛍️ จัดการสินค้าทั้งหมด (Products CRUD)**:
-  - เพิ่มสินค้าใหม่เข้าร้านค้าของผู้ใช้
-  - ดู แก้ไขภาพปก ราคา หมวดหมู่ ลิงก์สั่งซื้อ ป้าย Badge และสถานะวางขาย
-  - ลบสินค้า
-- **📋 ข้อมูลผู้ติดต่อ & ลูกค้าเป้าหมาย (Leads CRM)**:
-  - ตรวจสอบรายชื่อลูกค้าที่ติดต่อเข้ามาผ่านหน้า Bio Link
-  - ส่งออกข้อมูลเป็นไฟล์ CSV (Export to CSV)
-  - ลบข้อมูล Lead
-- **⚙️ ข้อมูลระบบ & คำสั่ง SQL Helper**:
-  - แสดงสถานะการเชื่อมต่อ และคำสั่ง SQL สำหรับตั้งค่า User ให้เป็น Admin
+### 🖼️ 1. ระบบรูปภาพตัวอย่างปุ่มลิ้งก์ (Link Thumbnails & Custom Logos)
+- เพิ่มฟังก์ชันอัปโหลดรูปภาพตัวอย่าง / โลโก้เฉพาะของแต่ละปุ่มลิ้งก์ (`logo_url`)
+- ในหน้า Dashboard จะแสดงรูปภาพตัวอย่าง Thumbnail หรือไอคอนแบรนด์จริง (LINE, Shopee, Lazada, Facebook, TikTok, YouTube, Website) ทันที
+- บนหน้าโปรไฟล์จริงและพรีวิว แสดงรูปภาพตัวอย่างปุ่มขนาดพอดีมุมโค้งมนแบบแอปมือถือ
+
+### 🔒 2. ระบบย่อลิงก์แบบล็อกสิทธิ์ (100 แต้ม / 30 วัน & Admin Unlock)
+- **ระบบความปลอดภัย:** ป้องกันผู้ใช้ทั่วไปใช้งานระบบย่อลิงก์จนกว่าจะปลดล็อก
+- **ปลดล็อกด้วยแต้ม:** สมาชิกสามารถกด **"🔓 ปลดล็อก 100 แต้ม (ใช้งานได้ 30 วัน)"** ในหน้าแดชบอร์ดได้ทันที
+- **สิทธิ์อัตโนมัติ:** บัญชี **Admin** และ **MASTER VIP** จะได้รับการปลดล็อกระบบย่อลิงก์แบบไม่จำกัดโดยอัตโนมัติ
+- **แอดมินจัดการได้:** ผู้ดูแลระบบสามารถมอบสิทธิ์ URL Shortener Pass หรือเพิ่มแต้มให้สมาชิกได้จากหน้า `/admin`
+
+### 🌐 3. หน้าแรกใหม่สไตล์ Bio.link (`/`)
+- **Interactive Username Claim Bar:** กล่องพิมพ์จองชื่อลิงก์ `linktreethai.com/[ yourname ]` พร้อมปุ่ม *"จองลิงก์ของคุณฟรี"* ที่พายังหน้าสมัครสมาชิกพร้อมกรอก Username ให้อัตโนมัติ
+- **Live Smartphone Showcase:** แสดงหน้าจอจำลองสมาร์ทโฟนพร้อม 10 ไอคอนโซเชียล และปุ่มลิ้งก์ตัวอย่างสวยงาม
+- **Hero & Feature Grids:** สรุปฟังก์ชันเด่น, ร้านค้าดิจิทัล 0% GP, ระบบย่อลิงก์, เทมเพลต 9 รูปแบบ และตารางเปรียบเทียบแพ็กเกจ
 
 ---
 
-### 2. ✂️ ระบบย่อลิงก์ (URL Shortener `/s/[slug]`)
-- **แปลง URL ขนาดยาวเป็น URL สั้นตามใจชอบ**:
-  - นำลิงก์จาก Facebook, Shopee, Line, YouTube หรือเว็บใดๆ มาวาง
-  - ตั้งรหัสย่อ (Slug) ที่ต้องการ เช่น `promo`, `fb-amanita`, `line-vip` หรือกดปุ่ม "สุ่มอัตโนมัติ"
-  - มีปุ่ม **คัดลอกลิงก์ย่อ (1-Click Copy)** เพื่อนำไปแชร์ต่อได้ทันที (รูปแบบ: `yourdomain.com/s/your-slug`)
-  - เก็บสถิติจำนวนครั้งที่คลิกเข้าชม (Click Counter) แบบ Real-time
-  - เปิด/ปิด ใช้งานลิงก์ย่อ หรือแก้ไข URL ปลายทางได้ตลอดเวลา
-  - รองรับทั้ง Route `/s/[slug]` และ `/r/[slug]` พร้อมระบบตรวจจับและป้องกันข้อผิดพลาด 404
+## 📧 การตั้งค่า URL ยืนยันอีเมลสำหรับโดเมนจริง / Deploy บน Vercel
+
+1. เข้าไปที่ **Supabase Dashboard** -> เลือกโปรเจกต์
+2. ไปที่เมนู **Authentication** -> **URL Configuration**
+3. **Site URL:** ใส่โดเมนจริง เช่น `https://your-domain.com` (หรือ `https://linktreethai.vercel.app`)
+4. **Redirect URLs:** เพิ่มรายการ:
+   ```text
+   https://your-domain.com/**
+   https://*.vercel.app/**
+   http://localhost:3000/**
+   ```
+5. กด **Save**
 
 ---
 
-## 🛠️ ขั้นตอนการรัน SQL บน Supabase ใหม่
-
-1. เข้าสู่ระบบ [https://supabase.com](https://supabase.com) และเปิดโปรเจกต์ `https://dkidksohprjhkcokdbja.supabase.co`
-2. ไปที่เมนู **SQL Editor** ด้านซ้าย
-3. คัดลอกโค้ดทั้งหมดในไฟล์ `supabase_schema.sql` วางลงในช่อง และกด **Run**
-4. หากต้องการให้ User ใดเป็น Admin ให้รันคำสั่ง:
-```sql
-UPDATE public.profiles 
-SET role = 'admin' 
-WHERE username = 'YOUR_USERNAME';
-```
-
----
-
-## 🚀 วิธีการรันโปรเจกต์ (Local & Deploy)
+## 🚀 วิธีการติดตั้งและรันในเครื่อง (Local Setup)
 
 ```bash
-# ติดตั้ง Packages
+# 1. ติดตั้ง Dependencies
 npm install
 
-# รันโหมด Development
+# 2. รันโหมด Development
 npm run dev
-```
 
-เปิดเว็บที่ `http://localhost:3000`
-- หน้าหลัก: `http://localhost:3000`
-- หน้าแดชบอร์ดสมาชิก: `http://localhost:3000/dashboard`
-- หน้าจัดการหลังบ้าน Admin: `http://localhost:3000/admin`
-- ตัวอย่างลิงก์ย่อ: `http://localhost:3000/s/promo`
-# linktreethai
-# linktreethai
-# linktreethai
+# 3. เปิดเบราว์เซอร์เข้าใช้งาน
+http://localhost:3000
+```

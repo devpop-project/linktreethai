@@ -1,6 +1,6 @@
 {
-  "name": "linktree-supabase-nextjs",
-  "version": "1.0.0",
+  "name": "linktreethai",
+  "version": "14.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",

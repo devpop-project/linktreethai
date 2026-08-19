@@ -1,11 +1,30 @@
 import './globals.css'
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 
 export const dynamic = 'force-dynamic'
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#F9F9FF',
+}
+
 export const metadata: Metadata = {
-  title: 'MyBioLink - Your Personal Bio Link & Digital Shop',
-  description: 'Create your custom bio link, share links, and sell digital products for free with Next.js & Supabase.',
+  title: 'LinkTreeThai - รวมทุกลิ้งก์ โซเชียล และร้านค้าดิจิทัลในแอปเดียว',
+  description: 'สร้างหน้า Bio Link สวยทันสมัย สไตล์ Mobile App รวมทุกโซเชียล ขายสินค้าดิจิทัล ย่อลิงก์ พร้อมระบบจัดการครบวงจรด้วย LinkTreeThai',
+  icons: {
+    icon: '/favicon.ico',
+  },
+  openGraph: {
+    title: 'LinkTreeThai - รวมทุกลิ้งก์ โซเชียล และร้านค้าดิจิทัลในแอปเดียว',
+    description: 'แอปสร้างหน้า Bio Link สวยทันสมัย สไตล์พาสเทล รวมทุกโซเชียล ขายสินค้าดิจิทัล และย่อลิงก์ฟรี',
+    url: 'https://linktreethai.com',
+    siteName: 'LinkTreeThai',
+    locale: 'th_TH',
+    type: 'website',
+  },
 }
 
 export default function RootLayout({
@@ -15,7 +34,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="th">
-      <body className="bg-slate-900 text-slate-100 min-h-screen">
+      <body className="bg-[#F9F9FF] text-[#1E1B4B] min-h-screen antialiased selection:bg-[#A78BFA] selection:text-white">
         {children}
       </body>
     </html>

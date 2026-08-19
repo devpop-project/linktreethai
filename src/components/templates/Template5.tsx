@@ -1,18 +1,19 @@
-import React from 'react'
+'use client'
+
+import React, { useState } from 'react'
 import SocialIcon from '@/components/SocialIcon'
-import { getUserTier } from '@/lib/tier'
-import { ExternalLink, ShoppingBag, Globe, Sparkles, Store, CheckCircle } from 'lucide-react'
+import SocialDock from '@/components/SocialDock'
+import { ExternalLink, Globe, Sparkles, CheckCircle, ShoppingBag, Store, Crown, Award } from 'lucide-react'
 
 function getYouTubeEmbedUrl(url: string | null): string | null {
   if (!url) return null
   try {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/
     const match = url.match(regExp)
-    if (match && match[2].length === 11) {
-      return `https://www.youtube.com/embed/${match[2]}`
-    }
-  } catch (e) {}
-  return null
+    return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null
+  } catch (e) {
+    return null
+  }
 }
 
 interface TemplateProps {
@@ -24,147 +25,174 @@ interface TemplateProps {
 }
 
 export default function Template5({ profile, links, products, handleLinkClick, isDashboardPreview }: TemplateProps) {
-  const tierInfo = getUserTier(profile)
-  const canPerLinkColor = isDashboardPreview || tierInfo.canPerLinkColor
-  const canEmbedYouTube = isDashboardPreview || tierInfo.canEmbedYouTube
-  const embedUrl = canEmbedYouTube ? getYouTubeEmbedUrl(profile.youtube_url) : null
+  const [activeTab, setActiveTab] = useState<'links' | 'shop'>('links')
+  const embedUrl = getYouTubeEmbedUrl(profile.youtube_url)
+  const hasProducts = products && products.length > 0
 
   return (
-    <div className="w-full max-w-md mx-auto relative z-10 px-4 py-8 space-y-6">
+    <div className="w-full max-w-md mx-auto space-y-5 px-4 py-6 text-[#FFF8E7] font-serif antialiased relative z-10">
       
-      {/* Storefront Header */}
-      <div className="p-5 bg-gradient-to-br from-purple-950/90 via-slate-900 to-indigo-950/90 border border-purple-500/40 rounded-3xl shadow-2xl space-y-4 relative overflow-hidden">
-        
-        {profile.cover_url && (
-          <div className="w-full h-24 -mt-5 -mx-5 mb-2 overflow-hidden border-b border-purple-500/30">
-            <img src={profile.cover_url} alt="Cover Banner" className="w-full h-full object-cover" />
-          </div>
-        )}
+      {/* Top Cover Banner */}
+      {profile.cover_url && (
+        <div className="h-32 w-full rounded-2xl overflow-hidden border border-amber-500/40 shadow-xl mb-2">
+          <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover" />
+        </div>
+      )}
 
-        <div className="flex items-center gap-4">
-          <img
-            src={profile.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${profile.id}`}
-            alt={profile.full_name || profile.username}
-            className="w-16 h-16 rounded-2xl object-cover border-2 border-purple-400 shrink-0 shadow-lg"
-          />
-          <div className="overflow-hidden">
-            <span className="inline-block px-2.5 py-0.5 bg-purple-500 text-slate-950 text-[10px] font-black rounded-md uppercase mb-1">
-              VIP Master Storefront
-            </span>
-            <h1 className="text-lg font-black text-white truncate">{profile.full_name || profile.username}</h1>
-            <p className="text-xs text-purple-300 truncate">@{profile.username}</p>
+      {/* Royale Profile Header (Matching Image 12 exactly) */}
+      <div className="text-center space-y-3 pt-2">
+        <div className="relative inline-block">
+          <div className="w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-amber-300 via-yellow-500 to-amber-600 shadow-[0_0_30px_rgba(245,158,11,0.5)] mx-auto">
+            <img
+              src={profile.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${profile.username}`}
+              alt={profile.full_name || profile.username}
+              className="w-full h-full rounded-full object-cover bg-black border-2 border-black"
+            />
           </div>
+          <span className="absolute bottom-0 right-0 bg-amber-400 text-black p-1.5 rounded-full border-2 border-black font-bold shadow-md">
+            <Crown className="w-3.5 h-3.5" />
+          </span>
         </div>
 
-        {profile.bio && <p className="text-xs text-slate-300 leading-relaxed">{profile.bio}</p>}
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-wide text-amber-200 font-serif drop-shadow-md">
+            {profile.full_name || profile.username}
+          </h1>
+          <p className="text-xs font-semibold text-amber-400 font-sans mt-0.5">@{profile.username}</p>
+        </div>
 
-        {/* YouTube Embed Player */}
+        {profile.bio && (
+          <p className="text-xs text-amber-100/90 leading-relaxed max-w-xs mx-auto font-sans">
+            {profile.bio}
+          </p>
+        )}
+
+        <SocialDock profile={profile} styleVariant="gold" className="pt-1 pb-1" />
+
+        {/* Featured YouTube Video Embed */}
         {embedUrl && (
           <div className="pt-2">
-            <div className="rounded-2xl overflow-hidden border border-purple-500/30 aspect-video w-full bg-black shadow-xl">
+            <div className="rounded-3xl overflow-hidden border-2 border-amber-500/40 aspect-video w-full bg-black shadow-2xl">
               <iframe src={embedUrl} title="YouTube" className="w-full h-full" allowFullScreen></iframe>
             </div>
           </div>
         )}
       </div>
 
-      {/* Featured Digital Storefront Grid Upfront */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="text-xs font-black uppercase text-purple-300 flex items-center gap-1.5 tracking-wider">
-            <Store className="w-4 h-4 text-purple-400" /> สินค้าแนะนำ / Master Catalog
-          </h2>
-          <span className="text-[10px] font-bold text-slate-400 bg-slate-900 px-2 py-0.5 rounded-full border border-slate-800">
-            {products.length} Items
-          </span>
-        </div>
-
-        {products && products.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3.5">
-            {products.map((prod) => (
-              <div
-                key={prod.id}
-                className="p-3.5 bg-slate-900/90 border border-slate-800 hover:border-purple-500/50 rounded-2xl flex flex-col justify-between space-y-3 shadow-xl transition-all hover:scale-[1.02]"
-              >
-                <div className="space-y-2">
-                  <div className="relative aspect-square w-full bg-black/40 rounded-xl overflow-hidden border border-slate-800">
-                    {prod.image_url ? (
-                      <img src={prod.image_url} alt={prod.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center opacity-40"><ShoppingBag className="w-8 h-8" /></div>
-                    )}
-                    {prod.badge && (
-                      <span className="absolute top-2 left-2 text-[10px] font-black bg-purple-400 text-slate-950 px-2 py-0.5 rounded-md shadow">
-                        {prod.badge}
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-xs text-slate-100 line-clamp-1">{prod.title}</h3>
-                    {prod.description && <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">{prod.description}</p>}
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-1">
-                  <span className="text-sm font-black text-purple-300">฿{prod.price}</span>
-                  <a
-                    href={prod.buy_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-1.5 text-[10px] font-black bg-purple-500 text-slate-950 rounded-xl hover:bg-purple-400 transition shadow"
-                  >
-                    สั่งซื้อ
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="p-8 bg-slate-900/40 rounded-2xl border border-slate-800 text-center text-xs text-slate-500">
-            ยังไม่มีสินค้าในหน้าร้านค้า
-          </div>
-        )}
-      </div>
-
-      {/* Secondary Links List */}
-      {links && links.length > 0 && (
-        <div className="space-y-2 pt-4 border-t border-white/10">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">ช่องทางติดตามอื่นๆ</h3>
-          {links.map((link) => {
-            const linkBg = canPerLinkColor ? (link.bg_color || '#1e293b') : '#1e293b'
-            const linkText = canPerLinkColor ? (link.text_color || '#ffffff') : '#ffffff'
-
-            return (
-              <button
-                key={link.id}
-                onClick={() => handleLinkClick(link.id, link.url)}
-                style={{ backgroundColor: linkBg, color: linkText }}
-                className="w-full p-3.5 rounded-xl font-bold text-left flex items-center justify-between transition-all border border-white/10 shadow-md"
-              >
-                <div className="flex items-center gap-3 overflow-hidden">
-                  {link.logo_url ? (
-                    <img src={link.logo_url} alt={link.title} className="w-7 h-7 object-cover rounded-lg shrink-0" />
-                  ) : (
-                    <SocialIcon type={link.icon} className="w-4 h-4 opacity-80" />
-                  )}
-                  <span className="text-xs font-bold truncate">{link.title}</span>
-                </div>
-                <ExternalLink className="w-3.5 h-3.5 opacity-60 shrink-0" />
-              </button>
-            )
-          })}
+      {/* Gold Segmented Tabs (Matching Image 12 exactly) */}
+      {hasProducts && (
+        <div className="flex bg-black/80 border border-amber-500/40 p-1 rounded-2xl shadow-xl backdrop-blur-md font-sans">
+          <button
+            onClick={() => setActiveTab('links')}
+            className={`flex-1 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition ${
+              activeTab === 'links' ? 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-black shadow-md' : 'text-amber-300 hover:text-white'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>ลิ้งก์ ({links?.length || 0})</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('shop')}
+            className={`flex-1 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition ${
+              activeTab === 'shop' ? 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 text-black shadow-md' : 'text-amber-300 hover:text-white'
+            }`}
+          >
+            <Store className="w-3.5 h-3.5" />
+            <span>ร้านค้า ({products?.length || 0})</span>
+          </button>
         </div>
       )}
 
-      {/* Social Footer */}
-      <div className="pt-6 flex flex-wrap items-center justify-center gap-2.5 opacity-90">
-        {profile.social_facebook && <a href={profile.social_facebook} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-slate-900 text-blue-400 rounded-2xl border border-slate-800"><SocialIcon type="facebook" className="w-4 h-4" /></a>}
-        {profile.social_instagram && <a href={profile.social_instagram} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-slate-900 text-pink-400 rounded-2xl border border-slate-800"><SocialIcon type="instagram" className="w-4 h-4" /></a>}
-        {profile.social_tiktok && <a href={profile.social_tiktok} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-slate-900 text-slate-100 rounded-2xl border border-slate-800"><SocialIcon type="tiktok" className="w-4 h-4" /></a>}
-        {profile.social_youtube && <a href={profile.social_youtube} target="_blank" rel="noopener noreferrer" className="p-2.5 bg-slate-900 text-red-500 rounded-2xl border border-slate-800"><SocialIcon type="youtube" className="w-4 h-4" /></a>}
-        {profile.social_email && <a href={`mailto:${profile.social_email}`} className="p-2.5 bg-slate-900 text-amber-300 rounded-2xl border border-slate-800"><SocialIcon type="email" className="w-4 h-4" /></a>}
-      </div>
+      {/* Gold Vibrant Links List (Matching Image 12 solid colors) */}
+      {(!hasProducts || activeTab === 'links') && (
+        <div className="space-y-3 font-sans">
+          {links && links.length > 0 ? (
+            links.map((link) => (
+              <button
+                key={link.id}
+                onClick={() => handleLinkClick(link.id, link.url)}
+                style={{
+                  backgroundColor: link.bg_color || '#1A1A24',
+                  color: link.text_color || '#FFFFFF'
+                }}
+                className="w-full p-4 rounded-2xl font-bold text-left flex items-center justify-between border border-white/10 shadow-lg hover:opacity-95 hover:scale-[1.01] transition-all group"
+              >
+                <div className="flex items-center gap-3.5 overflow-hidden pr-2">
+                  {link.logo_url ? (
+                    <img src={link.logo_url} alt={link.title} className="w-10 h-10 object-cover rounded-xl shrink-0 border border-white/20 shadow" />
+                  ) : (
+                    <div className="w-10 h-10 bg-black/20 text-white rounded-xl flex items-center justify-center shrink-0 border border-white/10">
+                      <SocialIcon type={link.icon} className="w-5 h-5" />
+                    </div>
+                  )}
+                  <div className="overflow-hidden">
+                    <p className="text-xs sm:text-sm font-black truncate leading-snug">
+                      {link.title}
+                    </p>
+                    {link.subtitle && <p className="text-[11px] opacity-80 truncate mt-0.5">{link.subtitle}</p>}
+                  </div>
+                </div>
+                <ExternalLink className="w-4 h-4 opacity-70 group-hover:opacity-100 shrink-0 transition" />
+              </button>
+            ))
+          ) : (
+            <div className="text-center text-xs text-amber-300/60 py-6 bg-black/60 rounded-2xl border border-amber-500/20">ยังไม่มีลิ้งก์ในขณะนี้</div>
+          )}
+        </div>
+      )}
 
+      {/* Luxury Boutique Shop */}
+      {hasProducts && activeTab === 'shop' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 font-sans">
+          {products.map((prod) => (
+            <div key={prod.id} className="bg-[#181822] border border-amber-500/30 rounded-2xl p-4 flex flex-col justify-between space-y-3 hover:border-amber-400 transition shadow">
+              <div className="space-y-2">
+                <div className="w-full h-32 rounded-xl bg-black overflow-hidden relative border border-amber-500/30">
+                  {prod.image_url ? (
+                    <img src={prod.image_url} alt={prod.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-amber-500">
+                      <ShoppingBag className="w-8 h-8" />
+                    </div>
+                  )}
+                  {prod.badge && (
+                    <span className="absolute top-2 right-2 px-2.5 py-0.5 text-[9px] font-bold bg-amber-400 text-black rounded font-black shadow">
+                      {prod.badge}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <h4 className="font-bold text-xs text-white line-clamp-1 font-serif">{prod.title}</h4>
+                  {prod.description && <p className="text-[11px] text-amber-200/70 line-clamp-2 mt-0.5">{prod.description}</p>}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-amber-500/20 flex items-center justify-between gap-1">
+                <span className="text-xs sm:text-sm font-black text-amber-400 font-mono">฿{parseFloat(prod.price).toLocaleString()}</span>
+                <a
+                  href={prod.buy_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-1.5 text-xs font-black bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-black rounded-lg transition shadow font-serif"
+                >
+                  สั่งซื้อ
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <SocialDock profile={profile} styleVariant="gold" className="pt-4 pb-2" />
+
+      {!profile.hide_branding && (
+        <div className="text-center pt-2 pb-4 font-sans">
+          <a href="/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black border border-amber-500/40 text-amber-300 text-[11px] font-semibold shadow">
+            <span>สร้าง Bio Link ฟรีที่</span>
+            <strong className="text-amber-400 font-bold">LinkTreeThai</strong>
+          </a>
+        </div>
+      )}
     </div>
   )
 }

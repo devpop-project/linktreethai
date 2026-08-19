@@ -1,18 +1,19 @@
+'use client'
+
 import React from 'react'
 import SocialIcon from '@/components/SocialIcon'
-import { getUserTier } from '@/lib/tier'
-import { ExternalLink, ShoppingBag, Globe, Sparkles, CheckCircle, Zap, Layers } from 'lucide-react'
+import SocialDock from '@/components/SocialDock'
+import { ExternalLink, Globe, Sparkles, CheckCircle, ShoppingBag, Store, Flame, Sun, LayoutGrid, ArrowUpRight } from 'lucide-react'
 
 function getYouTubeEmbedUrl(url: string | null): string | null {
   if (!url) return null
   try {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/
     const match = url.match(regExp)
-    if (match && match[2].length === 11) {
-      return `https://www.youtube.com/embed/${match[2]}`
-    }
-  } catch (e) {}
-  return null
+    return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null
+  } catch (e) {
+    return null
+  }
 }
 
 interface TemplateProps {
@@ -24,110 +25,187 @@ interface TemplateProps {
 }
 
 export default function Template6({ profile, links, products, handleLinkClick, isDashboardPreview }: TemplateProps) {
-  const tierInfo = getUserTier(profile)
-  const canPerLinkColor = isDashboardPreview || tierInfo.canPerLinkColor
-  const canEmbedYouTube = isDashboardPreview || tierInfo.canEmbedYouTube
-  const embedUrl = canEmbedYouTube ? getYouTubeEmbedUrl(profile.youtube_url) : null
+  const embedUrl = getYouTubeEmbedUrl(profile.youtube_url)
+  const firstLink = links && links.length > 0 ? links[0] : null
+  const otherLinks = links && links.length > 1 ? links.slice(1) : []
 
   return (
-    <div className="w-full max-w-md mx-auto relative z-10 px-4 py-8 space-y-5 font-mono text-cyan-100">
+    <div className="w-full max-w-md mx-auto space-y-5 px-4 py-6 text-white font-sans antialiased relative z-10">
       
-      {/* Animated Hybrid Header */}
-      <div className="p-6 bg-slate-900/90 border border-cyan-500/40 rounded-3xl shadow-2xl shadow-cyan-500/10 text-center space-y-3 relative overflow-hidden backdrop-blur-xl">
-        <div className="absolute -top-10 -left-10 w-28 h-28 bg-cyan-500/20 rounded-full blur-2xl"></div>
-        <div className="absolute -bottom-10 -right-10 w-28 h-28 bg-pink-500/20 rounded-full blur-2xl"></div>
+      {/* PRO TIER: Sunset Bento Header Card */}
+      <div className="bg-gradient-to-b from-[#3D1427] to-[#1F0A14] border border-orange-400/40 rounded-[36px] p-6 text-center space-y-4 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-40 h-40 bg-orange-500/30 rounded-full blur-2xl pointer-events-none"></div>
 
-        {profile.cover_url && (
-          <div className="w-full h-24 -mt-6 -mx-6 mb-2 overflow-hidden border-b border-cyan-500/30">
-            <img src={profile.cover_url} alt="Cover Banner" className="w-full h-full object-cover" />
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-orange-500/20 text-orange-300 border border-orange-500/40 rounded-full text-[10px] font-black tracking-wider">
+          <Sun className="w-3.5 h-3.5 text-orange-400" />
+          <span>SUNSET CREATOR BENTO</span>
+        </div>
+
+        <div className="relative inline-block">
+          <div className="w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-yellow-400 via-orange-500 to-pink-500 shadow-[0_0_25px_rgba(249,115,22,0.4)] mx-auto">
+            <img
+              src={profile.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${profile.username}`}
+              alt={profile.full_name || profile.username}
+              className="w-full h-full rounded-full object-cover bg-slate-950"
+            />
           </div>
+          <span className="absolute bottom-0 right-0 bg-orange-500 text-white p-1 rounded-full border-2 border-[#1F0A14] shadow font-bold">
+            <CheckCircle className="w-3.5 h-3.5" />
+          </span>
+        </div>
+
+        <div>
+          <h1 className="text-2xl font-black tracking-tight text-white break-words">
+            {profile.full_name || profile.username}
+          </h1>
+          <p className="text-xs font-bold text-orange-400 mt-0.5 font-mono">@{profile.username}</p>
+        </div>
+
+        {profile.bio && (
+          <p className="text-xs sm:text-sm text-orange-100/80 leading-relaxed max-w-xs mx-auto">
+            {profile.bio}
+          </p>
         )}
 
-        <img
-          src={profile.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${profile.id}`}
-          alt={profile.full_name || profile.username}
-          className="w-24 h-24 rounded-2xl mx-auto object-cover border-2 border-cyan-400 shadow-xl"
-        />
-        <div>
-          <h1 className="text-xl font-black text-white tracking-tight">{profile.full_name || profile.username}</h1>
-          <p className="text-xs text-cyan-400 font-mono mt-0.5">@{profile.username}</p>
-        </div>
-        {profile.bio && <p className="text-xs text-slate-300 leading-relaxed">{profile.bio}</p>}
+        <SocialDock profile={profile} styleVariant="neon" className="pt-1" />
+
+        {embedUrl && (
+          <div className="pt-2">
+            <div className="rounded-2xl overflow-hidden border border-orange-500/40 aspect-video w-full bg-black shadow-xl">
+              <iframe src={embedUrl} title="YouTube" className="w-full h-full" allowFullScreen></iframe>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* YouTube Video Section */}
-      {embedUrl && (
-        <div className="rounded-2xl overflow-hidden border border-cyan-500/30 aspect-video w-full bg-black shadow-xl">
-          <iframe src={embedUrl} title="YouTube" className="w-full h-full" allowFullScreen></iframe>
-        </div>
-      )}
-
-      {/* Combined Links & Products Bento Motion Grid */}
+      {/* Bento Grid */}
       <div className="space-y-3">
-        <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider px-1 flex items-center gap-1.5 font-mono">
-          <Layers className="w-4 h-4" /> Motion Channels & Shop
+        <h3 className="text-xs font-extrabold text-orange-400 uppercase tracking-wider px-2 flex items-center gap-1.5">
+          <LayoutGrid className="w-4 h-4 text-orange-500" /> BENTO GRID MODULES
         </h3>
 
-        {/* Links */}
-        <div className="space-y-2">
-          {links && links.map((link) => {
-            const linkBg = canPerLinkColor ? (link.bg_color || '#0f172a') : '#0f172a'
-            const linkText = canPerLinkColor ? (link.text_color || '#38bdf8') : '#38bdf8'
+        {/* Hero Link */}
+        {firstLink && (
+          <button
+            onClick={() => handleLinkClick(firstLink.id, firstLink.url)}
+            style={firstLink.bg_color ? { backgroundColor: firstLink.bg_color, color: firstLink.text_color || '#FFFFFF' } : {}}
+            className={`w-full p-5 rounded-[28px] font-bold text-left flex flex-col justify-between gap-3 shadow-xl hover:scale-[1.02] transition-all group ${
+              !firstLink.bg_color ? 'bg-gradient-to-r from-orange-600 to-pink-600 border border-orange-400/40' : 'border border-white/20'
+            }`}
+          >
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-white/20 text-white flex items-center justify-center shadow">
+                  {firstLink.logo_url ? (
+                    <img src={firstLink.logo_url} alt={firstLink.title} className="w-full h-full object-cover rounded-2xl" />
+                  ) : (
+                    <SocialIcon type={firstLink.icon} className="w-6 h-6" />
+                  )}
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">
+                    ★ FEATURED
+                  </span>
+                  <h4 className="text-base sm:text-lg font-black mt-1 leading-snug">{firstLink.title}</h4>
+                </div>
+              </div>
+              <ArrowUpRight className="w-5 h-5 text-white/80 group-hover:translate-x-1 group-hover:-translate-y-1 transition" />
+            </div>
+            {firstLink.subtitle && (
+              <p className="text-xs opacity-85 leading-relaxed">{firstLink.subtitle}</p>
+            )}
+          </button>
+        )}
 
-            return (
+        {/* 2-Column Side-by-Side Widgets */}
+        {otherLinks.length > 0 && (
+          <div className="grid grid-cols-2 gap-3">
+            {otherLinks.map((link) => (
               <button
                 key={link.id}
                 onClick={() => handleLinkClick(link.id, link.url)}
-                style={{ backgroundColor: linkBg, color: linkText }}
-                className="w-full p-3.5 rounded-2xl font-bold text-left flex items-center justify-between border border-cyan-500/30 hover:border-cyan-400 shadow-lg transition-all hover:scale-[1.01]"
+                style={link.bg_color ? { backgroundColor: link.bg_color, color: link.text_color || '#FFFFFF' } : {}}
+                className={`p-4 rounded-3xl font-bold text-left flex flex-col justify-between h-32 shadow-lg hover:scale-[1.03] transition-all group ${
+                  !link.bg_color ? 'bg-[#2A0F1D] border border-orange-500/30 hover:border-orange-400 backdrop-blur-xl' : 'border border-white/15'
+                }`}
               >
-                <div className="flex items-center gap-3 overflow-hidden">
-                  {link.logo_url ? (
-                    <img src={link.logo_url} alt={link.title} className="w-8 h-8 object-cover rounded-lg shrink-0" />
-                  ) : (
-                    <SocialIcon type={link.icon} className="w-4 h-4 text-cyan-400 shrink-0" />
-                  )}
-                  <span className="text-xs font-extrabold truncate">{link.title}</span>
+                <div className="flex items-center justify-between w-full">
+                  <div className="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center shadow overflow-hidden">
+                    {link.logo_url ? (
+                      <img src={link.logo_url} alt={link.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <SocialIcon type={link.icon} className="w-5 h-5" />
+                    )}
+                  </div>
+                  <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 transition" />
                 </div>
-                <ExternalLink className="w-3.5 h-3.5 opacity-60 shrink-0" />
+                <div>
+                  <h4 className="text-xs sm:text-sm font-extrabold truncate leading-tight">{link.title}</h4>
+                  {link.subtitle && <p className="text-[10px] opacity-75 truncate mt-0.5">{link.subtitle}</p>}
+                </div>
               </button>
-            )
-          })}
-        </div>
-
-        {/* Products */}
-        {products && products.length > 0 && (
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            {products.map((prod) => (
-              <div key={prod.id} className="p-3 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col justify-between space-y-2 shadow-xl">
-                <div className="relative aspect-square w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-800">
-                  {prod.image_url ? (
-                    <img src={prod.image_url} alt={prod.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center opacity-40"><ShoppingBag className="w-6 h-6" /></div>
-                  )}
-                  {prod.badge && <span className="absolute top-1 left-1 text-[9px] font-black bg-cyan-400 text-slate-950 px-1.5 py-0.5 rounded">{prod.badge}</span>}
-                </div>
-                <h4 className="font-bold text-xs text-slate-100 truncate">{prod.title}</h4>
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-xs font-black text-cyan-400">฿{prod.price}</span>
-                  <a href={prod.buy_url} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 text-[10px] font-extrabold bg-cyan-400 text-slate-950 rounded-lg">สั่งซื้อ</a>
-                </div>
-              </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Cyberpunk Social Footer */}
-      <div className="pt-6 flex flex-wrap items-center justify-center gap-2">
-        {profile.social_facebook && <a href={profile.social_facebook} target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-950 hover:border-pink-500 text-cyan-400 rounded-lg border border-cyan-500/40"><SocialIcon type="facebook" className="w-4 h-4" /></a>}
-        {profile.social_instagram && <a href={profile.social_instagram} target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-950 hover:border-pink-500 text-pink-400 rounded-lg border border-cyan-500/40"><SocialIcon type="instagram" className="w-4 h-4" /></a>}
-        {profile.social_tiktok && <a href={profile.social_tiktok} target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-950 hover:border-pink-500 text-slate-200 rounded-lg border border-cyan-500/40"><SocialIcon type="tiktok" className="w-4 h-4" /></a>}
-        {profile.social_youtube && <a href={profile.social_youtube} target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-950 hover:border-pink-500 text-red-500 rounded-lg border border-cyan-500/40"><SocialIcon type="youtube" className="w-4 h-4" /></a>}
-        {profile.social_email && <a href={`mailto:${profile.social_email}`} className="p-2 bg-slate-950 hover:border-pink-500 text-amber-300 rounded-lg border border-cyan-500/40"><SocialIcon type="email" className="w-4 h-4" /></a>}
-      </div>
+      {/* Sunset Products */}
+      {products && products.length > 0 && (
+        <div className="space-y-4 pt-2">
+          <h3 className="text-xs font-extrabold text-orange-400 uppercase tracking-wider px-2 flex items-center gap-1.5">
+            <Store className="w-4 h-4 text-orange-400" /> BENTO SHOP SHOWCASE
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {products.map((prod) => (
+              <div key={prod.id} className="bg-[#2A0F1D] border border-orange-500/30 rounded-3xl p-4 flex flex-col justify-between space-y-3 shadow-md hover:border-orange-400 transition">
+                <div className="space-y-2">
+                  <div className="w-full h-32 rounded-2xl bg-black overflow-hidden relative border border-orange-500/30">
+                    {prod.image_url ? (
+                      <img src={prod.image_url} alt={prod.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-orange-400">
+                        <ShoppingBag className="w-8 h-8" />
+                      </div>
+                    )}
+                    {prod.badge && (
+                      <span className="absolute top-2 right-2 px-2.5 py-0.5 text-[9px] font-bold bg-orange-500 text-white rounded-lg shadow">
+                        {prod.badge}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-white line-clamp-1">{prod.title}</h4>
+                    {prod.description && <p className="text-[11px] text-orange-200/70 line-clamp-2 mt-0.5">{prod.description}</p>}
+                  </div>
+                </div>
 
+                <div className="pt-2 border-t border-orange-500/20 flex items-center justify-between gap-1">
+                  <span className="text-xs sm:text-sm font-black text-orange-400 font-mono">฿{parseFloat(prod.price).toLocaleString()}</span>
+                  <a
+                    href={prod.buy_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3.5 py-1.5 text-xs font-bold bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-400 hover:to-pink-400 text-white rounded-xl transition shadow"
+                  >
+                    สั่งซื้อ
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <SocialDock profile={profile} styleVariant="neon" className="pt-4 pb-2" />
+
+      {!profile.hide_branding && (
+        <div className="text-center pt-2 pb-4">
+          <a href="/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 border border-orange-500/30 text-orange-300 text-[11px] font-semibold">
+            <span>สร้าง Bio Link ฟรีที่</span>
+            <strong className="text-orange-400 font-bold">LinkTreeThai</strong>
+          </a>
+        </div>
+      )}
     </div>
   )
 }

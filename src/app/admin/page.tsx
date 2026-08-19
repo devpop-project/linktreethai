@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { 
-  ShieldCheck, Users, Coins, Crown, Zap, Search, Plus, 
+  ShieldCheck, Users, Rocket, Sun, Moon, Coins, Crown, Zap, Search, Plus, 
   Edit3, ArrowLeft, Check, AlertCircle, Lock, RefreshCw, Eye, X, 
   Trash2, ExternalLink, Link2, ShoppingBag, Settings, Scissors, 
   Copy, BarChart3, Database, Filter, Download, CheckCircle2, 
@@ -16,6 +16,30 @@ type AdminTab = 'users' | 'links' | 'products' | 'shortlinks' | 'leads' | 'syste
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<AdminTab>('users')
+  const [isDarkMode, setIsDarkMode] = useState(false)
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('linktree_theme')
+    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      setIsDarkMode(true)
+      document.documentElement.classList.add('dark')
+    } else {
+      setIsDarkMode(false)
+      document.documentElement.classList.remove('dark')
+    }
+  }, [])
+
+  const toggleTheme = () => {
+    if (isDarkMode) {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('linktree_theme', 'light')
+      setIsDarkMode(false)
+    } else {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('linktree_theme', 'dark')
+      setIsDarkMode(true)
+    }
+  }
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [adminProfile, setAdminProfile] = useState<any>(null)
   
@@ -49,7 +73,7 @@ export default function AdminDashboardPage() {
   const [pointsModalUser, setPointsModalUser] = useState<any>(null)
   const [customPointsInput, setCustomPointsInput] = useState<string>('100')
   const [grantModalUser, setGrantModalUser] = useState<any>(null)
-  const [grantTierSelect, setGrantTierSelect] = useState<'pro' | 'master'>('pro')
+  const [grantTierSelect, setGrantTierSelect] = useState<'free' | 'pro' | 'master' | 'shortener'>('free')
   const [grantDaysInput, setGrantDaysInput] = useState<string>('30')
   const [deleteUserModal, setDeleteUserModal] = useState<any>(null)
 
@@ -230,6 +254,22 @@ export default function AdminDashboardPage() {
     if (!editingUser) return
 
     try {
+      let pro_exp = editingUser.pro_expires_at
+      let master_exp = editingUser.master_expires_at
+      let shortener_exp = editingUser.shortener_expires_at
+
+      if (editingUser.tier_selection === 'free') {
+        pro_exp = null
+        master_exp = null
+        shortener_exp = null
+      } else if (editingUser.tier_selection === 'pro') {
+        pro_exp = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        master_exp = null
+      } else if (editingUser.tier_selection === 'master') {
+        master_exp = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        pro_exp = null
+      }
+
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -240,6 +280,9 @@ export default function AdminDashboardPage() {
           points: parseInt(editingUser.points || '0', 10),
           template_id: editingUser.template_id || 'template_1',
           hide_branding: Boolean(editingUser.hide_branding),
+          pro_expires_at: pro_exp,
+          master_expires_at: master_exp,
+          shortener_expires_at: shortener_exp,
           avatar_url: editingUser.avatar_url,
           cover_url: editingUser.cover_url,
           bg_image_url: editingUser.bg_image_url,
@@ -252,6 +295,8 @@ export default function AdminDashboardPage() {
           social_shopee: editingUser.social_shopee,
           social_lazada: editingUser.social_lazada,
           social_x: editingUser.social_x,
+          social_pinterest: editingUser.social_pinterest,
+          social_email: editingUser.social_email,
           updated_at: new Date().toISOString()
         })
         .eq('id', editingUser.id)
@@ -304,7 +349,9 @@ export default function AdminDashboardPage() {
 
       if (error) {
         const newExp = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
-        const updateField = grantTierSelect === 'master' ? { master_expires_at: newExp } : { pro_expires_at: newExp }
+        let updateField: any = { pro_expires_at: newExp }
+        if (grantTierSelect === 'master') updateField = { master_expires_at: newExp }
+        if (grantTierSelect === 'shortener') updateField = { shortener_expires_at: newExp }
         await supabase.from('profiles').update(updateField).eq('id', grantModalUser.id)
       }
 
@@ -708,38 +755,45 @@ export default function AdminDashboardPage() {
   const totalClicksAcrossShortLinks = allShortLinks.reduce((acc, sl) => acc + (sl.clicks || 0), 0)
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-16">
+    <div className="min-h-screen bg-[#F9F9FF] dark:bg-[#0B0F17] text-[#1E1B4B] dark:text-slate-100 font-sans pb-16 transition-colors duration-300">
       
       {/* Top Admin Header */}
-      <header className="border-b border-purple-500/30 bg-slate-900/90 backdrop-blur sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <header className="border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-[#0F172A]/90 backdrop-blur sticky top-0 z-40 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-3.5 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="bg-gradient-to-tr from-purple-600 to-indigo-500 p-2.5 rounded-2xl text-white font-bold shadow-lg shadow-purple-500/20">
+            <div className="bg-gradient-to-tr from-purple-500 to-indigo-500 p-2.5 rounded-2xl text-white font-bold shadow-md shadow-purple-500/20">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-base text-white">ระบบจัดการหลังบ้านผู้ดูแลระบบ (Admin Suite)</span>
-                <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 border border-purple-500/40 rounded text-[10px] font-bold">PRO V12</span>
+                <span className="font-extrabold text-base text-[#1E1B4B] dark:text-white">ระบบจัดการหลังบ้านผู้ดูแลระบบ (Admin Suite)</span>
+                <span className="px-2.5 py-0.5 bg-purple-100 text-purple-800 border border-purple-200 rounded-full text-[10px] font-black">MASTER ADMIN</span>
               </div>
-              <span className="text-[11px] text-slate-400 font-mono">กำลังใช้งานโดย @{adminProfile?.username}</span>
+              <span className="text-[11px] text-slate-500 font-mono">กำลังใช้งานโดย @{adminProfile?.username}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
+              onClick={toggleTheme}
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-amber-400 hover:border-purple-300 transition shadow-sm"
+              title={isDarkMode ? 'เปลี่ยนเป็นธีมสว่าง (Light Mode)' : 'เปลี่ยนเป็นธีมมืด (Dark Mode)'}
+            >
+              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4 text-slate-700" />}
+            </button>
+            <button
               onClick={() => {
                 setLoading(true)
                 loadAllData().then(() => setLoading(false))
               }}
-              className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition"
+              className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 rounded-xl transition shadow-sm"
               title="รีเฟรชข้อมูล"
             >
               <RefreshCw className="w-4 h-4" />
             </button>
             <button
               onClick={() => router.push('/dashboard')}
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5"
+              className="px-3.5 py-2 bg-[#1E1B4B] hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm"
             >
               <ArrowLeft className="w-4 h-4" /> แดชบอร์ดผู้ใช้
             </button>
@@ -752,14 +806,14 @@ export default function AdminDashboardPage() {
         
         {/* Real-time Summary Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-1">
+          <div className="bg-white border border-slate-200 p-4 rounded-2xl space-y-1 shadow-sm">
             <p className="text-[11px] text-slate-400 font-semibold flex items-center gap-1">
               <Users className="w-3.5 h-3.5 text-emerald-400" /> สมาชิกทั้งหมด
             </p>
             <p className="text-xl font-black text-white">{usersList.length} <span className="text-xs font-normal text-slate-400">คน</span></p>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-1">
+          <div className="bg-white border border-slate-200 p-4 rounded-2xl space-y-1 shadow-sm">
             <p className="text-[11px] text-slate-400 font-semibold flex items-center gap-1">
               <Crown className="w-3.5 h-3.5 text-purple-400" /> สมาชิก VIP
             </p>
@@ -768,14 +822,14 @@ export default function AdminDashboardPage() {
             </p>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-1">
+          <div className="bg-white border border-slate-200 p-4 rounded-2xl space-y-1 shadow-sm">
             <p className="text-[11px] text-slate-400 font-semibold flex items-center gap-1">
               <Link2 className="w-3.5 h-3.5 text-blue-400" /> ลิ้งก์ทั้งหมด
             </p>
             <p className="text-xl font-black text-blue-400">{allLinks.length} <span className="text-xs font-normal text-slate-400">รายการ</span></p>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-1">
+          <div className="bg-white border border-slate-200 p-4 rounded-2xl space-y-1 shadow-sm">
             <p className="text-[11px] text-slate-400 font-semibold flex items-center gap-1">
               <ShoppingBag className="w-3.5 h-3.5 text-amber-400" /> สินค้าทั้งหมด
             </p>
@@ -789,7 +843,7 @@ export default function AdminDashboardPage() {
             <p className="text-xl font-black text-purple-300">{allShortLinks.length} <span className="text-xs font-normal text-slate-400">ลิงก์</span></p>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-1">
+          <div className="bg-white border border-slate-200 p-4 rounded-2xl space-y-1 shadow-sm">
             <p className="text-[11px] text-slate-400 font-semibold flex items-center gap-1">
               <BarChart3 className="w-3.5 h-3.5 text-emerald-400" /> ยอดคลิกลิงก์ย่อ
             </p>
@@ -1880,6 +1934,20 @@ WHERE username = 'YOUR_USERNAME';`}
                 />
               </div>
 
+                            <div className="pt-2 border-t border-slate-800 space-y-2">
+                <label className="block font-bold text-slate-300">ไอคอนโซเชียล (Social Links)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="text" placeholder="Facebook URL" value={editingUser.social_facebook || ''} onChange={(e) => setEditingUser({ ...editingUser, social_facebook: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-[11px]" />
+                  <input type="text" placeholder="Instagram URL" value={editingUser.social_instagram || ''} onChange={(e) => setEditingUser({ ...editingUser, social_instagram: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-[11px]" />
+                  <input type="text" placeholder="TikTok URL" value={editingUser.social_tiktok || ''} onChange={(e) => setEditingUser({ ...editingUser, social_tiktok: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-[11px]" />
+                  <input type="text" placeholder="YouTube Channel" value={editingUser.social_youtube || ''} onChange={(e) => setEditingUser({ ...editingUser, social_youtube: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-[11px]" />
+                  <input type="text" placeholder="LINE Official / ID" value={editingUser.social_line || ''} onChange={(e) => setEditingUser({ ...editingUser, social_line: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-[11px]" />
+                  <input type="text" placeholder="Shopee Shop" value={editingUser.social_shopee || ''} onChange={(e) => setEditingUser({ ...editingUser, social_shopee: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-[11px]" />
+                  <input type="text" placeholder="Lazada Shop" value={editingUser.social_lazada || ''} onChange={(e) => setEditingUser({ ...editingUser, social_lazada: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-[11px]" />
+                  <input type="text" placeholder="X (Twitter)" value={editingUser.social_x || ''} onChange={(e) => setEditingUser({ ...editingUser, social_x: e.target.value })} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-white font-mono text-[11px]" />
+                </div>
+              </div>
+
               <div className="flex items-center gap-2 pt-1">
                 <input
                   type="checkbox"
@@ -1964,40 +2032,50 @@ WHERE username = 'YOUR_USERNAME';`}
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">เลือกสิทธิ์ที่ต้องการมอบ</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">เลือกสิทธิ์ที่ต้องการมอบ / ปรับเปลี่ยน</label>
                 <select
                   value={grantTierSelect}
                   onChange={(e: any) => setGrantTierSelect(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none"
                 >
-                  <option value="pro">Pro Member (10 ลิ้งก์ / 10 สินค้า / ซ่อนแบรนด์)</option>
-                  <option value="master">Master VIP (ไม่จำกัด / ทุกเทมเพลต / QR Code)</option>
+                  <option value="free">Free Plan (ลิงก์ไม่จำกัด / 2 สินค้า / 3 เทมเพลต / ยกเลิก VIP)</option>
+                  <option value="pro">Pro Member (ลิงก์ไม่จำกัด / 10 สินค้า / 6 เทมเพลต / ซ่อนแบรนด์)</option>
+                  <option value="master">Master VIP (ไม่จำกัด / ครบ 9 เทมเพลต / ย่อลิงก์ฟรี)</option>
+                  <option value="shortener">URL Shortener Pass (ปลดล็อกระบบย่อลิงก์ 30 วัน)</option>
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">จำนวนวัน (วัน)</label>
-                <input
-                  type="number"
-                  value={grantDaysInput}
-                  onChange={(e) => setGrantDaysInput(e.target.value)}
-                  placeholder="30"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none"
-                />
-              </div>
+              {grantTierSelect !== 'free' ? (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">จำนวนวันใช้งาน (วัน)</label>
+                    <input
+                      type="number"
+                      value={grantDaysInput}
+                      onChange={(e) => setGrantDaysInput(e.target.value)}
+                      placeholder="30"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none"
+                    />
+                  </div>
 
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <button onClick={() => setGrantDaysInput('30')} className="py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold">30 วัน</button>
-                <button onClick={() => setGrantDaysInput('90')} className="py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold">90 วัน</button>
-                <button onClick={() => setGrantDaysInput('365')} className="py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold">1 ปี</button>
-              </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <button onClick={() => setGrantDaysInput('30')} className="py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold">30 วัน</button>
+                    <button onClick={() => setGrantDaysInput('90')} className="py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold">90 วัน</button>
+                    <button onClick={() => setGrantDaysInput('365')} className="py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold">1 ปี</button>
+                  </div>
+                </>
+              ) : (
+                <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-2xl text-xs text-slate-400 text-left">
+                  💡 ระบบจะทำการล้างวันหมดอายุของ <strong>Pro, Master, และ URL Shortener</strong> ทั้งหมดของผู้ใช้นี้ และปรับสถานะกลับเป็น <strong>Free Plan</strong> ปกติ
+                </div>
+              )}
             </div>
 
             <button
               onClick={handleApplyGrantSubscription}
-              className="w-full py-3 bg-purple-500 hover:bg-purple-400 text-slate-950 font-extrabold text-sm rounded-xl transition shadow"
+              className={`w-full py-3 font-extrabold text-sm rounded-xl transition shadow ${grantTierSelect === 'free' ? 'bg-rose-500 hover:bg-rose-400 text-white' : 'bg-purple-500 hover:bg-purple-400 text-slate-950'}`}
             >
-              มอบสิทธิ์สมาชิกทันที
+              {grantTierSelect === 'free' ? 'ยืนยันปรับเป็น Free Plan' : 'มอบสิทธิ์สมาชิกทันที'}
             </button>
           </div>
         </div>
@@ -2752,6 +2830,222 @@ WHERE username = 'YOUR_USERNAME';`}
         </div>
       )}
 
+      {/* ADMIN EDIT LANDING PAGE MODAL */}
+      {editingLp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 flex items-center justify-center font-bold">
+                  <Rocket className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-[#1E1B4B] dark:text-white text-base">
+                    แก้ไขเซลเพจ & Pixel (Admin Mode)
+                  </h3>
+                  <p className="text-xs text-slate-400">เจ้าของ: @{editingLp.profiles?.username || 'unknown'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingLp(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAdminSaveLp} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold mb-1">ชื่อเซลเพจ</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingLp.title || ''}
+                    onChange={(e) => setEditingLp({ ...editingLp, title: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold mb-1">Slug URL (/p/xxx)</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingLp.slug || ''}
+                    onChange={(e) => setEditingLp({ ...editingLp, slug: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1">Headline (หัวข้อหลัก)</label>
+                <input
+                  type="text"
+                  required
+                  value={editingLp.headline || ''}
+                  onChange={(e) => setEditingLp({ ...editingLp, headline: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold mb-1">รูปภาพสินค้า (Hero Image URL)</label>
+                  <input
+                    type="text"
+                    value={editingLp.hero_image_url || ''}
+                    onChange={(e) => setEditingLp({ ...editingLp, hero_image_url: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold mb-1">วิดีโอ YouTube (Video URL)</label>
+                  <input
+                    type="text"
+                    value={editingLp.video_url || ''}
+                    onChange={(e) => setEditingLp({ ...editingLp, video_url: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold mb-1">ราคาโปรโมชั่น (บาท)</label>
+                  <input
+                    type="number"
+                    value={editingLp.offer_price || ''}
+                    onChange={(e) => setEditingLp({ ...editingLp, offer_price: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold mb-1">ราคาเดิมก่อนลด (บาท)</label>
+                  <input
+                    type="number"
+                    value={editingLp.original_price || ''}
+                    onChange={(e) => setEditingLp({ ...editingLp, original_price: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold mb-1">เวลานับถอยหลัง (นาที)</label>
+                  <input
+                    type="number"
+                    value={editingLp.countdown_minutes || 15}
+                    onChange={(e) => setEditingLp({ ...editingLp, countdown_minutes: parseInt(e.target.value, 10) || 15 })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold mb-1">ข้อความบนปุ่มสั่งซื้อ</label>
+                  <input
+                    type="text"
+                    value={editingLp.cta_text || ''}
+                    onChange={(e) => setEditingLp({ ...editingLp, cta_text: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold mb-1">ลิงก์สั่งซื้อ (CTA URL)</label>
+                  <input
+                    type="text"
+                    required
+                    value={editingLp.cta_url || ''}
+                    onChange={(e) => setEditingLp({ ...editingLp, cta_url: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Badges & COD Form */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
+                <label className="block font-bold">ป้ายความมั่นใจ 3 จุด</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <input
+                    type="text"
+                    placeholder="ส่งฟรีด่วน"
+                    value={editingLp.trust_badge_1 || ''}
+                    onChange={(e) => setEditingLp({ ...editingLp, trust_badge_1: e.target.value })}
+                    className="px-2 py-1 bg-white dark:bg-slate-900 border rounded-lg text-xs"
+                  />
+                  <input
+                    type="text"
+                    placeholder="ของแท้ 100%"
+                    value={editingLp.trust_badge_2 || ''}
+                    onChange={(e) => setEditingLp({ ...editingLp, trust_badge_2: e.target.value })}
+                    className="px-2 py-1 bg-white dark:bg-slate-900 border rounded-lg text-xs"
+                  />
+                  <input
+                    type="text"
+                    placeholder="ชำระเงินปลอดภัย"
+                    value={editingLp.trust_badge_3 || ''}
+                    onChange={(e) => setEditingLp({ ...editingLp, trust_badge_3: e.target.value })}
+                    className="px-2 py-1 bg-white dark:bg-slate-900 border rounded-lg text-xs"
+                  />
+                </div>
+                <div className="pt-2 flex items-center justify-between">
+                  <span className="font-bold">แสดงฟอร์มเก็บเงินปลายทาง (COD)</span>
+                  <input
+                    type="checkbox"
+                    checked={editingLp.enable_cod_form !== false}
+                    onChange={(e) => setEditingLp({ ...editingLp, enable_cod_form: e.target.checked })}
+                    className="w-4 h-4 text-purple-600 rounded"
+                  />
+                </div>
+              </div>
+
+              {/* Custom Pixels per Page (Admin Override) */}
+              <div className="p-3 bg-purple-50/50 dark:bg-purple-950/20 rounded-xl border border-purple-200 dark:border-purple-800 space-y-2">
+                <h5 className="font-extrabold text-purple-900 dark:text-purple-300">กำหนด Tracking Pixels เฉพาะหน้านี้ (Admin)</h5>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Facebook Pixel ID</label>
+                    <input
+                      type="text"
+                      value={editingLp.fb_pixel_id || ''}
+                      onChange={(e) => setEditingLp({ ...editingLp, fb_pixel_id: e.target.value })}
+                      placeholder="เช่น 1234567890..."
+                      className="w-full px-2.5 py-1 bg-white dark:bg-slate-900 border rounded-lg font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 mb-0.5">TikTok Pixel ID</label>
+                    <input
+                      type="text"
+                      value={editingLp.tiktok_pixel_id || ''}
+                      onChange={(e) => setEditingLp({ ...editingLp, tiktok_pixel_id: e.target.value })}
+                      placeholder="เช่น C9A1B2..."
+                      className="w-full px-2.5 py-1 bg-white dark:bg-slate-900 border rounded-lg font-mono text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="submit"
+                  disabled={savingLp}
+                  className="flex-1 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold rounded-xl shadow transition"
+                >
+                  {savingLp ? 'กำลังบันทึก...' : '💾 บันทึกการแก้ไข (Admin Save)'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingLp(null)}
+                  className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold"
+                >
+                  ยกเลิก
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

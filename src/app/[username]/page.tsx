@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import TemplateRenderer from '@/components/templates/TemplateRenderer'
+import TrackingPixels, { trackPixelEvent } from '@/components/TrackingPixels'
+import { Link2, Share2, QrCode, X, Check, ArrowLeft } from 'lucide-react'
 
 export default function UserBioPage({ params }: { params: { username: string } }) {
   const username = params.username.toLowerCase()
@@ -10,6 +12,8 @@ export default function UserBioPage({ params }: { params: { username: string } }
   const [profile, setProfile] = useState<any>(null)
   const [links, setLinks] = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
+  const [shareModal, setShareModal] = useState(false)
+  const [copied, setCopied] = useState(false)
   
   const supabase = createClient()
 
@@ -57,8 +61,11 @@ export default function UserBioPage({ params }: { params: { username: string } }
     setLoading(false)
   }
 
-  // Handle Link Click tracking
+  // Handle Link Click tracking + Pixel Trigger
   const handleLinkClick = async (linkId: string, url: string) => {
+    // Trigger tracking pixel event
+    trackPixelEvent('InitiateCheckout', { link_id: linkId, url })
+
     try {
       await fetch('/api/click', {
         method: 'POST',
@@ -69,13 +76,27 @@ export default function UserBioPage({ params }: { params: { username: string } }
     window.open(url, '_blank')
   }
 
+  const handleCopyProfileUrl = () => {
+    if (typeof window !== 'undefined') {
+      navigator.clipboard.writeText(window.location.href)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
   if (!loading && !profile) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 p-4">
-        <h2 className="text-2xl font-bold text-white mb-2">ไม่พบหน้าโปรไฟล์นี้</h2>
-        <p className="text-sm">ผู้ใช้ @{username} อาจยังไม่ได้สร้างโปรไฟล์หรือเปลี่ยนชื่อผู้ใช้แล้ว</p>
-        <a href="/" className="mt-6 px-4 py-2 bg-emerald-500 text-slate-950 font-bold rounded-xl text-sm">
-          กลับสู่หน้าหลัก
+      <div className="min-h-screen bg-[#0b0f17] flex flex-col items-center justify-center text-slate-400 p-4 text-center">
+        <div className="w-16 h-16 rounded-3xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 mb-4">
+          <Link2 className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-white mb-1.5">ไม่พบหน้าโปรไฟล์นี้</h2>
+        <p className="text-xs text-slate-400 max-w-xs">ผู้ใช้ @{username} อาจยังไม่ได้ลงทะเบียนหรือเปลี่ยนชื่อผู้ใช้แล้ว</p>
+        <a 
+          href="/" 
+          className="mt-6 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 font-bold rounded-2xl text-xs hover:opacity-90 transition shadow-lg shadow-emerald-500/20"
+        >
+          กลับสู่หน้าหลัก LinkTreeThai
         </a>
       </div>
     )
@@ -83,26 +104,57 @@ export default function UserBioPage({ params }: { params: { username: string } }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
+      <div className="min-h-screen bg-[#0b0f17] flex items-center justify-center text-slate-400">
         <div className="animate-pulse flex flex-col items-center gap-3">
-          <div className="w-20 h-20 bg-slate-800 rounded-full"></div>
-          <div className="w-32 h-4 bg-slate-800 rounded"></div>
+          <div className="w-20 h-20 bg-slate-900 border border-slate-800 rounded-full"></div>
+          <div className="w-32 h-4 bg-slate-900 rounded-full"></div>
         </div>
       </div>
     )
   }
 
+  const currentUrl = typeof window !== 'undefined' ? window.location.href : `https://linktreethai.com/${username}`
+
   return (
     <div 
-      className="min-h-screen bg-slate-950 text-slate-100 relative flex flex-col items-center justify-between bg-cover bg-center bg-no-repeat transition-all duration-300"
+      className="min-h-screen bg-[#0b0f17] text-slate-100 relative flex flex-col items-center justify-between bg-cover bg-center bg-no-repeat transition-all duration-300 overflow-x-hidden"
       style={profile.bg_image_url ? { backgroundImage: `url(${profile.bg_image_url})` } : {}}
     >
+      {/* 1. AUTO INJECT TRACKING PIXELS (Meta FB, TikTok, Google, LINE) */}
+      <TrackingPixels
+        fbPixelId={profile.fb_pixel_id}
+        tiktokPixelId={profile.tiktok_pixel_id}
+        googlePixelId={profile.google_pixel_id}
+        lineTagId={profile.line_tag_id}
+      />
+
       {/* Background Overlay */}
       {profile.bg_image_url && (
-        <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm z-0"></div>
+        <div className="absolute inset-0 bg-[#0b0f17]/75 backdrop-blur-sm z-0 pointer-events-none"></div>
       )}
 
-      {/* Render Selected Template */}
+      {/* Floating Top App Action Bar */}
+      <div className="w-full max-w-md mx-auto px-4 pt-3.5 pb-1 flex items-center justify-between relative z-20">
+        <a 
+          href="/"
+          className="w-9 h-9 rounded-full bg-slate-900/80 border border-slate-800/80 backdrop-blur-md flex items-center justify-center text-slate-400 hover:text-white transition active:scale-95 shadow"
+          title="หน้าหลัก LinkTreeThai"
+        >
+          <Link2 className="w-4 h-4" />
+        </a>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShareModal(true)}
+            className="px-3.5 py-1.5 rounded-full bg-slate-900/80 border border-slate-800/80 backdrop-blur-md text-xs font-semibold text-slate-300 hover:text-white transition flex items-center gap-1.5 active:scale-95 shadow"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            <span>แชร์</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Render Selected Bio Link Template */}
       <TemplateRenderer
         profile={profile}
         links={links}
@@ -110,14 +162,70 @@ export default function UserBioPage({ params }: { params: { username: string } }
         handleLinkClick={handleLinkClick}
       />
 
-      {/* Conditional Branding Footer (Hidden if hide_branding is enabled) */}
+      {/* Conditional Branding Footer */}
       {!profile.hide_branding ? (
-        <footer className="py-6 text-center text-xs opacity-60 flex items-center justify-center gap-1 relative z-10">
-          <span>สร้าง Bio Link ฟรีได้ที่</span>
-          <a href="/" className="font-bold underline hover:opacity-100">MyBioLink</a>
+        <footer className="py-6 text-center text-xs opacity-60 flex items-center justify-center gap-1 relative z-10 hover:opacity-100 transition">
+          <span className="text-slate-400 text-[11px]">สร้าง Bio Link ฟรีที่</span>
+          <a href="/" className="font-bold underline text-emerald-400 text-[11px]">
+            LinkTreeThai
+          </a>
         </footer>
       ) : (
         <div className="py-4"></div>
+      )}
+
+      {/* Mobile Share & QR Sheet Modal */}
+      {shareModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-t-[32px] sm:rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in slide-in-from-bottom duration-200">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                  <Share2 className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-white text-sm">แชร์โปรไฟล์ @{username}</h3>
+              </div>
+              <button
+                onClick={() => setShareModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center text-sm"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* QR Code */}
+            <div className="p-4 bg-white rounded-2xl flex flex-col items-center justify-center shadow-inner mx-auto w-48 h-48">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(currentUrl)}`}
+                alt="Profile QR Code"
+                className="w-36 h-36 object-contain"
+              />
+            </div>
+
+            {/* URL Display & Copy Button */}
+            <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-2xl border border-slate-800">
+              <input
+                type="text"
+                readOnly
+                value={currentUrl}
+                className="bg-transparent text-xs text-slate-300 flex-1 px-2 focus:outline-none font-mono truncate"
+              />
+              <button
+                onClick={handleCopyProfileUrl}
+                className="px-3 py-1.5 bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1 hover:bg-emerald-400 transition"
+              >
+                {copied ? <Check className="w-3.5 h-3.5" /> : 'คัดลอก'}
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShareModal(false)}
+              className="w-full py-2.5 bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold hover:bg-slate-700 transition"
+            >
+              ปิด
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )
