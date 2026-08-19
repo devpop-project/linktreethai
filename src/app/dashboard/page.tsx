@@ -14,6 +14,92 @@ import {
   Save, LogOut, Check, Eye, Upload, Image as ImageIcon, Sparkles, Globe, Youtube, RefreshCw, Share2, LayoutTemplate, Crown, Coins, Lock, AlertCircle, Users, Download, ShieldCheck, Zap, QrCode, X, MessageCircle, Scissors, Copy, Smartphone, Menu, ChevronRight, CheckCircle2, ArrowUpRight, Clock, KeyRound, Edit2, Camera, Sun, Moon
 } from 'lucide-react'
 
+export interface LandingPageFormData {
+  slug: string
+  title: string
+  headline: string
+  subheadline: string
+  hero_image_url: string
+  video_url: string
+  hero_media_url: string
+  hero_media_type: string
+  offer_price: string
+  original_price: string
+  countdown_minutes: number
+  cta_text: string
+  cta_url: string
+  features_text: string
+  body_content: string
+  theme_color: string
+  bg_color: string
+  bg_image_url: string
+  card_style: string
+  gallery_images_text: string
+  review_images_text: string
+  pain_headline: string
+  pain_points_text: string
+  benefits_headline: string
+  benefits_text: string
+  testimonials_text: string
+  faqs_text: string
+  guarantee_text: string
+  trust_badge_1: string
+  trust_badge_2: string
+  trust_badge_3: string
+  enable_cod_form: boolean
+  seo_title: string
+  seo_description: string
+  seo_keywords: string
+  og_image_url: string
+  fb_pixel_id: string
+  tiktok_pixel_id: string
+  google_pixel_id: string
+  line_tag_id: string
+}
+
+export const DEFAULT_LANDING_PAGE_FORM: LandingPageFormData = {
+  slug: '',
+  title: '',
+  headline: '',
+  subheadline: '',
+  hero_image_url: '',
+  video_url: '',
+  hero_media_url: '',
+  hero_media_type: 'image',
+  offer_price: '990',
+  original_price: '1990',
+  countdown_minutes: 15,
+  cta_text: 'สั่งซื้อโปรโมชั่นพิเศษนี้ทันที',
+  cta_url: '',
+  features_text: '✓ ส่งฟรีทั่วไทย (จัดส่งด่วน 1-2 วัน)\n✓ มีบริการเก็บเงินปลายทาง (COD)\n✓ รับประกันของแท้ 100% ตรงจากผู้ผลิต\n✓ มีทีมงานผู้เชี่ยวชาญให้คำแนะนำตลอด 24 ชม.',
+  body_content: '',
+  theme_color: '#EF4444',
+  bg_color: '#0B0F17',
+  bg_image_url: '',
+  card_style: 'glass',
+  gallery_images_text: '',
+  review_images_text: '',
+  pain_headline: 'คุณกำลังเจอปัญหาเหล่านี้อยู่ใช่หรือไม่?',
+  pain_points_text: '❌ เบื่อไหม? ลูกค้าทักมาขอลิงก์ช้อปปิ้งทีละแอปจนตอบไม่ทัน\n❌ ยิงแอดไปเท่าไหร่ แต่เก็บ Data ลูกค้าไม่ได้เลยใช่ไหม?\n❌ ปิดการขายช้าเพราะลูกค้าสับสนช่องทางชำระเงิน',
+  benefits_headline: 'ทางออกและผลลัพธ์ที่คุณจะได้รับ',
+  benefits_text: '✓ รวมทุกลิงก์และระบบรับเงินจบในหน้าเดียว ลูกค้าไม่สับสน\n✓ ฝัง Pixel ง่ายๆ ช่วยให้คุณยิงแอดตามติดลูกค้า เพิ่มยอดขาย 300%\n✓ ดึงยอดคนดูเข้าไลฟ์สดได้ทันทีจากทุกช่องทาง แบบ Real-time',
+  testimonials_text: 'ตั้งแต่เปลี่ยนมาใช้หน้านี้ ยอดขายจาก TikTok Ads เพิ่มขึ้น 3 เท่า ลูกค้าสั่งซื้อง่ายมาก\nระบบจัดการลิงก์และเซลเพจที่ดีที่สุด ช่วยประหยัดเวลาตอบแชตได้เยอะมาก',
+  faqs_text: 'มีบริการเก็บเงินปลายทาง (COD) ไหม? | มีครับ สามารถกรอกที่อยู่แล้วรอชำระเงินเมื่อสินค้าถึงได้เลย\nจัดส่งสินค้ากี่วันถึง? | จัดส่งด่วน Flash/EMS สินค้าถึงภายใน 1-2 วันทำการครับ\nสินค้าเป็นของแท้ 100% ไหม? | ของแท้ 100% รับประกันความพึงพอใจ ยินดีคืนเงิน',
+  guarantee_text: '🛡️ รับประกันความพึงพอใจ ของแท้ 100% ยินดีคืนเงินภายใน 7 วัน',
+  trust_badge_1: 'ส่งฟรีด่วน',
+  trust_badge_2: 'ของแท้ 100%',
+  trust_badge_3: 'ชำระเงินปลอดภัย',
+  enable_cod_form: true,
+  seo_title: '',
+  seo_description: '',
+  seo_keywords: '',
+  og_image_url: '',
+  fb_pixel_id: '',
+  tiktok_pixel_id: '',
+  google_pixel_id: '',
+  line_tag_id: ''
+}
+
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'links' | 'shop' | 'appearance' | 'landing_pages' | 'shortener' | 'leads' | 'billing'>('links')
@@ -62,48 +148,7 @@ export default function DashboardPage() {
   const [editingLandingPageId, setEditingLandingPageId] = useState<string | null>(null)
   const [previewMode, setPreviewMode] = useState<'bio' | 'landing'>('bio')
   const [unlockingLandingSlot, setUnlockingLandingSlot] = useState(false)
-  const [newLandingPage, setNewLandingPage] = useState({
-    slug: '',
-    title: '',
-    headline: '',
-    subheadline: '',
-    hero_image_url: '',
-    video_url: '',
-    hero_media_url: '',
-    hero_media_type: 'image',
-    offer_price: '990',
-    original_price: '1990',
-    cta_text: 'สั่งซื้อโปรโมชั่นพิเศษนี้ทันที',
-    cta_url: '',
-    countdown_minutes: 15,
-    features_text: '✓ ส่งฟรีทั่วไทย (จัดส่งด่วน 1-2 วัน)\n✓ มีบริการเก็บเงินปลายทาง (COD)\n✓ รับประกันของแท้ 100% ตรงจากผู้ผลิต\n✓ มีทีมงานผู้เชี่ยวชาญให้คำแนะนำตลอด 24 ชม.',
-    body_content: '',
-    theme_color: '#EF4444',
-    bg_color: '#0B0F17',
-    gallery_images_text: '',
-    review_images_text: '',
-    trust_badge_1: 'ส่งฟรีด่วน',
-    trust_badge_2: 'ของแท้ 100%',
-    trust_badge_3: 'ชำระเงินปลอดภัย',
-    enable_cod_form: true,
-    bg_image_url: '',
-    card_style: 'glass',
-    pain_headline: 'คุณกำลังเจอปัญหาเหล่านี้อยู่ใช่หรือไม่?',
-    pain_points_text: '❌ เบื่อไหม? ลูกค้าทักมาขอลิงก์ช้อปปิ้งทีละแอปจนตอบไม่ทัน\n❌ ยิงแอดไปเท่าไหร่ แต่เก็บ Data ลูกค้าไม่ได้เลยใช่ไหม?\n❌ ปิดการขายช้าเพราะลูกค้าสับสนช่องทางชำระเงิน',
-    benefits_headline: 'ทางออกและผลลัพธ์ที่คุณจะได้รับ',
-    benefits_text: '✓ รวมทุกลิงก์และระบบรับเงินจบในหน้าเดียว ลูกค้าไม่สับสน\n✓ ฝัง Pixel ง่ายๆ ช่วยให้คุณยิงแอดตามติดลูกค้า เพิ่มยอดขาย 300%\n✓ ดึงยอดคนดูเข้าไลฟ์สดได้ทันทีจากทุกช่องทาง แบบ Real-time',
-    testimonials_text: 'ตั้งแต่เปลี่ยนมาใช้หน้านี้ ยอดขายจาก TikTok Ads เพิ่มขึ้น 3 เท่า ลูกค้าสั่งซื้อง่ายมาก\nระบบจัดการลิงก์และเซลเพจที่ดีที่สุด ช่วยประหยัดเวลาตอบแชตได้เยอะมาก',
-    faqs_text: 'มีบริการเก็บเงินปลายทาง (COD) ไหม? | มีครับ สามารถกรอกที่อยู่แล้วรอชำระเงินเมื่อสินค้าถึงได้เลย\nจัดส่งสินค้ากี่วันถึง? | จัดส่งด่วน Flash/EMS สินค้าถึงภายใน 1-2 วันทำการครับ\nสินค้าเป็นของแท้ 100% ไหม? | ของแท้ 100% รับประกันความพึงพอใจ ยินดีคืนเงิน',
-    guarantee_text: '🛡️ รับประกันความพึงพอใจ ของแท้ 100% ยินดีคืนเงินภายใน 7 วัน',
-    seo_title: '',
-    seo_description: '',
-    seo_keywords: '',
-    og_image_url: '',
-    fb_pixel_id: '',
-    tiktok_pixel_id: '',
-    google_pixel_id: '',
-    line_tag_id: ''
-  })
+  const [newLandingPage, setNewLandingPage] = useState<LandingPageFormData>(DEFAULT_LANDING_PAGE_FORM)
   const [uploadingLpImg, setUploadingLpImg] = useState(false)
   const [pixelAnalyticsOpen, setPixelAnalyticsOpen] = useState(false)
   
@@ -443,6 +488,7 @@ export default function DashboardPage() {
   const handleStartEditLandingPage = (lp: any) => {
     setEditingLandingPageId(lp.id)
     setNewLandingPage({
+      ...DEFAULT_LANDING_PAGE_FORM,
       slug: lp.slug || '',
       title: lp.title || '',
       headline: lp.headline || '',
@@ -451,28 +497,30 @@ export default function DashboardPage() {
       video_url: lp.video_url || '',
       hero_media_url: lp.hero_media_url || '',
       hero_media_type: lp.hero_media_type || 'image',
-      offer_price: String(lp.offer_price || ''),
-      original_price: String(lp.original_price || ''),
-      countdown_minutes: lp.countdown_minutes || 15,
+      offer_price: String(lp.offer_price ?? ''),
+      original_price: String(lp.original_price ?? ''),
+      countdown_minutes: lp.countdown_minutes ?? 15,
       cta_text: lp.cta_text || 'สั่งซื้อโปรโมชั่นพิเศษนี้ทันที',
       cta_url: lp.cta_url || '',
-      features_text: Array.isArray(lp.features) ? lp.features.join('\n') : (lp.features || ''),
-      pain_headline: lp.pain_headline || 'คุณกำลังเจอปัญหาเหล่านี้อยู่ใช่หรือไม่?',
-      pain_points_text: Array.isArray(lp.pain_points) ? lp.pain_points.join('\n') : (lp.pain_points || ''),
-      benefits_headline: lp.benefits_headline || 'ทางออกและผลลัพธ์ที่คุณจะได้รับ',
-      benefits_text: Array.isArray(lp.benefits) ? lp.benefits.join('\n') : (lp.benefits || ''),
-      testimonials_text: Array.isArray(lp.testimonials) ? lp.testimonials.join('\n') : (lp.testimonials || ''),
-      faqs_text: Array.isArray(lp.faqs) ? lp.faqs.join('\n') : (lp.faqs || ''),
-      guarantee_text: lp.guarantee_text || '🛡️ รับประกันความพึงพอใจ ของแท้ 100% ยินดีคืนเงินภายใน 7 วัน',
+      features_text: Array.isArray(lp.features) ? lp.features.join('\n') : (lp.features || DEFAULT_LANDING_PAGE_FORM.features_text),
+      body_content: lp.body_content || '',
+      theme_color: lp.theme_color || '#EF4444',
+      bg_color: lp.bg_color || '#0B0F17',
+      bg_image_url: lp.bg_image_url || '',
+      card_style: lp.card_style || 'glass',
+      gallery_images_text: Array.isArray(lp.gallery_images) ? lp.gallery_images.join('\n') : (lp.gallery_images || ''),
+      review_images_text: Array.isArray(lp.review_images) ? lp.review_images.join('\n') : (lp.review_images || ''),
+      pain_headline: lp.pain_headline || DEFAULT_LANDING_PAGE_FORM.pain_headline,
+      pain_points_text: Array.isArray(lp.pain_points) ? lp.pain_points.join('\n') : (lp.pain_points || DEFAULT_LANDING_PAGE_FORM.pain_points_text),
+      benefits_headline: lp.benefits_headline || DEFAULT_LANDING_PAGE_FORM.benefits_headline,
+      benefits_text: Array.isArray(lp.benefits) ? lp.benefits.join('\n') : (lp.benefits || DEFAULT_LANDING_PAGE_FORM.benefits_text),
+      testimonials_text: Array.isArray(lp.testimonials) ? lp.testimonials.join('\n') : (lp.testimonials || DEFAULT_LANDING_PAGE_FORM.testimonials_text),
+      faqs_text: Array.isArray(lp.faqs) ? lp.faqs.join('\n') : (lp.faqs || DEFAULT_LANDING_PAGE_FORM.faqs_text),
+      guarantee_text: lp.guarantee_text || DEFAULT_LANDING_PAGE_FORM.guarantee_text,
       trust_badge_1: lp.trust_badge_1 || 'ส่งฟรีด่วน',
       trust_badge_2: lp.trust_badge_2 || 'ของแท้ 100%',
       trust_badge_3: lp.trust_badge_3 || 'ชำระเงินปลอดภัย',
       enable_cod_form: lp.enable_cod_form !== false,
-      theme_color: lp.theme_color || '#EF4444',
-      bg_color: lp.bg_color || '#0B0F17',
-      bg_image_url: lp.bg_image_url || '',
-      gallery_images_text: Array.isArray(lp.gallery_images) ? lp.gallery_images.join('\n') : (lp.gallery_images || ''),
-      review_images_text: Array.isArray(lp.review_images) ? lp.review_images.join('\n') : (lp.review_images || ''),
       seo_title: lp.seo_title || '',
       seo_description: lp.seo_description || '',
       seo_keywords: lp.seo_keywords || '',
@@ -491,46 +539,7 @@ export default function DashboardPage() {
 
   const handleCancelEditLandingPage = () => {
     setEditingLandingPageId(null)
-    setNewLandingPage({
-      slug: '',
-      title: '',
-      headline: '',
-      subheadline: '',
-      hero_image_url: '',
-      video_url: '',
-      hero_media_url: '',
-      hero_media_type: 'image',
-      offer_price: '990',
-      original_price: '1990',
-      countdown_minutes: 15,
-      cta_text: 'สั่งซื้อโปรโมชั่นพิเศษนี้ทันที',
-      cta_url: '',
-      features_text: '✓ ส่งฟรีทั่วไทย (จัดส่งด่วน 1-2 วัน)\n✓ มีบริการเก็บเงินปลายทาง (COD)\n✓ รับประกันของแท้ 100% ตรงจากผู้ผลิต\n✓ มีทีมงานผู้เชี่ยวชาญให้คำแนะนำตลอด 24 ชม.',
-      pain_headline: 'คุณกำลังเจอปัญหาเหล่านี้อยู่ใช่หรือไม่?',
-      pain_points_text: '❌ เบื่อไหม? ลูกค้าทักมาขอลิงก์ช้อปปิ้งทีละแอปจนตอบไม่ทัน\n❌ ยิงแอดไปเท่าไหร่ แต่เก็บ Data ลูกค้าไม่ได้เลยใช่ไหม?\n❌ ปิดการขายช้าเพราะลูกค้าสับสนช่องทางชำระเงิน',
-      benefits_headline: 'ทางออกและผลลัพธ์ที่คุณจะได้รับ',
-      benefits_text: '✓ รวมทุกลิงก์และระบบรับเงินจบในหน้าเดียว ลูกค้าไม่สับสน\n✓ ฝัง Pixel ง่ายๆ ช่วยให้คุณยิงแอดตามติดลูกค้า เพิ่มยอดขาย 300%\n✓ ดึงยอดคนดูเข้าไลฟ์สดได้ทันทีจากทุกช่องทาง แบบ Real-time',
-      testimonials_text: 'ตั้งแต่เปลี่ยนมาใช้หน้านี้ ยอดขายจาก TikTok Ads เพิ่มขึ้น 3 เท่า ลูกค้าสั่งซื้อง่ายมาก\nระบบจัดการลิงก์และเซลเพจที่ดีที่สุด ช่วยประหยัดเวลาตอบแชตได้เยอะมาก',
-      faqs_text: 'มีบริการเก็บเงินปลายทาง (COD) ไหม? | มีครับ สามารถกรอกที่อยู่แล้วรอชำระเงินเมื่อสินค้าถึงได้เลย\nจัดส่งสินค้ากี่วันถึง? | จัดส่งด่วน Flash/EMS สินค้าถึงภายใน 1-2 วันทำการครับ\nสินค้าเป็นของแท้ 100% ไหม? | ของแท้ 100% รับประกันความพึงพอใจ ยินดีคืนเงิน',
-      guarantee_text: '🛡️ รับประกันความพึงพอใจ ของแท้ 100% ยินดีคืนเงินภายใน 7 วัน',
-      trust_badge_1: 'ส่งฟรีด่วน',
-      trust_badge_2: 'ของแท้ 100%',
-      trust_badge_3: 'ชำระเงินปลอดภัย',
-      enable_cod_form: true,
-      theme_color: '#EF4444',
-      bg_color: '#0B0F17',
-      bg_image_url: '',
-      gallery_images_text: '',
-      review_images_text: '',
-      seo_title: '',
-      seo_description: '',
-      seo_keywords: '',
-      og_image_url: '',
-      fb_pixel_id: '',
-      tiktok_pixel_id: '',
-      google_pixel_id: '',
-      line_tag_id: ''
-    })
+    setNewLandingPage(DEFAULT_LANDING_PAGE_FORM)
   }
 
   const handleUploadLpImage = async (e: React.ChangeEvent<HTMLInputElement>, targetField: 'hero' | 'og' | 'bg' | 'gallery' | 'review') => {
