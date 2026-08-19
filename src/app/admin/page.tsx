@@ -11,7 +11,7 @@ import {
   UserPlus, PackagePlus, Globe, Sparkles
 } from 'lucide-react'
 
-type AdminTab = 'users' | 'links' | 'products' | 'shortlinks' | 'leads' | 'system'
+type AdminTab = 'users' | 'landing_pages' | 'shortlinks' | 'links' | 'products' | 'leads' | 'system'
 
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true)
@@ -47,8 +47,13 @@ export default function AdminDashboardPage() {
   const [usersList, setUsersList] = useState<any[]>([])
   const [allLinks, setAllLinks] = useState<any[]>([])
   const [allProducts, setAllProducts] = useState<any[]>([])
+  const [allLandingPages, setAllLandingPages] = useState<any[]>([])
   const [allShortLinks, setAllShortLinks] = useState<any[]>([])
   const [allLeads, setAllLeads] = useState<any[]>([])
+  
+  // Landing Page Edit Modal State (Admin)
+  const [editingLp, setEditingLp] = useState<any | null>(null)
+  const [savingLp, setSavingLp] = useState(false)
   
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('')
@@ -189,11 +194,83 @@ export default function AdminDashboardPage() {
       .select('*, profiles(username, full_name)')
       .order('created_at', { ascending: false })
     if (ldData) setAllLeads(ldData)
+
+    const { data: lpData } = await supabase
+      .from('landing_pages')
+      .select('*, profiles(username, full_name)')
+      .order('created_at', { ascending: false })
+    if (lpData) setAllLandingPages(lpData)
   }
 
   const showNotification = (msg: string) => {
     setStatusMsg(msg)
     setTimeout(() => setStatusMsg(''), 5000)
+  }
+
+  // --- ADMIN LANDING PAGE HANDLERS ---
+  const handleAdminSaveLp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingLp) return
+    setSavingLp(true)
+
+    try {
+      const payload = {
+        title: editingLp.title?.trim(),
+        slug: editingLp.slug?.trim().toLowerCase(),
+        headline: editingLp.headline?.trim(),
+        subheadline: editingLp.subheadline?.trim() || null,
+        hero_image_url: editingLp.hero_image_url?.trim() || null,
+        video_url: editingLp.video_url?.trim() || null,
+        offer_price: parseFloat(editingLp.offer_price) || 0,
+        original_price: parseFloat(editingLp.original_price) || null,
+        countdown_minutes: parseInt(String(editingLp.countdown_minutes), 10) || 15,
+        cta_text: editingLp.cta_text?.trim() || 'สั่งซื้อโปรโมชั่นพิเศษนี้ทันที',
+        cta_url: editingLp.cta_url?.trim(),
+        trust_badge_1: editingLp.trust_badge_1?.trim() || 'ส่งฟรีด่วน',
+        trust_badge_2: editingLp.trust_badge_2?.trim() || 'ของแท้ 100%',
+        trust_badge_3: editingLp.trust_badge_3?.trim() || 'ชำระเงินปลอดภัย',
+        enable_cod_form: editingLp.enable_cod_form !== false,
+        theme_color: editingLp.theme_color || '#EF4444',
+        bg_color: editingLp.bg_color || '#0B0F17',
+        bg_image_url: editingLp.bg_image_url?.trim() || null,
+        seo_title: editingLp.seo_title?.trim() || null,
+        seo_description: editingLp.seo_description?.trim() || null,
+        fb_pixel_id: editingLp.fb_pixel_id?.trim() || null,
+        tiktok_pixel_id: editingLp.tiktok_pixel_id?.trim() || null,
+        google_pixel_id: editingLp.google_pixel_id?.trim() || null,
+        line_tag_id: editingLp.line_tag_id?.trim() || null,
+        updated_at: new Date().toISOString()
+      }
+
+      const { data, error } = await supabase
+        .from('landing_pages')
+        .update(payload)
+        .eq('id', editingLp.id)
+        .select('*, profiles(username, full_name)')
+
+      if (!error && data) {
+        setAllLandingPages(allLandingPages.map(p => p.id === editingLp.id ? data[0] : p))
+        setEditingLp(null)
+        showNotification('✅ บันทึกการแก้ไขเซลเพจ & Pixel (Admin) สำเร็จ!')
+      } else {
+        alert('❌ เกิดข้อผิดพลาด: ' + (error?.message || ''))
+      }
+    } catch (err: any) {
+      alert('❌ เกิดข้อผิดพลาด: ' + err.message)
+    } finally {
+      setSavingLp(false)
+    }
+  }
+
+  const handleDeleteLandingPageAdmin = async (id: string, title: string) => {
+    if (!confirm(`คุณต้องการลบเซลเพจ "${title}" ใช่หรือไม่?`)) return
+    try {
+      const { error } = await supabase.from('landing_pages').delete().eq('id', id)
+      if (!error) {
+        setAllLandingPages(allLandingPages.filter(p => p.id !== id))
+        showNotification(`🗑️ ลบเซลเพจ "${title}" สำเร็จ!`)
+      }
+    } catch (e) {}
   }
 
   // 1. USER ACTIONS
@@ -920,6 +997,94 @@ export default function AdminDashboardPage() {
             <Database className="w-4 h-4" /> ข้อมูลระบบ & SQL
           </button>
         </div>
+
+                {/* TAB 2: LANDING PAGES & PIXELS (ADMIN MANAGEMENT) */}
+        {activeTab === 'landing_pages' && (
+          <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-3xl space-y-4 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold">
+                  <Rocket className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-white">จัดการเซลเพจยิงแอด & Pixel ของทุกคนในระบบ ({allLandingPages.length})</h3>
+                  <p className="text-xs text-slate-400">แอดมินสามารถตรวจสอบ แก้ไขข้อมูล และปรับแต่ง Pixel ของเซลเพจทุกใบได้อย่างอิสระ</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400 font-bold">
+                    <th className="pb-3 px-2">ชื่อเซลเพจ / เจ้าของ</th>
+                    <th className="pb-3 px-2">URL Slug</th>
+                    <th className="pb-3 px-2">ราคา Flash Sale</th>
+                    <th className="pb-3 px-2">สถิติ (วิว/คลิก)</th>
+                    <th className="pb-3 px-2">Tracking Pixels ที่ฝัง</th>
+                    <th className="pb-3 px-2 text-right">การจัดการ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {allLandingPages.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-500">
+                        ยังไม่มีเซลเพจถูกสร้างในระบบ
+                      </td>
+                    </tr>
+                  ) : (
+                    allLandingPages.map((lp) => (
+                      <tr key={lp.id} className="hover:bg-slate-800/40 transition">
+                        <td className="py-3 px-2">
+                          <p className="font-bold text-white">{lp.title}</p>
+                          <p className="text-[11px] text-purple-400">@{lp.profiles?.username || 'unknown'}</p>
+                        </td>
+                        <td className="py-3 px-2 font-mono font-bold text-rose-400">
+                          /p/{lp.slug}
+                        </td>
+                        <td className="py-3 px-2 font-mono font-bold text-emerald-400">
+                          ฿{lp.offer_price ? parseFloat(lp.offer_price).toLocaleString() : '0'}
+                        </td>
+                        <td className="py-3 px-2 text-slate-300">
+                          👁️ {lp.views || 0} | 👆 {lp.clicks || 0}
+                        </td>
+                        <td className="py-3 px-2">
+                          <span className="text-[10px] bg-purple-950/80 text-purple-300 border border-purple-800 px-2 py-0.5 rounded font-mono">
+                            {lp.fb_pixel_id ? `FB: ${lp.fb_pixel_id}` : 'Global Pixel'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 text-right space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditingLp({ ...lp })}
+                            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black transition shadow"
+                          >
+                            ✏️ แก้ไข (Admin)
+                          </button>
+                          <a
+                            href={`/p/${lp.slug}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition inline-block"
+                          >
+                            เปิดดู
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteLandingPageAdmin(lp.id, lp.title)}
+                            className="px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-400 rounded-xl text-xs font-bold transition"
+                          >
+                            ลบ
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* TAB 1: USERS */}
         {activeTab === 'users' && (
@@ -2830,17 +2995,18 @@ WHERE username = 'YOUR_USERNAME';`}
         </div>
       )}
 
+      
       {/* ADMIN EDIT LANDING PAGE MODAL */}
       {editingLp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-4 text-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold">
                   <Rocket className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-[#1E1B4B] dark:text-white text-base">
+                  <h3 className="font-extrabold text-white text-base">
                     แก้ไขเซลเพจ & Pixel (Admin Mode)
                   </h3>
                   <p className="text-xs text-slate-400">เจ้าของ: @{editingLp.profiles?.username || 'unknown'}</p>
@@ -2848,7 +3014,7 @@ WHERE username = 'YOUR_USERNAME';`}
               </div>
               <button
                 onClick={() => setEditingLp(null)}
-                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center"
+                className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -2857,139 +3023,139 @@ WHERE username = 'YOUR_USERNAME';`}
             <form onSubmit={handleAdminSaveLp} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1">ชื่อเซลเพจ</label>
+                  <label className="block font-bold mb-1 text-slate-300">ชื่อเซลเพจ</label>
                   <input
                     type="text"
                     required
                     value={editingLp.title || ''}
                     onChange={(e) => setEditingLp({ ...editingLp, title: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold mb-1">Slug URL (/p/xxx)</label>
+                  <label className="block font-bold mb-1 text-slate-300">Slug URL (/p/xxx)</label>
                   <input
                     type="text"
                     required
                     value={editingLp.slug || ''}
                     onChange={(e) => setEditingLp({ ...editingLp, slug: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl font-mono text-white"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block font-bold mb-1">Headline (หัวข้อหลัก)</label>
+                <label className="block font-bold mb-1 text-slate-300">Headline (หัวข้อหลัก)</label>
                 <input
                   type="text"
                   required
                   value={editingLp.headline || ''}
                   onChange={(e) => setEditingLp({ ...editingLp, headline: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl font-bold text-white"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1">รูปภาพสินค้า (Hero Image URL)</label>
+                  <label className="block font-bold mb-1 text-slate-300">รูปภาพสินค้า (Hero Image URL)</label>
                   <input
                     type="text"
                     value={editingLp.hero_image_url || ''}
                     onChange={(e) => setEditingLp({ ...editingLp, hero_image_url: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl font-mono text-white"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold mb-1">วิดีโอ YouTube (Video URL)</label>
+                  <label className="block font-bold mb-1 text-slate-300">วิดีโอ YouTube (Video URL)</label>
                   <input
                     type="text"
                     value={editingLp.video_url || ''}
                     onChange={(e) => setEditingLp({ ...editingLp, video_url: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl font-mono text-white"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-bold mb-1">ราคาโปรโมชั่น (บาท)</label>
+                  <label className="block font-bold mb-1 text-slate-300">ราคาโปรโมชั่น (บาท)</label>
                   <input
                     type="number"
                     value={editingLp.offer_price || ''}
                     onChange={(e) => setEditingLp({ ...editingLp, offer_price: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono font-bold"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl font-mono font-bold text-white"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold mb-1">ราคาเดิมก่อนลด (บาท)</label>
+                  <label className="block font-bold mb-1 text-slate-300">ราคาเต็มก่อนลด (บาท)</label>
                   <input
                     type="number"
                     value={editingLp.original_price || ''}
                     onChange={(e) => setEditingLp({ ...editingLp, original_price: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl font-mono text-white"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold mb-1">เวลานับถอยหลัง (นาที)</label>
+                  <label className="block font-bold mb-1 text-slate-300">เวลานับถอยหลัง (นาที)</label>
                   <input
                     type="number"
                     value={editingLp.countdown_minutes || 15}
                     onChange={(e) => setEditingLp({ ...editingLp, countdown_minutes: parseInt(e.target.value, 10) || 15 })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl font-mono text-white"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold mb-1">ข้อความบนปุ่มสั่งซื้อ</label>
+                  <label className="block font-bold mb-1 text-slate-300">ข้อความบนปุ่มสั่งซื้อ</label>
                   <input
                     type="text"
                     value={editingLp.cta_text || ''}
                     onChange={(e) => setEditingLp({ ...editingLp, cta_text: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white"
                   />
                 </div>
                 <div>
-                  <label className="block font-bold mb-1">ลิงก์สั่งซื้อ (CTA URL)</label>
+                  <label className="block font-bold mb-1 text-slate-300">ลิงก์สั่งซื้อ (CTA URL)</label>
                   <input
                     type="text"
                     required
                     value={editingLp.cta_url || ''}
                     onChange={(e) => setEditingLp({ ...editingLp, cta_url: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl font-mono text-white"
                   />
                 </div>
               </div>
 
               {/* Badges & COD Form */}
-              <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
-                <label className="block font-bold">ป้ายความมั่นใจ 3 จุด</label>
+              <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                <label className="block font-bold text-slate-300">ป้ายความมั่นใจ 3 จุด</label>
                 <div className="grid grid-cols-3 gap-2">
                   <input
                     type="text"
                     placeholder="ส่งฟรีด่วน"
                     value={editingLp.trust_badge_1 || ''}
                     onChange={(e) => setEditingLp({ ...editingLp, trust_badge_1: e.target.value })}
-                    className="px-2 py-1 bg-white dark:bg-slate-900 border rounded-lg text-xs"
+                    className="px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white"
                   />
                   <input
                     type="text"
                     placeholder="ของแท้ 100%"
                     value={editingLp.trust_badge_2 || ''}
                     onChange={(e) => setEditingLp({ ...editingLp, trust_badge_2: e.target.value })}
-                    className="px-2 py-1 bg-white dark:bg-slate-900 border rounded-lg text-xs"
+                    className="px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white"
                   />
                   <input
                     type="text"
                     placeholder="ชำระเงินปลอดภัย"
                     value={editingLp.trust_badge_3 || ''}
                     onChange={(e) => setEditingLp({ ...editingLp, trust_badge_3: e.target.value })}
-                    className="px-2 py-1 bg-white dark:bg-slate-900 border rounded-lg text-xs"
+                    className="px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white"
                   />
                 </div>
                 <div className="pt-2 flex items-center justify-between">
-                  <span className="font-bold">แสดงฟอร์มเก็บเงินปลายทาง (COD)</span>
+                  <span className="font-bold text-slate-300">แสดงฟอร์มเก็บเงินปลายทาง (COD)</span>
                   <input
                     type="checkbox"
                     checked={editingLp.enable_cod_form !== false}
@@ -3000,27 +3166,27 @@ WHERE username = 'YOUR_USERNAME';`}
               </div>
 
               {/* Custom Pixels per Page (Admin Override) */}
-              <div className="p-3 bg-purple-50/50 dark:bg-purple-950/20 rounded-xl border border-purple-200 dark:border-purple-800 space-y-2">
-                <h5 className="font-extrabold text-purple-900 dark:text-purple-300">กำหนด Tracking Pixels เฉพาะหน้านี้ (Admin)</h5>
+              <div className="p-3 bg-purple-950/30 rounded-xl border border-purple-800/60 space-y-2">
+                <h5 className="font-extrabold text-purple-300">กำหนด Tracking Pixels เฉพาะหน้านี้ (Admin)</h5>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Facebook Pixel ID</label>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-0.5">Facebook Pixel ID</label>
                     <input
                       type="text"
                       value={editingLp.fb_pixel_id || ''}
                       onChange={(e) => setEditingLp({ ...editingLp, fb_pixel_id: e.target.value })}
                       placeholder="เช่น 1234567890..."
-                      className="w-full px-2.5 py-1 bg-white dark:bg-slate-900 border rounded-lg font-mono text-xs"
+                      className="w-full px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-lg font-mono text-xs text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-0.5">TikTok Pixel ID</label>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-0.5">TikTok Pixel ID</label>
                     <input
                       type="text"
                       value={editingLp.tiktok_pixel_id || ''}
                       onChange={(e) => setEditingLp({ ...editingLp, tiktok_pixel_id: e.target.value })}
                       placeholder="เช่น C9A1B2..."
-                      className="w-full px-2.5 py-1 bg-white dark:bg-slate-900 border rounded-lg font-mono text-xs"
+                      className="w-full px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-lg font-mono text-xs text-white"
                     />
                   </div>
                 </div>
@@ -3030,14 +3196,14 @@ WHERE username = 'YOUR_USERNAME';`}
                 <button
                   type="submit"
                   disabled={savingLp}
-                  className="flex-1 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold rounded-xl shadow transition"
+                  className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold rounded-xl shadow-lg transition"
                 >
                   {savingLp ? 'กำลังบันทึก...' : '💾 บันทึกการแก้ไข (Admin Save)'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditingLp(null)}
-                  className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold"
+                  className="px-5 py-3 bg-slate-800 text-slate-300 rounded-xl font-bold hover:bg-slate-700"
                 >
                   ยกเลิก
                 </button>
