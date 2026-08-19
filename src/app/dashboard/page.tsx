@@ -642,6 +642,10 @@ export default function DashboardPage() {
     (profile?.master_expires_at && new Date(profile.master_expires_at).getTime() > Date.now()) ||
     (profile?.pixel_expires_at && new Date(profile.pixel_expires_at).getTime() > Date.now())
 
+  const isLandingTabLocked = profile.role !== 'admin' && 
+    !(profile.master_expires_at && new Date(profile.master_expires_at).getTime() > Date.now()) &&
+    !(profile.extra_landing_page_slots && profile.extra_landing_page_slots > 0)
+
   const isMasterUser = profile.role === 'admin' || (profile.master_expires_at && new Date(profile.master_expires_at).getTime() > Date.now())
   const baseLandingSlots = isMasterUser ? 1 : 0
   const totalLandingSlots = profile.role === 'admin' ? 9999 : (baseLandingSlots + (profile.extra_landing_page_slots || 0))
@@ -843,11 +847,13 @@ export default function DashboardPage() {
   }
 
   // --- Redeem VIP Tiers with Points ---
+  const handleFastUpgrade = (tier: 'pro' | 'master') => handleRedeemTierWithPoints(tier)
   const handleRedeemTierWithPoints = async (tierType: 'pro' | 'master') => {
     if (!user) return
     const cost = tierType === 'master' ? 250 : 100
     if ((profile.points || 0) < cost) {
-      showToast(`❌ แต้มสะสมไม่เพียงพอ (ต้องการ ${cost} แต้ม แต่คุณมี ${profile.points || 0} แต้ม)`)
+      showToast(`❌ แต้มสะสมไม่เพียงพอ (ต้องการ ${cost} แต้ม แต่คุณมี ${profile.points || 0} แต้ม) กรุณาเติมแต้มก่อนครับ`)
+      setTopUpModalOpen(true)
       return
     }
 
@@ -1111,7 +1117,7 @@ export default function DashboardPage() {
               {[
                 { id: 'links', label: 'ลิ้งก์', icon: Link2, count: links.length },
                 { id: 'shop', label: 'ร้านค้า', icon: ShoppingBag, count: products.length },
-                { id: 'landing_pages', label: 'เซลเพจยิงแอด', icon: Rocket, count: landingPages.length, locked: !isMasterUser && totalLandingSlots === 0 && !isPixelActive },
+                { id: 'landing_pages', label: 'เซลเพจยิงแอด', icon: Rocket, count: landingPages.length, locked: isLandingTabLocked },
                 { id: 'appearance', label: 'ข้อมูลโปรไฟล์', icon: Palette },
                 { id: 'shortener', label: 'ย่อลิงก์', icon: Scissors, count: shortLinks.length, locked: !isShortenerActive },
                 { id: 'leads', label: 'ลีด CRM', icon: Users, count: leads.length },
@@ -1845,139 +1851,200 @@ export default function DashboardPage() {
               </div>
             )}
 
-                        {/* TAB: DEDICATED ADS SALES LANDING PAGES */}
+                                    {/* TAB: DEDICATED ADS SALES LANDING PAGES */}
             {activeTab === 'landing_pages' && (
               <div className="space-y-6">
-                {/* 1. TRACKING PIXELS CONFIGURATION (Facebook, TikTok, Google, LINE) */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold shadow-sm">
-                        <Sparkles className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="font-extrabold text-base text-[#1E1B4B] dark:text-white">ฝังโค้ด Tracking Pixels สำหรับยิงแอด</h3>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">ระบบจะนำ Pixel ID ไปฝังในหน้า Bio และหน้าเซลเพจของคุณอัตโนมัติ 100%</p>
-                      </div>
+                {isLandingTabLocked ? (
+                  /* EXACT SAME CLEAN CENTERED LOCKED CARD AS SHORTENER (MATCHING image_2adfed.png) */
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 sm:p-12 rounded-3xl shadow-sm text-center space-y-6 max-w-xl mx-auto my-6">
+                    <div className="w-16 h-16 rounded-3xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300 flex items-center justify-center mx-auto shadow-sm">
+                      <Lock className="w-8 h-8" />
                     </div>
 
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => setPixelAnalyticsOpen(true)}
-                        className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5 active:scale-95 animate-pulse"
-                      >
-                        <Activity className="w-3.5 h-3.5" />
-                        <span>📊 ตรวจสอบสถานะ Pixel & สถิติสด</span>
-                      </button>
-
-                      <button
-                        onClick={handleSaveProfile}
-                        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5 active:scale-95"
-                      >
-                        <Save className="w-3.5 h-3.5" />
-                        <span>บันทึก Pixel ID</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-                    <div>
-                      <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1 flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                        <span>Facebook Pixel ID (Meta)</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="เช่น 123456789012345 (ตัวเลข 15-16 หลัก)"
-                        value={profile.fb_pixel_id || ''}
-                        onChange={(e) => setProfile({ ...profile, fb_pixel_id: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono font-bold"
-                      />
+                    <div className="space-y-1.5 max-w-md mx-auto">
+                      <h3 className="text-xl font-extrabold text-[#1E1B4B] dark:text-white">
+                        ระบบเซลเพจยิงแอดเป็นฟีเจอร์พรีเมียม
+                      </h3>
+                      <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
+                        สร้างหน้าเซลเพจขายของ Flash Sale พร้อมระบบฝัง Facebook, TikTok, Google, LINE Pixels อัตโนมัติ เพื่อยิงแอด Conversion วัดผลยอดขายได้ 100%
+                      </p>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1 flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-black dark:bg-white"></span>
-                        <span>TikTok Pixel ID</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="เช่น C9A1B2C3D4E5F6G7..."
-                        value={profile.tiktok_pixel_id || ''}
-                        onChange={(e) => setProfile({ ...profile, tiktok_pixel_id: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono font-bold"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1 flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                        <span>Google Analytics / Tag ID (GA4 / Ads)</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="เช่น G-XXXXXXXXXX หรือ AW-XXXXXXXXX"
-                        value={profile.google_pixel_id || ''}
-                        onChange={(e) => setProfile({ ...profile, google_pixel_id: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono font-bold"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1 flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                        <span>LINE Tag ID</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="เช่น xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                        value={profile.line_tag_id || ''}
-                        onChange={(e) => setProfile({ ...profile, line_tag_id: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono font-bold"
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Header & Quota Card */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold shadow-sm">
-                        <Rocket className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="font-extrabold text-base text-[#1E1B4B] dark:text-white">ระบบสร้างหน้าเซลเพจยิงแอด (Sales Landing Pages)</h3>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">สร้างหน้าเว็บแยกสำหรับยิงแอด Facebook & TikTok พร้อมฝัง Pixel อัตโนมัติ</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full font-mono">
-                        โควตา: {landingPages.length}/{profile.role === 'admin' ? 'ไม่จำกัด (Admin)' : `${totalLandingSlots} เซลเพจ`}
+                    <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-sm mx-auto flex items-center justify-between shadow-inner">
+                      <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">แต้มสะสมของคุณ:</span>
+                      <span className="text-sm font-black text-amber-600 dark:text-amber-400 font-mono flex items-center gap-1">
+                        <Coins className="w-4 h-4 text-amber-500" /> {profile.points || 0} แต้ม
                       </span>
+                    </div>
+
+                    <div className="flex flex-col gap-2.5 max-w-sm mx-auto pt-2">
                       <button
                         type="button"
                         onClick={handleUnlockLandingPageSlot}
-                        className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs transition shadow flex items-center gap-1 active:scale-95 cursor-pointer"
+                        disabled={unlockingLandingSlot}
+                        className="w-full py-3.5 px-4 bg-[#34D399] hover:bg-[#10B981] text-white font-extrabold rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition active:scale-95 cursor-pointer"
                       >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>{unlockingLandingSlot ? 'กำลังปลดล็อก...' : '+ เพิ่ม URL (350 แต้ม)'}</span>
+                        <Lock className="w-4 h-4" />
+                        <span>{unlockingLandingSlot ? 'กำลังปลดล็อก...' : 'ปลดล็อก 350 แต้ม (1 เซลเพจ)'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleFastUpgrade('master')}
+                        className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black rounded-2xl text-xs flex items-center justify-center gap-2 shadow transition active:scale-95 cursor-pointer"
+                      >
+                        <Crown className="w-4 h-4" />
+                        <span>👑 แลก MASTER VIP 30 วัน (ฟรีเซลเพจ 250 แต้ม)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setTopUpModalOpen(true)}
+                        className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                      >
+                        <Coins className="w-4 h-4 text-amber-500" />
+                        <span>+ เติมแต้มสะสมทันที (PromptPay)</span>
                       </button>
                     </div>
                   </div>
+                ) : (
+                  <>
+                    {/* 1. TRACKING PIXELS CONFIGURATION (Facebook, TikTok, Google, LINE) */}
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold shadow-sm">
+                            <Sparkles className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h3 className="font-extrabold text-base text-[#1E1B4B] dark:text-white flex items-center gap-2">
+                              <span>ฝังโค้ด Tracking Pixels สำหรับยิงแอด</span>
+                              <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                                ✓ ใช้งานได้
+                              </span>
+                            </h3>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">ระบบจะนำ Pixel ID ไปฝังในหน้า Bio และหน้าเซลเพจของคุณอัตโนมัติ 100%</p>
+                          </div>
+                        </div>
 
-                  {/* Quota Details Notice */}
-                  <div className="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl text-xs text-rose-900 dark:text-rose-200 flex items-start gap-2.5">
-                    <Sparkles className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-black">👑 สิทธิพิเศษ:</span> สมาชิก <strong>MASTER VIP</strong> สร้างเซลเพจฟรีได้ 1 URL ทันที และสามารถใช้ <strong>350 แต้ม</strong> เพื่อปลดล็อกเพิ่มได้ไม่จำกัด URL
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => setPixelAnalyticsOpen(true)}
+                            className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5 active:scale-95 animate-pulse cursor-pointer"
+                          >
+                            <Activity className="w-3.5 h-3.5" />
+                            <span>📊 ตรวจสอบสถานะ Pixel & สถิติสด</span>
+                          </button>
+
+                          <button
+                            onClick={handleSaveProfile}
+                            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+                          >
+                            <Save className="w-3.5 h-3.5" />
+                            <span>บันทึก Pixel ID</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                        <div>
+                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1 flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                            <span>Facebook Pixel ID (Meta)</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="เช่น 123456789012345 (ตัวเลข 15-16 หลัก)"
+                            value={profile.fb_pixel_id || ''}
+                            onChange={(e) => setProfile({ ...profile, fb_pixel_id: e.target.value })}
+                            className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono font-bold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1 flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-black dark:bg-white"></span>
+                            <span>TikTok Pixel ID</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="เช่น C9A1B2C3D4E5F6G7..."
+                            value={profile.tiktok_pixel_id || ''}
+                            onChange={(e) => setProfile({ ...profile, tiktok_pixel_id: e.target.value })}
+                            className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono font-bold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1 flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                            <span>Google Analytics / Tag ID (GA4 / Ads)</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="เช่น G-XXXXXXXXXX หรือ AW-XXXXXXXXX"
+                            value={profile.google_pixel_id || ''}
+                            onChange={(e) => setProfile({ ...profile, google_pixel_id: e.target.value })}
+                            className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono font-bold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1 flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                            <span>LINE Tag ID</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="เช่น xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                            value={profile.line_tag_id || ''}
+                            onChange={(e) => setProfile({ ...profile, line_tag_id: e.target.value })}
+                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono font-bold"
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Complete 6-Section & SEO Landing Page Builder Form */}
-                  {(!isLandingQuotaFull || profile.role === 'admin') ? (
+                    {/* Header & Quota Card */}
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold shadow-sm">
+                            <Rocket className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h3 className="font-extrabold text-base text-[#1E1B4B] dark:text-white">ระบบสร้างหน้าเซลเพจยิงแอด (Sales Landing Pages)</h3>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">สร้างหน้าเว็บแยกสำหรับยิงแอด Facebook & TikTok พร้อมฝัง Pixel อัตโนมัติ</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full font-mono">
+                            โควตา: {landingPages.length}/{profile.role === 'admin' ? 'ไม่จำกัด (Admin)' : `${totalLandingSlots} เซลเพจ`}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleUnlockLandingPageSlot}
+                            disabled={unlockingLandingSlot}
+                            className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs transition shadow flex items-center gap-1 active:scale-95 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>{unlockingLandingSlot ? 'กำลังปลดล็อก...' : '+ เพิ่ม URL (350 แต้ม)'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Quota Details Notice */}
+                      <div className="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl text-xs text-rose-900 dark:text-rose-200 flex items-start gap-2.5">
+                        <Sparkles className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-black">👑 สิทธิพิเศษ:</span> สมาชิก <strong>MASTER VIP</strong> สร้างเซลเพจฟรีได้ 1 URL ทันที และสามารถใช้ <strong>350 แต้ม</strong> เพื่อปลดล็อกเพิ่มได้ไม่จำกัด URL
+                        </div>
+                      </div>
+
+                      {/* Complete 6-Section & SEO Landing Page Builder Form */}
+                      {(!isLandingQuotaFull || profile.role === 'admin') ? (
                     <form onSubmit={handleAddLandingPage} className="space-y-6 pt-2">
                       
                       {/* --- SECTION 1: HERO & AD SCENT (Above the Fold) --- */}
@@ -2980,7 +3047,8 @@ export default function DashboardPage() {
                     })
                   )}
                 </div>
-
+                  </>
+                )}
               </div>
             )}
 
@@ -3251,7 +3319,7 @@ export default function DashboardPage() {
           {[
             { id: 'links', label: 'ลิ้งก์', icon: Link2 },
             { id: 'shop', label: 'ร้านค้า', icon: ShoppingBag },
-            { id: 'landing_pages', label: 'เซลเพจ', icon: Rocket, locked: !isMasterUser && totalLandingSlots === 0 && !isPixelActive },
+            { id: 'landing_pages', label: 'เซลเพจยิงแอด', icon: Rocket, count: landingPages.length, locked: isLandingTabLocked },
             { id: 'appearance', label: 'โปรไฟล์', icon: Palette },
             { id: 'shortener', label: 'ย่อลิงก์', icon: Scissors, locked: !isShortenerActive },
             { id: 'leads', label: 'ลีด', icon: Users },
