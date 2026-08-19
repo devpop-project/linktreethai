@@ -28,7 +28,7 @@ export function trackPixelEvent(
   // 2. TikTok Pixel Event
   if ((window as any).ttq) {
     try {
-      let ttEvent = eventName
+      let ttEvent: string = eventName
       if (eventName === 'InitiateCheckout') ttEvent = 'InitiateCheckout'
       if (eventName === 'Lead' || eventName === 'Contact') ttEvent = 'SubmitForm'
       if (eventName === 'Purchase') ttEvent = 'PlaceAnOrder'
