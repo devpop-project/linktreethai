@@ -1111,7 +1111,7 @@ export default function DashboardPage() {
               {[
                 { id: 'links', label: 'ลิ้งก์', icon: Link2, count: links.length },
                 { id: 'shop', label: 'ร้านค้า', icon: ShoppingBag, count: products.length },
-                { id: 'landing_pages', label: 'เซลเพจยิงแอด', icon: Rocket, count: landingPages.length, badge: isMasterUser ? '1 ฟรี' : '350 แต้ม' },
+                { id: 'landing_pages', label: 'เซลเพจยิงแอด', icon: Rocket, count: landingPages.length, locked: !isMasterUser && totalLandingSlots === 0 && !isPixelActive },
                 { id: 'appearance', label: 'ข้อมูลโปรไฟล์', icon: Palette },
                 { id: 'shortener', label: 'ย่อลิงก์', icon: Scissors, count: shortLinks.length, locked: !isShortenerActive },
                 { id: 'leads', label: 'ลีด CRM', icon: Users, count: leads.length },
@@ -3251,7 +3251,7 @@ export default function DashboardPage() {
           {[
             { id: 'links', label: 'ลิ้งก์', icon: Link2 },
             { id: 'shop', label: 'ร้านค้า', icon: ShoppingBag },
-            { id: 'landing_pages', label: 'เซลเพจ', icon: Rocket },
+            { id: 'landing_pages', label: 'เซลเพจ', icon: Rocket, locked: !isMasterUser && totalLandingSlots === 0 && !isPixelActive },
             { id: 'appearance', label: 'โปรไฟล์', icon: Palette },
             { id: 'shortener', label: 'ย่อลิงก์', icon: Scissors, locked: !isShortenerActive },
             { id: 'leads', label: 'ลีด', icon: Users },
