@@ -78,7 +78,7 @@ export default function AdminDashboardPage() {
   const [pointsModalUser, setPointsModalUser] = useState<any>(null)
   const [customPointsInput, setCustomPointsInput] = useState<string>('100')
   const [grantModalUser, setGrantModalUser] = useState<any>(null)
-  const [grantTierSelect, setGrantTierSelect] = useState<'free' | 'pro' | 'master' | 'shortener'>('free')
+  const [grantTierSelect, setGrantTierSelect] = useState<'free' | 'pro' | 'master' | 'shortener' | 'pixels'>('free')
   const [grantDaysInput, setGrantDaysInput] = useState<string>('30')
   const [deleteUserModal, setDeleteUserModal] = useState<any>(null)
 

@@ -323,6 +323,57 @@ BEGIN
     END IF;
 END $$;
 
+
+-- Migration for Tracking Pixels 30-day unlock
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'pixel_expires_at') THEN
+        ALTER TABLE public.profiles ADD COLUMN pixel_expires_at TIMESTAMP WITH TIME ZONE;
+    END IF;
+END $$;
+
+-- RPC for unlocking Tracking Pixels with 100 points
+CREATE OR REPLACE FUNCTION public.unlock_pixels_with_points(
+    target_user_id UUID,
+    points_cost INT DEFAULT 100
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    current_pts INT;
+    new_exp TIMESTAMP WITH TIME ZONE;
+    curr_exp TIMESTAMP WITH TIME ZONE;
+BEGIN
+    SELECT points, pixel_expires_at INTO current_pts, curr_exp
+    FROM public.profiles
+    WHERE id = target_user_id;
+
+    IF current_pts IS NULL OR current_pts < points_cost THEN
+        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ 100 แต้ม)');
+    END IF;
+
+    IF curr_exp IS NOT NULL AND curr_exp > NOW() THEN
+        new_exp := curr_exp + INTERVAL '30 days';
+    ELSE
+        new_exp := NOW() + INTERVAL '30 days';
+    END IF;
+
+    UPDATE public.profiles
+    SET points = points - points_cost,
+        pixel_expires_at = new_exp
+    WHERE id = target_user_id;
+
+    RETURN jsonb_build_object(
+        'success', true, 
+        'message', 'ปลดล็อกระบบ Tracking Pixels สำเร็จ 30 วัน!', 
+        'remaining_points', current_pts - points_cost,
+        'expires_at', new_exp
+    );
+END;
+$$;
+
 -- ==============================================================================
 -- 7. HELPER FUNCTION: IS_ADMIN()
 -- ==============================================================================

@@ -19,6 +19,11 @@ export interface TierLimits {
 }
 
 export function getUserTier(profile: any): TierLimits {
+  // Check if Pixels unlocked via 100 points
+  const isPixelUnlocked = Boolean(
+    profile?.pixel_expires_at && new Date(profile.pixel_expires_at).getTime() > Date.now()
+  )
+
   // If user is Admin, they get full Master VIP capabilities
   if (profile?.role === 'admin') {
     return {
@@ -95,7 +100,7 @@ export function getUserTier(profile: any): TierLimits {
       canViewAnalytics: true,
       canPerLinkColor: true,
       canEmbedYouTube: true,
-      canAutoPixel: true,
+      canAutoPixel: isPixelUnlocked,
     }
   }
 
@@ -118,6 +123,6 @@ export function getUserTier(profile: any): TierLimits {
     canViewAnalytics: true,
     canPerLinkColor: true,
     canEmbedYouTube: true,
-    canAutoPixel: true,
+    canAutoPixel: isPixelUnlocked,
   }
 }

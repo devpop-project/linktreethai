@@ -9,6 +9,7 @@ import SocialDock from '@/components/SocialDock'
 import TemplateRenderer from '@/components/templates/TemplateRenderer'
 import SalesLandingPagePreview from '@/components/SalesLandingPagePreview'
 import PixelAnalyticsModal from '@/components/PixelAnalyticsModal'
+import TopUpPointsModal from '@/components/TopUpPointsModal'
 import { 
   Link2, ShoppingBag, Palette, ExternalLink, Activity, Rocket, Plus, Trash2, 
   Save, LogOut, Check, Eye, Upload, Image as ImageIcon, Sparkles, Globe, Youtube, RefreshCw, Share2, LayoutTemplate, Crown, Coins, Lock, AlertCircle, Users, Download, ShieldCheck, Zap, QrCode, X, MessageCircle, Scissors, Copy, Smartphone, Menu, ChevronRight, CheckCircle2, ArrowUpRight, Clock, KeyRound, Edit2, Camera, Sun, Moon
@@ -484,6 +485,53 @@ export default function DashboardPage() {
     }
   }
 
+  const handleUnlockPixels = async () => {
+    if (!user) return
+    if ((profile.points || 0) < 100) {
+      showToast(`❌ แต้มสะสมไม่เพียงพอ (ต้องการ 100 แต้ม แต่คุณมี ${profile.points || 0} แต้ม)`)
+      setTopUpModalOpen(true)
+      return
+    }
+
+    setUnlockingPixels(true)
+    try {
+      const { data, error } = await supabase.rpc('unlock_pixels_with_points', {
+        target_user_id: user.id,
+        points_cost: 100
+      })
+
+      if (error) {
+        // Fallback direct update
+        const currExp = profile.pixel_expires_at && new Date(profile.pixel_expires_at).getTime() > Date.now()
+          ? new Date(profile.pixel_expires_at)
+          : new Date()
+        const newExp = new Date(currExp.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        const newPts = (profile.points || 0) - 100
+
+        await supabase.from('profiles').update({
+          points: newPts,
+          pixel_expires_at: newExp
+        }).eq('id', user.id)
+
+        setProfile({ ...profile, points: newPts, pixel_expires_at: newExp })
+        showToast('🎉 ปลดล็อกระบบ Tracking Pixels สำเร็จ 30 วัน!')
+      } else if (data && data.success) {
+        setProfile({
+          ...profile,
+          points: data.remaining_points,
+          pixel_expires_at: data.expires_at
+        })
+        showToast('🎉 ' + data.message)
+      } else if (data && !data.success) {
+        showToast('❌ ' + data.message)
+      }
+    } catch (e: any) {
+      showToast('❌ เกิดข้อผิดพลาด: ' + e.message)
+    } finally {
+      setUnlockingPixels(false)
+    }
+  }
+
   // --- Landing Page Quota & Handlers ---
   const handleStartEditLandingPage = (lp: any) => {
     setEditingLandingPageId(lp.id)
@@ -591,6 +639,7 @@ export default function DashboardPage() {
     if (!user) return
     if ((profile.points || 0) < 350) {
       showToast(`❌ แต้มสะสมไม่เพียงพอ (ต้องการ 350 แต้ม แต่คุณมี ${profile.points || 0} แต้ม)`)
+      setTopUpModalOpen(true)
       return
     }
 
@@ -959,13 +1008,24 @@ export default function DashboardPage() {
             
             {/* Clickable Coins / Points Chip */}
             <button
-              onClick={() => setPointsDetailModalOpen(true)}
+              onClick={() => setAccountModalOpen(true)}
               className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-300/80 dark:border-amber-500/40 text-amber-800 dark:text-amber-300 text-xs font-bold flex items-center gap-1 hover:bg-amber-100 dark:hover:bg-amber-900/50 active:scale-95 transition cursor-pointer shadow-sm"
               title="คลิกเพื่อดูสถานะ ตำแหน่ง วันหมดอายุ และสิทธิ์การใช้งาน"
             >
               <Coins className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 animate-pulse" />
               <span>{profile.points || 0}</span>
               <span className="text-[9px] bg-amber-200/60 dark:bg-amber-800/60 text-amber-900 dark:text-amber-100 px-1 py-0.2 rounded font-bold">แต้ม</span>
+            </button>
+
+            {/* Top-up Button */}
+            <button
+              type="button"
+              onClick={() => setTopUpModalOpen(true)}
+              className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 text-xs font-black flex items-center gap-1 active:scale-95 transition shadow-sm"
+              title="เติมแต้มสะสม"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">เติมแต้ม</span>
             </button>
 
             {/* Dark / Light Mode Toggle Button ☀️🌙 */}
@@ -2970,6 +3030,26 @@ export default function DashboardPage() {
             {/* TAB 6: BILLING & PACKAGES */}
             {activeTab === 'billing' && (
               <div className="space-y-6">
+              {/* TOP UP POINTS PROMINENT BANNER */}
+              <div className="p-6 bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 rounded-3xl text-slate-950 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="space-y-1 text-center sm:text-left">
+                  <div className="flex items-center justify-center sm:justify-start gap-2">
+                    <span className="p-2 rounded-xl bg-black/15 font-black text-xs">🪙 ระบบเติมแต้มสะสม</span>
+                    <span className="font-bold text-xs bg-white px-2 py-0.5 rounded-full">PromptPay QR</span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black">เติมแต้มสะสมเพื่อปลดล็อกฟังก์ชัน VIP ทันที</h3>
+                  <p className="text-xs opacity-90">100 แต้ม = 100 บาท | 250 แต้ม = 250 บาท (Master VIP) | 350 แต้ม = เซลเพจยิงแอด</p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setTopUpModalOpen(true)}
+                  className="px-6 py-3.5 bg-slate-950 hover:bg-slate-900 text-amber-400 font-black rounded-2xl text-xs sm:text-sm flex items-center gap-2 shadow-2xl transition active:scale-95 flex-shrink-0"
+                >
+                  <Coins className="w-5 h-5 text-amber-400" />
+                  <span>💳 เติมแต้มสะสม (PromptPay)</span>
+                </button>
+              </div>
                 <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-5">
                   <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
                     <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 flex items-center justify-center font-bold">
@@ -3582,6 +3662,13 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Top Up Points Modal (PromptPay QR) */}
+      <TopUpPointsModal
+        isOpen={topUpModalOpen}
+        onClose={() => setTopUpModalOpen(false)}
+        profile={profile}
+      />
 
       {/* Pixel Health Monitor & Live Analytics Modal */}
       <PixelAnalyticsModal
