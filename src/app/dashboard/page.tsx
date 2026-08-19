@@ -535,6 +535,11 @@ export default function DashboardPage() {
     }
   }
 
+  const handleCloseAccountModal = () => {
+    setAccountModalOpen(false)
+    setPointsDetailModalOpen(false)
+  }
+
   // --- Landing Page Quota & Handlers ---
   const handleStartEditLandingPage = (lp: any) => {
     setEditingLandingPageId(lp.id)
@@ -633,6 +638,10 @@ export default function DashboardPage() {
     }
   }
 
+  const isPixelActive = profile?.role === 'admin' ||
+    (profile?.master_expires_at && new Date(profile.master_expires_at).getTime() > Date.now()) ||
+    (profile?.pixel_expires_at && new Date(profile.pixel_expires_at).getTime() > Date.now())
+
   const isMasterUser = profile.role === 'admin' || (profile.master_expires_at && new Date(profile.master_expires_at).getTime() > Date.now())
   const baseLandingSlots = isMasterUser ? 1 : 0
   const totalLandingSlots = profile.role === 'admin' ? 9999 : (baseLandingSlots + (profile.extra_landing_page_slots || 0))
@@ -641,7 +650,7 @@ export default function DashboardPage() {
   const handleUnlockLandingPageSlot = async () => {
     if (!user) return
     if ((profile.points || 0) < 350) {
-      showToast(`❌ แต้มสะสมไม่เพียงพอ (ต้องการ 350 แต้ม แต่คุณมี ${profile.points || 0} แต้ม)`)
+      showToast(`❌ แต้มสะสมไม่เพียงพอ (ต้องการ 350 แต้ม แต่คุณมี ${profile.points || 0} แต้ม) กรุณาเติมแต้มก่อนครับ`)
       setTopUpModalOpen(true)
       return
     }
@@ -1949,9 +1958,9 @@ export default function DashboardPage() {
                         โควตา: {landingPages.length}/{profile.role === 'admin' ? 'ไม่จำกัด (Admin)' : `${totalLandingSlots} เซลเพจ`}
                       </span>
                       <button
+                        type="button"
                         onClick={handleUnlockLandingPageSlot}
-                        disabled={unlockingLandingSlot || (profile.points || 0) < 350}
-                        className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs transition shadow flex items-center gap-1 disabled:opacity-40"
+                        className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs transition shadow flex items-center gap-1 active:scale-95 cursor-pointer"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>{unlockingLandingSlot ? 'กำลังปลดล็อก...' : '+ เพิ่ม URL (350 แต้ม)'}</span>
@@ -3427,9 +3436,14 @@ export default function DashboardPage() {
 
       {/* ACCOUNT STATUS, POINTS & PERMISSIONS DETAIL MODAL */}
       {(accountModalOpen || pointsDetailModalOpen) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 my-8 max-h-[90vh] overflow-y-auto no-scrollbar relative animate-in fade-in zoom-in-95 duration-150">
-            
+        <div 
+          onClick={handleCloseAccountModal}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 my-8 max-h-[90vh] overflow-y-auto no-scrollbar relative animate-in fade-in zoom-in-95 duration-150 cursor-default"
+          >
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
@@ -3442,8 +3456,9 @@ export default function DashboardPage() {
                 </div>
               </div>
               <button
-                onClick={() => setPointsDetailModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-[#1E1B4B] flex items-center justify-center transition"
+                type="button"
+                onClick={handleCloseAccountModal}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-[#1E1B4B] dark:hover:text-white flex items-center justify-center transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -3496,11 +3511,12 @@ export default function DashboardPage() {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => {
-                  setPointsDetailModalOpen(false)
-                  setAdminContactModal(true)
+                  handleCloseAccountModal()
+                  setTopUpModalOpen(true)
                 }}
-                className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs transition shadow"
+                className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs transition shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer"
               >
                 + เติมแต้ม
               </button>
@@ -3618,8 +3634,9 @@ export default function DashboardPage() {
             </div>
 
             <button
-              onClick={() => setPointsDetailModalOpen(false)}
-              className="w-full py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-xs transition"
+              type="button"
+              onClick={handleCloseAccountModal}
+              className="w-full py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-xs transition cursor-pointer"
             >
               ปิดหน้าต่าง
             </button>
