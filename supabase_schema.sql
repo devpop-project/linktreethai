@@ -374,6 +374,18 @@ BEGIN
 END;
 $$;
 
+
+-- Migration for text_color and subtext_color customization in landing_pages
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'text_color') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN text_color TEXT DEFAULT '#FFFFFF';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'subtext_color') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN subtext_color TEXT DEFAULT '#E2E8F0';
+    END IF;
+END $$;
+
 -- ==============================================================================
 -- 7. HELPER FUNCTION: IS_ADMIN()
 -- ==============================================================================

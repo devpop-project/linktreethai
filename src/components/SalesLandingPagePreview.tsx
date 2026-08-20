@@ -41,6 +41,8 @@ interface SalesLandingPagePreviewProps {
     bg_color?: string
     bg_image_url?: string
     card_style?: string
+    text_color?: string
+    subtext_color?: string
     
     slug?: string
     
@@ -84,6 +86,8 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
   const themeColor = pageData.theme_color || '#EF4444'
   const bgColor = pageData.bg_color || '#0B0F17'
   const isLightBg = bgColor === '#FFFFFF' || bgColor === '#F9F9FF' || bgColor === '#F1F5F9'
+  const textColor = pageData.text_color || (isLightBg ? '#0F172A' : '#FFFFFF')
+  const subtextColor = pageData.subtext_color || (isLightBg ? '#334155' : '#E2E8F0')
 
   useEffect(() => {
     setTimeLeft((pageData.countdown_minutes || 15) * 60)
@@ -163,7 +167,7 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
     >
       {/* Background Image Overlay */}
       {pageData.bg_image_url && (
-        <div className={`absolute inset-0 pointer-events-none z-0 ${isLightBg ? 'bg-white/80' : 'bg-[#0B0F17]/75'} backdrop-blur-xs`}></div>
+        <div className={`absolute inset-0 pointer-events-none z-0 ${isLightBg ? 'bg-white/85 backdrop-blur-[1px]' : 'bg-gradient-to-b from-black/85 via-[#0B0F17]/90 to-black/95 backdrop-blur-[1px]'}`}></div>
       )}
 
       {/* 1. FLASH SALE COUNTDOWN HEADER BAR (Uses Custom Theme Color) */}
@@ -214,11 +218,17 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
 
           {/* Main Headline & Sub-headline */}
           <div className="space-y-1.5">
-            <h1 className={`text-base sm:text-xl font-black leading-snug break-words ${isLightBg ? 'text-slate-950' : 'text-white'}`}>
+            <h1 
+              style={{ color: textColor }}
+              className="text-base sm:text-xl font-black leading-snug break-words drop-shadow-md"
+            >
               {pageData.headline || 'หัวข้อพาดหัวขายของโปรโมชั่นพิเศษของคุณ (ดึงดูดใน 3 วินาทีแรก)'}
             </h1>
             {pageData.subheadline && (
-              <p className={`text-[11px] leading-relaxed break-words ${isLightBg ? 'text-slate-600' : 'text-slate-300'}`}>
+              <p 
+                style={{ color: subtextColor }}
+                className="text-[11px] leading-relaxed break-words drop-shadow-sm font-medium"
+              >
                 {pageData.subheadline}
               </p>
             )}

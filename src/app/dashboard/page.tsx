@@ -34,6 +34,8 @@ interface LandingPageFormData {
   theme_color: string
   bg_color: string
   bg_image_url: string
+  text_color: string
+  subtext_color: string
   card_style: string
   gallery_images_text: string
   review_images_text: string
@@ -77,6 +79,8 @@ const DEFAULT_LANDING_PAGE_FORM: LandingPageFormData = {
   theme_color: '#EF4444',
   bg_color: '#0B0F17',
   bg_image_url: '',
+  text_color: '#FFFFFF',
+  subtext_color: '#E2E8F0',
   card_style: 'glass',
   gallery_images_text: '',
   review_images_text: '',
@@ -563,6 +567,8 @@ export default function DashboardPage() {
       theme_color: lp.theme_color || '#EF4444',
       bg_color: lp.bg_color || '#0B0F17',
       bg_image_url: lp.bg_image_url || '',
+      text_color: lp.text_color || '#FFFFFF',
+      subtext_color: lp.subtext_color || '#E2E8F0',
       card_style: lp.card_style || 'glass',
       gallery_images_text: Array.isArray(lp.gallery_images) ? lp.gallery_images.join('\n') : (lp.gallery_images || ''),
       review_images_text: Array.isArray(lp.review_images) ? lp.review_images.join('\n') : (lp.review_images || ''),
@@ -748,6 +754,8 @@ export default function DashboardPage() {
       theme_color: newLandingPage.theme_color || '#EF4444',
       bg_color: newLandingPage.bg_color || '#0B0F17',
       bg_image_url: newLandingPage.bg_image_url.trim() || null,
+      text_color: newLandingPage.text_color || '#FFFFFF',
+      subtext_color: newLandingPage.subtext_color || '#E2E8F0',
       card_style: newLandingPage.card_style || 'glass',
       fb_pixel_id: newLandingPage.fb_pixel_id.trim() || null,
       tiktok_pixel_id: newLandingPage.tiktok_pixel_id.trim() || null,
@@ -2596,7 +2604,91 @@ export default function DashboardPage() {
                           </div>
                         </div>
 
-                        {/* 3. Page Background Wallpaper Image (URL & Mobile Upload) */}
+                        {/* 3. Headline Text Color Presets */}
+                        <div>
+                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-white border border-slate-300"></span>
+                            <span>สีตัวหนังสือหัวข้อหลัก (Headline Text Color)</span>
+                          </label>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {[
+                              { color: '#FFFFFF', label: 'ขาวคมชัด' },
+                              { color: '#0F172A', label: 'ดำชาร์โคล' },
+                              { color: '#FDE047', label: 'ทองคำหรู' },
+                              { color: '#FB923C', label: 'ส้มสดใส' },
+                              { color: '#6EE7B7', label: 'เขียวมิ้นต์' }
+                            ].map((preset) => (
+                              <button
+                                key={preset.color}
+                                type="button"
+                                onClick={() => setNewLandingPage({ ...newLandingPage, text_color: preset.color })}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
+                                  newLandingPage.text_color === preset.color
+                                    ? 'border-indigo-600 ring-2 ring-indigo-500/30 bg-white dark:bg-slate-900 shadow-sm'
+                                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300'
+                                }`}
+                              >
+                                <span className="w-3.5 h-3.5 rounded-full border border-slate-300 shadow-inner" style={{ backgroundColor: preset.color }}></span>
+                                <span>{preset.label}</span>
+                              </button>
+                            ))}
+
+                            <div className="flex items-center gap-1.5 ml-auto">
+                              <span className="text-[11px] text-slate-400 font-bold">Custom Hex:</span>
+                              <input
+                                type="text"
+                                placeholder="#FFFFFF"
+                                value={newLandingPage.text_color}
+                                onChange={(e) => setNewLandingPage({ ...newLandingPage, text_color: e.target.value })}
+                                className="w-24 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono font-bold text-[#1E1B4B] dark:text-white focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 4. Sub-headline & Description Text Color Presets */}
+                        <div>
+                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-slate-300 border border-slate-400"></span>
+                            <span>สีตัวหนังสือคำอธิบายรอง (Subheadline & Description Color)</span>
+                          </label>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {[
+                              { color: '#E2E8F0', label: 'เทาสว่างอ่านง่าย' },
+                              { color: '#F8FAFC', label: 'ขาวนวล' },
+                              { color: '#FEF3C7', label: 'ครีมอุ่น' },
+                              { color: '#BAE6FD', label: 'ฟ้าครามสว่าง' },
+                              { color: '#334155', label: 'เทาเข้ม' }
+                            ].map((preset) => (
+                              <button
+                                key={preset.color}
+                                type="button"
+                                onClick={() => setNewLandingPage({ ...newLandingPage, subtext_color: preset.color })}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
+                                  newLandingPage.subtext_color === preset.color
+                                    ? 'border-indigo-600 ring-2 ring-indigo-500/30 bg-white dark:bg-slate-900 shadow-sm'
+                                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300'
+                                }`}
+                              >
+                                <span className="w-3.5 h-3.5 rounded-full border border-slate-300 shadow-inner" style={{ backgroundColor: preset.color }}></span>
+                                <span>{preset.label}</span>
+                              </button>
+                            ))}
+
+                            <div className="flex items-center gap-1.5 ml-auto">
+                              <span className="text-[11px] text-slate-400 font-bold">Custom Hex:</span>
+                              <input
+                                type="text"
+                                placeholder="#E2E8F0"
+                                value={newLandingPage.subtext_color}
+                                onChange={(e) => setNewLandingPage({ ...newLandingPage, subtext_color: e.target.value })}
+                                className="w-24 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono font-bold text-[#1E1B4B] dark:text-white focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 5. Page Background Wallpaper Image (URL & Mobile Upload) */}
                         <div className="space-y-2 pt-1 border-t border-indigo-200/60 dark:border-indigo-900/40">
                           <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 flex items-center gap-1.5">
                             <ImageIcon className="w-4 h-4 text-indigo-500" />

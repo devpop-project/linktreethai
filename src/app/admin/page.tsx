@@ -233,6 +233,8 @@ export default function AdminDashboardPage() {
         theme_color: editingLp.theme_color || '#EF4444',
         bg_color: editingLp.bg_color || '#0B0F17',
         bg_image_url: editingLp.bg_image_url?.trim() || null,
+        text_color: editingLp.text_color || '#FFFFFF',
+        subtext_color: editingLp.subtext_color || '#E2E8F0',
         seo_title: editingLp.seo_title?.trim() || null,
         seo_description: editingLp.seo_description?.trim() || null,
         fb_pixel_id: editingLp.fb_pixel_id?.trim() || null,

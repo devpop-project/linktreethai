@@ -192,6 +192,8 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
   const themeColor = pageData.theme_color || '#EF4444'
   const bgColor = pageData.bg_color || '#0B0F17'
   const isLightBg = bgColor === '#FFFFFF' || bgColor === '#F9F9FF' || bgColor === '#F1F5F9'
+  const textColor = pageData.text_color || (isLightBg ? '#0F172A' : '#FFFFFF')
+  const subtextColor = pageData.subtext_color || (isLightBg ? '#334155' : '#E2E8F0')
 
   return (
     <div 
@@ -208,9 +210,13 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
         } : {})
       }}
     >
-      {/* Background Image Overlay */}
+      {/* Background Image Overlay with Superior Contrast */}
       {pageData.bg_image_url && (
-        <div className={`absolute inset-0 pointer-events-none z-0 ${isLightBg ? 'bg-white/80' : 'bg-[#0B0F17]/75'} backdrop-blur-xs`}></div>
+        <div className={`absolute inset-0 pointer-events-none z-0 ${
+          isLightBg 
+            ? 'bg-white/85 backdrop-blur-[1px]' 
+            : 'bg-gradient-to-b from-black/85 via-[#0B0F17]/90 to-black/95 backdrop-blur-[1px]'
+        }`}></div>
       )}
       
       {/* 1. AUTO INJECT TRACKING PIXELS (Meta FB, TikTok, Google, LINE) */}
@@ -321,21 +327,30 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
 
           {/* Trust Badges (Fully Customizable per Shop) */}
           <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-bold pt-1">
-            <div className={`p-2.5 rounded-2xl border flex flex-col items-center gap-1 shadow-sm ${
-              isLightBg ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-900/80 border-slate-800 text-slate-300'
-            }`}>
+            <div 
+              style={{ color: textColor }} 
+              className={`p-2.5 rounded-2xl border flex flex-col items-center gap-1 shadow-md ${
+                isLightBg ? 'bg-white/95 border-slate-200 shadow-sm' : 'bg-slate-900/95 border-slate-800 shadow-lg'
+              }`}
+            >
               <Truck className="w-4 h-4 text-emerald-400" />
               <span>{pageData.trust_badge_1 || 'จัดส่งด่วนฟรี'}</span>
             </div>
-            <div className={`p-2.5 rounded-2xl border flex flex-col items-center gap-1 shadow-sm ${
-              isLightBg ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-900/80 border-slate-800 text-slate-300'
-            }`}>
+            <div 
+              style={{ color: textColor }} 
+              className={`p-2.5 rounded-2xl border flex flex-col items-center gap-1 shadow-md ${
+                isLightBg ? 'bg-white/95 border-slate-200 shadow-sm' : 'bg-slate-900/95 border-slate-800 shadow-lg'
+              }`}
+            >
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
               <span>{pageData.trust_badge_2 || 'รับประกันของแท้'}</span>
             </div>
-            <div className={`p-2.5 rounded-2xl border flex flex-col items-center gap-1 shadow-sm ${
-              isLightBg ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-900/80 border-slate-800 text-slate-300'
-            }`}>
+            <div 
+              style={{ color: textColor }} 
+              className={`p-2.5 rounded-2xl border flex flex-col items-center gap-1 shadow-md ${
+                isLightBg ? 'bg-white/95 border-slate-200 shadow-sm' : 'bg-slate-900/95 border-slate-800 shadow-lg'
+              }`}
+            >
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               <span>{pageData.trust_badge_3 || 'ชำระเงินปลอดภัย'}</span>
             </div>
@@ -376,7 +391,7 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
               <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
                 <Sparkles className="w-5 h-5" />
               </div>
-              <h2 className="font-extrabold text-base sm:text-lg text-white">
+              <h2 style={{ color: textColor }} className="font-extrabold text-base sm:text-lg">
                 {pageData.benefits_headline || 'ทางออกและผลลัพธ์ที่คุณจะได้รับ'}
               </h2>
             </div>
@@ -440,7 +455,7 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
                 <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
                   <Star className="w-5 h-5 fill-amber-400" />
                 </div>
-                <h2 className="font-extrabold text-base sm:text-lg text-white">เสียงตอบรับจากลูกค้าจริง</h2>
+                <h2 style={{ color: textColor }} className="font-extrabold text-base sm:text-lg">เสียงตอบรับจากลูกค้าจริง</h2>
               </div>
               <span className="text-xs text-amber-400 font-bold font-mono bg-amber-400/10 px-2.5 py-1 rounded-full border border-amber-400/30">
                 ★★★★★ 4.9/5
@@ -526,7 +541,7 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
               <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
                 <HelpCircle className="w-5 h-5" />
               </div>
-              <h2 className="font-extrabold text-base sm:text-lg text-white">คำถามที่พบบ่อย (FAQ)</h2>
+              <h2 style={{ color: textColor }} className="font-extrabold text-base sm:text-lg">คำถามที่พบบ่อย (FAQ)</h2>
             </div>
 
             <div className="space-y-2.5 pt-1">
