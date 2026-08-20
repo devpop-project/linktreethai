@@ -652,10 +652,11 @@ export default function DashboardPage() {
     !(profile.master_expires_at && new Date(profile.master_expires_at).getTime() > Date.now()) &&
     !(profile.extra_landing_page_slots && profile.extra_landing_page_slots > 0)
 
-  const isMasterUser = profile.role === 'admin' || (profile.master_expires_at && new Date(profile.master_expires_at).getTime() > Date.now())
+  const isMasterUser = profile.role === 'admin' || Boolean(profile?.master_expires_at && new Date(profile.master_expires_at).getTime() > Date.now())
   const baseLandingSlots = isMasterUser ? 1 : 0
-  const totalLandingSlots = profile.role === 'admin' ? 9999 : (baseLandingSlots + (profile.extra_landing_page_slots || 0))
+  const totalLandingSlots = profile.role === 'admin' ? 9999 : (baseLandingSlots + (profile?.extra_landing_page_slots || 0))
   const isLandingQuotaFull = profile.role !== 'admin' && landingPages.length >= totalLandingSlots
+  const isLandingPageUnlocked = profile.role === 'admin' || isMasterUser || totalLandingSlots > 0
 
   const handleUnlockLandingPageSlot = async () => {
     if (!user) return
@@ -1139,7 +1140,11 @@ export default function DashboardPage() {
                     onClick={() => {
                   setActiveTab(tab.id as any)
                   if (tab.id === 'landing_pages') {
-                    setPreviewMode('landing')
+                    if (isLandingPageUnlocked) {
+                      setPreviewMode('landing')
+                    } else {
+                      setPreviewMode('bio')
+                    }
                   } else if (tab.id === 'links' || tab.id === 'shop' || tab.id === 'appearance') {
                     setPreviewMode('bio')
                   }
@@ -1859,59 +1864,57 @@ export default function DashboardPage() {
               </div>
             )}
 
-                                    {/* TAB: DEDICATED ADS SALES LANDING PAGES */}
+                                                {/* TAB: DEDICATED ADS SALES LANDING PAGES */}
             {activeTab === 'landing_pages' && (
               <div className="space-y-6">
-                {isLandingTabLocked ? (
-                  /* EXACT SAME CLEAN CENTERED LOCKED CARD AS SHORTENER (MATCHING image_2adfed.png) */
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 sm:p-12 rounded-3xl shadow-sm text-center space-y-6 max-w-xl mx-auto my-6">
+                {(!isMasterUser && totalLandingSlots === 0 && !isPixelActive) ? (
+                  <div className="bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800 p-8 rounded-3xl shadow-sm text-center space-y-5">
                     <div className="w-16 h-16 rounded-3xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300 flex items-center justify-center mx-auto shadow-sm">
                       <Lock className="w-8 h-8" />
                     </div>
 
-                    <div className="space-y-1.5 max-w-md mx-auto">
+                    <div className="space-y-1 max-w-md mx-auto">
                       <h3 className="text-xl font-extrabold text-[#1E1B4B] dark:text-white">
-                        ระบบเซลเพจยิงแอดเป็นฟีเจอร์พรีเมียม
+                        ระบบเซลเพจยิงแอด & Tracking Pixels เป็นฟีเจอร์พรีเมียม
                       </h3>
                       <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
-                        สร้างหน้าเซลเพจขายของ Flash Sale พร้อมระบบฝัง Facebook, TikTok, Google, LINE Pixels อัตโนมัติ เพื่อยิงแอด Conversion วัดผลยอดขายได้ 100%
+                        สร้างหน้าเซลเพจขายของ Flash Sale เฉพาะสินค้า พร้อมระบบฝัง Facebook, TikTok, Google, LINE Pixels อัตโนมัติ เพื่อยิงแอด Conversion วัดผลยอดขายได้ 100%
                       </p>
                     </div>
 
-                    <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-sm mx-auto flex items-center justify-between shadow-inner">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-sm mx-auto flex items-center justify-between">
                       <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">แต้มสะสมของคุณ:</span>
-                      <span className="text-sm font-black text-amber-600 dark:text-amber-400 font-mono flex items-center gap-1">
-                        <Coins className="w-4 h-4 text-amber-500" /> {profile.points || 0} แต้ม
+                      <span className="text-sm font-black text-amber-700 dark:text-amber-400 flex items-center gap-1 font-mono">
+                        <Coins className="w-4 h-4 text-amber-500" /> {profile?.points || 0} แต้ม
                       </span>
                     </div>
 
-                    <div className="flex flex-col gap-2.5 max-w-sm mx-auto pt-2">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
                       <button
                         type="button"
-                        onClick={handleUnlockLandingPageSlot}
-                        disabled={unlockingLandingSlot}
-                        className="w-full py-3.5 px-4 bg-[#34D399] hover:bg-[#10B981] text-white font-extrabold rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition active:scale-95 cursor-pointer"
+                        onClick={() => handleFastUpgrade('master')}
+                        className="w-full sm:w-auto px-6 py-3.5 bg-[#34D399] hover:bg-[#10B981] text-white font-extrabold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition active:scale-95 cursor-pointer"
                       >
-                        <Lock className="w-4 h-4" />
-                        <span>{unlockingLandingSlot ? 'กำลังปลดล็อก...' : 'ปลดล็อก 350 แต้ม (1 เซลเพจ)'}</span>
+                        <Crown className="w-4 h-4" />
+                        <span>👑 แลก MASTER VIP 30 วัน (250 แต้ม)</span>
                       </button>
 
                       <button
                         type="button"
-                        onClick={() => handleFastUpgrade('master')}
-                        className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black rounded-2xl text-xs flex items-center justify-center gap-2 shadow transition active:scale-95 cursor-pointer"
+                        onClick={handleUnlockLandingPageSlot}
+                        className="w-full sm:w-auto px-5 py-3.5 bg-rose-600 hover:bg-rose-500 text-white font-extrabold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-rose-600/20 transition active:scale-95 cursor-pointer"
                       >
-                        <Crown className="w-4 h-4" />
-                        <span>👑 แลก MASTER VIP 30 วัน (ฟรีเซลเพจ 250 แต้ม)</span>
+                        <Rocket className="w-4 h-4" />
+                        <span>ปลดล็อกเซลเพจ (350 แต้ม)</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setTopUpModalOpen(true)}
-                        className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                        className="w-full sm:w-auto px-5 py-3.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-2xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
                       >
                         <Coins className="w-4 h-4 text-amber-500" />
-                        <span>+ เติมแต้มสะสมทันที (PromptPay)</span>
+                        <span>+ เติมแต้ม</span>
                       </button>
                     </div>
                   </div>
@@ -3425,7 +3428,11 @@ export default function DashboardPage() {
                 onClick={() => {
                   setActiveTab(tab.id as any)
                   if (tab.id === 'landing_pages') {
-                    setPreviewMode('landing')
+                    if (isLandingPageUnlocked) {
+                      setPreviewMode('landing')
+                    } else {
+                      setPreviewMode('bio')
+                    }
                   } else if (tab.id === 'links' || tab.id === 'shop' || tab.id === 'appearance') {
                     setPreviewMode('bio')
                   }

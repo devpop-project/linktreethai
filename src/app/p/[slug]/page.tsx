@@ -210,12 +210,12 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
         } : {})
       }}
     >
-      {/* Background Image Overlay with Superior Contrast */}
+      {/* Background Image Overlay (Vibrant & Readable) */}
       {pageData.bg_image_url && (
         <div className={`absolute inset-0 pointer-events-none z-0 ${
           isLightBg 
-            ? 'bg-white/85 backdrop-blur-[1px]' 
-            : 'bg-gradient-to-b from-black/85 via-[#0B0F17]/90 to-black/95 backdrop-blur-[1px]'
+            ? 'bg-white/80 backdrop-blur-[2px]' 
+            : 'bg-black/70 backdrop-blur-[2px] bg-gradient-to-b from-black/60 via-[#0B0F17]/75 to-black/85'
         }`}></div>
       )}
       
@@ -245,7 +245,7 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
         {/* ========================================================================= */}
         {/* SECTION 1: HERO SECTION (Above the Fold) */}
         {/* ========================================================================= */}
-        <section className="space-y-4 text-center">
+        <section className="space-y-5 text-center relative z-10">
           
           {/* Brand Pill */}
           {ownerProfile && (
@@ -361,7 +361,7 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
         {/* SECTION 2: PAIN POINT & AGITATION (ขยี้ปัญหาที่ลูกค้าเจอ) */}
         {/* ========================================================================= */}
         {painPointsList.length > 0 && (
-          <section className="bg-gradient-to-b from-rose-950/40 to-slate-950 border border-rose-900/50 rounded-[32px] p-6 space-y-4 shadow-xl">
+          <section className="bg-gradient-to-b from-rose-950/60 via-slate-900/90 to-slate-950/95 border-2 border-rose-500/30 rounded-[32px] p-6 sm:p-7 space-y-4 shadow-2xl backdrop-blur-md relative z-10">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-rose-600/20 text-rose-400 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5" />
@@ -386,7 +386,7 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
         {/* SECTION 3: SOLUTION & BENEFITS (นำเสนอทางแก้และผลลัพธ์) */}
         {/* ========================================================================= */}
         {benefitsList.length > 0 && (
-          <section className="bg-slate-900/90 border border-slate-800 rounded-[32px] p-6 space-y-4 shadow-xl">
+          <section className="bg-slate-900/90 border-2 border-emerald-500/30 rounded-[32px] p-6 sm:p-7 space-y-4 shadow-2xl backdrop-blur-md relative z-10">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
                 <Sparkles className="w-5 h-5" />
@@ -449,7 +449,7 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
         {/* SECTION 4: SOCIAL PROOF & TRUST (รีวิวและความมั่นใจ) */}
         {/* ========================================================================= */}
         {testimonialsList.length > 0 && (
-          <section className="bg-slate-900/90 border border-slate-800 rounded-[32px] p-6 space-y-4 shadow-xl">
+          <section className="bg-slate-900/90 border-2 border-amber-500/30 rounded-[32px] p-6 sm:p-7 space-y-4 shadow-2xl backdrop-blur-md relative z-10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
@@ -475,7 +475,7 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
 
         {/* Guarantee Banner */}
         {pageData.guarantee_text && (
-          <div className="p-4 bg-emerald-950/30 border border-emerald-500/30 rounded-3xl text-center flex items-center justify-center gap-2.5 text-xs sm:text-sm font-bold text-emerald-300 shadow-md">
+          <div className="p-5 bg-gradient-to-r from-emerald-950/80 via-slate-900/90 to-emerald-950/80 border-2 border-emerald-400/40 rounded-[28px] text-center flex items-center justify-center gap-3 text-xs sm:text-sm font-black text-emerald-300 shadow-2xl backdrop-blur-md relative z-10">
             <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
             <span>{pageData.guarantee_text}</span>
           </div>
@@ -536,7 +536,7 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
         {/* SECTION 6: FAQ & FINAL CTA (เคลียร์ข้อสงสัย & ปิดการขาย) */}
         {/* ========================================================================= */}
         {faqsList.length > 0 && (
-          <section className="bg-slate-900/90 border border-slate-800 rounded-[32px] p-6 space-y-4 shadow-xl">
+          <section className="bg-slate-900/90 border-2 border-purple-500/30 rounded-[32px] p-6 sm:p-7 space-y-4 shadow-2xl backdrop-blur-md relative z-10">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
                 <HelpCircle className="w-5 h-5" />
