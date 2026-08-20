@@ -50,6 +50,7 @@ interface LandingPageFormData {
   trust_badge_2: string
   trust_badge_3: string
   enable_cod_form: boolean
+  enable_review_album: boolean
   seo_title: string
   seo_description: string
   seo_keywords: string
@@ -94,7 +95,8 @@ const DEFAULT_LANDING_PAGE_FORM: LandingPageFormData = {
   trust_badge_1: 'ส่งฟรีด่วน',
   trust_badge_2: 'ของแท้ 100%',
   trust_badge_3: 'ชำระเงินปลอดภัย',
-  enable_cod_form: true,
+  enable_cod_form: false,
+  enable_review_album: false,
   seo_title: '',
   seo_description: '',
   seo_keywords: '',
@@ -582,7 +584,8 @@ export default function DashboardPage() {
       trust_badge_1: lp.trust_badge_1 || 'ส่งฟรีด่วน',
       trust_badge_2: lp.trust_badge_2 || 'ของแท้ 100%',
       trust_badge_3: lp.trust_badge_3 || 'ชำระเงินปลอดภัย',
-      enable_cod_form: lp.enable_cod_form !== false,
+      enable_cod_form: Boolean(lp.enable_cod_form),
+      enable_review_album: Boolean(lp.enable_review_album),
       seo_title: lp.seo_title || '',
       seo_description: lp.seo_description || '',
       seo_keywords: lp.seo_keywords || '',
@@ -746,7 +749,8 @@ export default function DashboardPage() {
       trust_badge_1: newLandingPage.trust_badge_1.trim() || 'ส่งฟรีด่วน',
       trust_badge_2: newLandingPage.trust_badge_2.trim() || 'ของแท้ 100%',
       trust_badge_3: newLandingPage.trust_badge_3.trim() || 'ชำระเงินปลอดภัย',
-      enable_cod_form: newLandingPage.enable_cod_form,
+      enable_cod_form: Boolean(newLandingPage.enable_cod_form),
+      enable_review_album: Boolean(newLandingPage.enable_review_album),
       seo_title: newLandingPage.seo_title.trim() || null,
       seo_description: newLandingPage.seo_description.trim() || null,
       seo_keywords: newLandingPage.seo_keywords.trim() || null,
@@ -2228,27 +2232,34 @@ export default function DashboardPage() {
                           </div>
 
                           {/* COD Form Toggle Switch */}
-                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div>
-                              <p className="text-xs font-extrabold text-[#1E1B4B] dark:text-white">
-                                แสดง "ฟอร์มสั่งซื้อเก็บเงินปลายทาง (COD Form)" ด้านล่าง
+                              <p className="text-xs font-extrabold text-[#1E1B4B] dark:text-white flex items-center gap-1.5">
+                                <span>ฟอร์มสั่งซื้อเก็บเงินปลายทาง (COD Form)</span>
+                                <span className={`text-[10px] px-2 py-0.2 rounded-full font-bold ${
+                                  newLandingPage.enable_cod_form 
+                                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40' 
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                                }`}>
+                                  {newLandingPage.enable_cod_form ? '✓ เปิดใช้งาน' : '✕ ปิดใช้งาน (ซ่อนฟอร์ม)'}
+                                </span>
                               </p>
-                              <p className="text-[10px] text-slate-500">
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
                                 {newLandingPage.enable_cod_form 
-                                  ? '✓ เปิดใช้งาน: ลูกค้าสามารถกรอกชื่อ-เบอร์โทร-ที่อยู่สั่งซื้อ COD ได้ทันที' 
-                                  : '✕ ปิดใช้งาน: ซ่อนฟอร์ม COD และให้ลูกค้าคลิกปุ่มสั่งซื้อผ่าน LINE OA / เว็บไซต์แทน'}
+                                  ? 'แสดงฟอร์มกรอกที่อยู่สั่งซื้อ COD ด้านล่างของเซลเพจ' 
+                                  : 'แนะนำสำหรับร้านที่ไม่มี COD: ซ่อนฟอร์มทั้งหมด ลูกค้าจะคลิกสั่งซื้อผ่าน LINE OA / เว็บไซต์แทน 100%'}
                               </p>
                             </div>
                             <button
                               type="button"
                               onClick={() => setNewLandingPage({ ...newLandingPage, enable_cod_form: !newLandingPage.enable_cod_form })}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 ${
                                 newLandingPage.enable_cod_form 
-                                  ? 'bg-emerald-500 text-slate-950 font-black shadow' 
-                                  : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                                  ? 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/20' 
+                                  : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300'
                               }`}
                             >
-                              <span>{newLandingPage.enable_cod_form ? 'เปิดใช้งาน COD' : 'ปิดฟอร์ม COD'}</span>
+                              <span>{newLandingPage.enable_cod_form ? '✓ เปิดใช้งาน COD อยู่' : '✕ ปิดฟอร์ม COD (ซ่อนฟอร์ม)'}</span>
                             </button>
                           </div>
                         </div>
@@ -2343,36 +2354,60 @@ export default function DashboardPage() {
 
                       {/* --- SECTION: CUSTOMER REVIEW PHOTO ALBUM (อัลบั้มรูปรีวิว) --- */}
                       <div className="p-4 bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 rounded-2xl space-y-3">
-                        <div className="flex items-center justify-between border-b border-amber-200 dark:border-amber-900/50 pb-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200 dark:border-amber-900/50 pb-2">
                           <div className="flex items-center gap-2">
                             <ImageIcon className="w-5 h-5 text-amber-500" />
                             <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white">
                               รูปภาพรีวิวและการใช้งานจริงจากลูกค้า (Review Photos Album)
                             </h4>
                           </div>
-                          <label className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition shadow-sm">
-                            <Upload className="w-3.5 h-3.5" />
-                            <span>📸 เพิ่มรูปรีวิวจากมือถือ</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => handleUploadLpImage(e, 'review')}
-                            />
-                          </label>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setNewLandingPage({ ...newLandingPage, enable_review_album: !newLandingPage.enable_review_album })}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                                newLandingPage.enable_review_album
+                                  ? 'bg-emerald-500 text-slate-950 font-black shadow'
+                                  : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                              }`}
+                            >
+                              <span>{newLandingPage.enable_review_album ? '✓ เปิดแสดงอัลบั้มรีวิว' : '✕ ปิดอัลบั้มรีวิว'}</span>
+                            </button>
+
+                            <label className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition shadow-sm">
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>📸 เพิ่มรูปจากมือถือ</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  handleUploadLpImage(e, 'review')
+                                  if (!newLandingPage.enable_review_album) {
+                                    setNewLandingPage(prev => ({ ...prev, enable_review_album: true }))
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
                         </div>
 
                         <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                          ใส่ภาพแชตรีวิวจากลูกค้า หรือภาพสินค้าขณะใช้งานจริง เพื่อให้ลูกค้าแตะดูรูปขยายแบบอัลบั้มได้
+                          {newLandingPage.enable_review_album 
+                            ? '✓ สถานะ: กำลังแสดงอัลบั้มรูปภาพรีวิวบนหน้าเว็บ (ลูกค้าแตะดูรูปขยายได้)'
+                            : '✕ สถานะ: ปิดไว้ (ซ่อนส่วนรูปภาพรีวิวออกจากหน้าเว็บ 100%)'}
                         </p>
 
-                        <textarea
-                          rows={2}
-                          placeholder="URL รูปภาพรีวิว (1 บรรทัด = 1 รูป หรือ กดปุ่มอัปโหลดรูปรีวิวจากมือถือด้านบน)"
-                          value={newLandingPage.review_images_text}
-                          onChange={(e) => setNewLandingPage({ ...newLandingPage, review_images_text: e.target.value })}
-                          className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono"
-                        />
+                        {newLandingPage.enable_review_album && (
+                          <textarea
+                            rows={2}
+                            placeholder="URL รูปภาพรีวิว (1 บรรทัด = 1 รูป หรือ กดปุ่มอัปโหลดรูปรีวิวจากมือถือด้านบน)"
+                            value={newLandingPage.review_images_text}
+                            onChange={(e) => setNewLandingPage({ ...newLandingPage, review_images_text: e.target.value })}
+                            className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono"
+                          />
+                        )}
                       </div>
 
                       {/* --- SECTION 4: SOCIAL PROOF & REVIEWS --- */}

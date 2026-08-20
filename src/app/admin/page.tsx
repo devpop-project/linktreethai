@@ -229,7 +229,8 @@ export default function AdminDashboardPage() {
         trust_badge_1: editingLp.trust_badge_1?.trim() || 'ส่งฟรีด่วน',
         trust_badge_2: editingLp.trust_badge_2?.trim() || 'ของแท้ 100%',
         trust_badge_3: editingLp.trust_badge_3?.trim() || 'ชำระเงินปลอดภัย',
-        enable_cod_form: editingLp.enable_cod_form !== false,
+        enable_cod_form: Boolean(editingLp.enable_cod_form),
+        enable_review_album: Boolean(editingLp.enable_review_album),
         theme_color: editingLp.theme_color || '#EF4444',
         bg_color: editingLp.bg_color || '#0B0F17',
         bg_image_url: editingLp.bg_image_url?.trim() || null,
@@ -3160,8 +3161,17 @@ WHERE username = 'YOUR_USERNAME';`}
                   <span className="font-bold text-slate-300">แสดงฟอร์มเก็บเงินปลายทาง (COD)</span>
                   <input
                     type="checkbox"
-                    checked={editingLp.enable_cod_form !== false}
+                    checked={Boolean(editingLp.enable_cod_form)}
                     onChange={(e) => setEditingLp({ ...editingLp, enable_cod_form: e.target.checked })}
+                    className="w-4 h-4 text-purple-600 rounded"
+                  />
+                </div>
+                <div className="pt-2 flex items-center justify-between border-t border-slate-800">
+                  <span className="font-bold text-slate-300">แสดงอัลบั้มรูปภาพรีวิวลูกค้า</span>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(editingLp.enable_review_album)}
+                    onChange={(e) => setEditingLp({ ...editingLp, enable_review_album: e.target.checked })}
                     className="w-4 h-4 text-purple-600 rounded"
                   />
                 </div>

@@ -176,8 +176,15 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
   const resolvedVideoUrl = pageData.video_url || (pageData.hero_media_type === 'youtube' ? pageData.hero_media_url : null)
   const embedVideoUrl = getYouTubeEmbedUrl(resolvedVideoUrl)
   const featuresList = Array.isArray(pageData.features) ? pageData.features : []
-  const galleryImagesList = Array.isArray(pageData.gallery_images) ? pageData.gallery_images : []
-  const reviewImagesList = Array.isArray(pageData.review_images) ? pageData.review_images : []
+  const rawGallery = Array.isArray(pageData.gallery_images) ? pageData.gallery_images : []
+  const galleryImagesList = rawGallery
+    .map((s: any) => String(s || '').trim())
+    .filter((s: string) => s.startsWith('http://') || s.startsWith('https://') || s.startsWith('data:image'))
+
+  const rawReviews = Array.isArray(pageData.review_images) ? pageData.review_images : []
+  const reviewImagesList = rawReviews
+    .map((s: any) => String(s || '').trim())
+    .filter((s: string) => s.startsWith('http://') || s.startsWith('https://') || s.startsWith('data:image'))
 
   const openLightbox = (images: string[], index: number) => {
     setLightboxImages(images)
@@ -410,9 +417,9 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
         )}
 
         {/* ========================================================================= */}
-        {/* CUSTOMER REVIEW PHOTO ALBUM (อัลบั้มรูปรีวิวการันตีผลลัพธ์) */}
+        {/* CUSTOMER REVIEW PHOTO ALBUM (แสดงเฉพาะเมื่อเปิดใช้งานและมีรูปภาพจริง) */}
         {/* ========================================================================= */}
-        {reviewImagesList.length > 0 && (
+        {Boolean(pageData.enable_review_album) && reviewImagesList.length > 0 && (
           <section className={`rounded-[32px] p-6 sm:p-8 space-y-4 border shadow-xl ${
             isLightBg ? 'bg-white border-slate-200' : 'bg-slate-900/90 border-slate-800'
           }`}>
@@ -572,8 +579,8 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
           </section>
         )}
 
-        {/* INSTANT COD ORDER FORM (Conditionally Rendered) */}
-        {pageData.enable_cod_form !== false && (
+        {/* INSTANT COD ORDER FORM (แสดงเฉพาะเมื่อเปิดใช้งานฟอร์มเก็บเงินปลายทาง) */}
+        {Boolean(pageData.enable_cod_form) && (
         <section className={`border rounded-[32px] p-6 sm:p-8 shadow-2xl space-y-4 ${
           isLightBg ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900/95 border-slate-800 text-slate-100'
         }`}>

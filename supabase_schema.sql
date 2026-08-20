@@ -386,6 +386,15 @@ BEGIN
     END IF;
 END $$;
 
+
+-- Migration for enable_review_album in landing_pages
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'enable_review_album') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN enable_review_album BOOLEAN DEFAULT FALSE;
+    END IF;
+END $$;
+
 -- ==============================================================================
 -- 7. HELPER FUNCTION: IS_ADMIN()
 -- ==============================================================================

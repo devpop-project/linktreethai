@@ -63,6 +63,7 @@ interface SalesLandingPagePreviewProps {
     trust_badge_2?: string
     trust_badge_3?: string
     enable_cod_form?: boolean
+    enable_review_album?: boolean
     
     // SEO & Tracking
     seo_title?: string
@@ -110,14 +111,22 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
   const resolvedVideoUrl = pageData.video_url || (pageData.hero_media_type === 'youtube' ? pageData.hero_media_url : null)
   const embedVideoUrl = getYouTubeEmbedUrl(resolvedVideoUrl || null)
   
-  // Parse Lists & Image Albums
-  const galleryImagesList = Array.isArray(pageData.gallery_images) && pageData.gallery_images.length > 0 
-    ? pageData.gallery_images 
-    : (pageData.gallery_images_text || '').split('\n').map(s => s.trim()).filter(s => s.length > 0)
+  // Parse Lists & Image Albums (Strict URL Validation)
+  const rawGallery = Array.isArray(pageData.gallery_images) && pageData.gallery_images.length > 0
+    ? pageData.gallery_images
+    : (pageData.gallery_images_text || '').split('\n')
 
-  const reviewImagesList = Array.isArray(pageData.review_images) && pageData.review_images.length > 0 
-    ? pageData.review_images 
-    : (pageData.review_images_text || '').split('\n').map(s => s.trim()).filter(s => s.length > 0)
+  const galleryImagesList = rawGallery
+    .map(s => String(s || '').trim())
+    .filter(s => s.startsWith('http://') || s.startsWith('https://') || s.startsWith('data:image'))
+
+  const rawReviews = Array.isArray(pageData.review_images) && pageData.review_images.length > 0
+    ? pageData.review_images
+    : (pageData.review_images_text || '').split('\n')
+
+  const reviewImagesList = rawReviews
+    .map(s => String(s || '').trim())
+    .filter(s => s.startsWith('http://') || s.startsWith('https://') || s.startsWith('data:image'))
 
   const openImageInLightbox = (images: string[], index: number) => {
     setLightboxImages(images)
@@ -363,9 +372,9 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
         )}
 
         {/* ========================================================================= */}
-        {/* CUSTOMER REVIEW PHOTO ALBUM (อัลบั้มรูปรีวิวการันตีผลลัพธ์) */}
+        {/* CUSTOMER REVIEW PHOTO ALBUM (แสดงเฉพาะเมื่อเปิดใช้งานและมีรูปภาพจริง) */}
         {/* ========================================================================= */}
-        {reviewImagesList.length > 0 && (
+        {Boolean(pageData.enable_review_album) && reviewImagesList.length > 0 && (
           <section className={`rounded-2xl p-4 space-y-3 border ${
             isLightBg ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/90 border-slate-800'
           }`}>
@@ -532,8 +541,8 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
           </section>
         )}
 
-        {/* COD Form Mockup (Shown only when enable_cod_form is true) */}
-        {pageData.enable_cod_form !== false && (
+        {/* COD Form Mockup (Shown ONLY when enable_cod_form is explicitly TRUE) */}
+        {Boolean(pageData.enable_cod_form) && (
           <div className={`rounded-2xl p-3.5 space-y-2.5 border shadow ${
             isLightBg ? 'bg-white border-slate-200' : 'bg-slate-900/95 border-slate-800'
           }`}>
