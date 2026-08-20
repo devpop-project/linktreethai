@@ -86,7 +86,7 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
 
   const themeColor = pageData.theme_color || '#EF4444'
   const bgColor = pageData.bg_color || '#0B0F17'
-  const isLightBg = bgColor === '#FFFFFF' || bgColor === '#F9F9FF' || bgColor === '#F1F5F9'
+  const isLightBg = Boolean(bgColor && ['#ffffff', '#f9f9ff', '#f1f5f9', 'white'].includes(bgColor.toLowerCase().trim()))
   const textColor = pageData.text_color || (isLightBg ? '#0F172A' : '#FFFFFF')
   const subtextColor = pageData.subtext_color || (isLightBg ? '#334155' : '#E2E8F0')
 
@@ -354,7 +354,7 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
           }`}>
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
-              <h3 className={`font-extrabold text-xs ${isLightBg ? 'text-slate-900' : 'text-white'}`}>
+              <h3 style={{ color: isLightBg ? '#0F172A' : '#FFFFFF' }} className="font-black text-xs sm:text-sm drop-shadow-sm">
                 {pageData.benefits_headline || 'ทางออกและผลลัพธ์ที่คุณจะได้รับ'}
               </h3>
             </div>
@@ -379,13 +379,20 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
             isLightBg ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/90 border-slate-800'
           }`}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <ImageIcon className="w-4 h-4 text-emerald-400 shrink-0" />
-                <h3 className={`font-extrabold text-xs ${isLightBg ? 'text-slate-900' : 'text-white'}`}>
-                  รูปภาพรีวิวและการใช้งานจริงจากลูกค้า ({reviewImagesList.length} รูป)
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                </div>
+                <h3 
+                  style={{ color: isLightBg ? '#0F172A' : '#FFFFFF' }}
+                  className="font-black text-xs sm:text-sm tracking-tight drop-shadow-sm"
+                >
+                  📸 รูปภาพรีวิวและการใช้งานจริงจากลูกค้า ({reviewImagesList.length} รูป)
                 </h3>
               </div>
-              <span className="text-[9px] text-emerald-400 font-bold">แตะดูรูปขยาย</span>
+              <span className="text-[9px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                แตะดูรูปขยาย
+              </span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -415,7 +422,7 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
-                <h3 className={`font-extrabold text-xs ${isLightBg ? 'text-slate-900' : 'text-white'}`}>เสียงตอบรับจากลูกค้าจริง</h3>
+                <h3 style={{ color: isLightBg ? '#0F172A' : '#FFFFFF' }} className="font-black text-xs sm:text-sm drop-shadow-sm">เสียงตอบรับจากลูกค้าจริง</h3>
               </div>
               <span className="text-[10px] text-amber-500 font-bold font-mono">★★★★★ 4.9/5</span>
             </div>
@@ -509,7 +516,7 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
           }`}>
             <div className="flex items-center gap-1.5">
               <HelpCircle className="w-4 h-4 text-purple-500 shrink-0" />
-              <h3 className={`font-extrabold text-xs ${isLightBg ? 'text-slate-900' : 'text-white'}`}>คำถามที่พบบ่อย (FAQ)</h3>
+              <h3 style={{ color: isLightBg ? '#0F172A' : '#FFFFFF' }} className="font-black text-xs sm:text-sm drop-shadow-sm">คำถามที่พบบ่อย (FAQ)</h3>
             </div>
             <div className="space-y-2">
               {faqsList.map((faqLine, idx) => {

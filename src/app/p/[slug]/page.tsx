@@ -198,7 +198,7 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
 
   const themeColor = pageData.theme_color || '#EF4444'
   const bgColor = pageData.bg_color || '#0B0F17'
-  const isLightBg = bgColor === '#FFFFFF' || bgColor === '#F9F9FF' || bgColor === '#F1F5F9'
+  const isLightBg = Boolean(bgColor && ['#ffffff', '#f9f9ff', '#f1f5f9', 'white'].includes(bgColor.toLowerCase().trim()))
   const textColor = pageData.text_color || (isLightBg ? '#0F172A' : '#FFFFFF')
   const subtextColor = pageData.subtext_color || (isLightBg ? '#334155' : '#E2E8F0')
 
@@ -426,13 +426,18 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                  <CheckCircle2 className="w-5 h-5" />
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                 </div>
-                <h2 className="font-extrabold text-base sm:text-lg text-white">
+                <h2 
+                  style={{ color: isLightBg ? '#0F172A' : '#FFFFFF' }}
+                  className="font-black text-base sm:text-lg tracking-tight drop-shadow-sm"
+                >
                   📸 รูปภาพรีวิวและการใช้งานจริงจากลูกค้า ({reviewImagesList.length} รูป)
                 </h2>
               </div>
-              <span className="text-xs text-emerald-400 font-bold">แตะดูรูปขยาย</span>
+              <span className="text-xs text-emerald-400 font-bold bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/30">
+                แตะดูรูปขยาย
+              </span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
