@@ -419,7 +419,7 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
         {/* ========================================================================= */}
         {/* CUSTOMER REVIEW PHOTO ALBUM (แสดงเฉพาะเมื่อเปิดใช้งานและมีรูปภาพจริง) */}
         {/* ========================================================================= */}
-        {Boolean(pageData.enable_review_album) && reviewImagesList.length > 0 && (
+        {reviewImagesList.length > 0 && (
           <section className={`rounded-[32px] p-6 sm:p-8 space-y-4 border shadow-xl ${
             isLightBg ? 'bg-white border-slate-200' : 'bg-slate-900/90 border-slate-800'
           }`}>

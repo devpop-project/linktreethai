@@ -84,7 +84,7 @@ const DEFAULT_LANDING_PAGE_FORM: LandingPageFormData = {
   subtext_color: '#E2E8F0',
   card_style: 'glass',
   gallery_images_text: '',
-  review_images_text: '',
+  review_images_text: 'https://images.unsplash.com/photo-1556742049-0a67c5574f73?w=500&auto=format&fit=crop&q=80\nhttps://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&auto=format&fit=crop&q=80',
   pain_headline: 'คุณกำลังเจอปัญหาเหล่านี้อยู่ใช่หรือไม่?',
   pain_points_text: '❌ เบื่อไหม? ลูกค้าทักมาขอลิงก์ช้อปปิ้งทีละแอปจนตอบไม่ทัน\n❌ ยิงแอดไปเท่าไหร่ แต่เก็บ Data ลูกค้าไม่ได้เลยใช่ไหม?\n❌ ปิดการขายช้าเพราะลูกค้าสับสนช่องทางชำระเงิน',
   benefits_headline: 'ทางออกและผลลัพธ์ที่คุณจะได้รับ',
@@ -2352,61 +2352,65 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      {/* --- SECTION: CUSTOMER REVIEW PHOTO ALBUM (อัลบั้มรูปรีวิว) --- */}
-                      <div className="p-4 bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 rounded-2xl space-y-3">
+                      {/* --- SECTION: CUSTOMER REVIEW PHOTO ALBUM (อัลบั้มรูปรีวิวลูกค้า) --- */}
+                      <div className="p-4 bg-amber-50/50 dark:bg-amber-950/30 border-2 border-amber-300/80 dark:border-amber-900/60 rounded-2xl space-y-3">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200 dark:border-amber-900/50 pb-2">
                           <div className="flex items-center gap-2">
                             <ImageIcon className="w-5 h-5 text-amber-500" />
                             <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white">
-                              รูปภาพรีวิวและการใช้งานจริงจากลูกค้า (Review Photos Album)
+                              📸 อัลบั้มรูปภาพรีวิวและการใช้งานจริงจากลูกค้า (Review Photos Album)
                             </h4>
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setNewLandingPage({ ...newLandingPage, enable_review_album: !newLandingPage.enable_review_album })}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                                newLandingPage.enable_review_album
-                                  ? 'bg-emerald-500 text-slate-950 font-black shadow'
-                                  : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                              }`}
-                            >
-                              <span>{newLandingPage.enable_review_album ? '✓ เปิดแสดงอัลบั้มรีวิว' : '✕ ปิดอัลบั้มรีวิว'}</span>
-                            </button>
-
-                            <label className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition shadow-sm">
-                              <Upload className="w-3.5 h-3.5" />
-                              <span>📸 เพิ่มรูปจากมือถือ</span>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => {
-                                  handleUploadLpImage(e, 'review')
-                                  if (!newLandingPage.enable_review_album) {
-                                    setNewLandingPage(prev => ({ ...prev, enable_review_album: true }))
-                                  }
-                                }}
-                              />
-                            </label>
-                          </div>
+                          <label className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition shadow-md shadow-amber-500/20 active:scale-95 flex-shrink-0">
+                            <Upload className="w-4 h-4" />
+                            <span>{uploadingLpImg ? 'กำลังอัปโหลด...' : '📸 เลือกรูปรีวิวจากมือถือ'}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleUploadLpImage(e, 'review')}
+                            />
+                          </label>
                         </div>
 
                         <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                          {newLandingPage.enable_review_album 
-                            ? '✓ สถานะ: กำลังแสดงอัลบั้มรูปภาพรีวิวบนหน้าเว็บ (ลูกค้าแตะดูรูปขยายได้)'
-                            : '✕ สถานะ: ปิดไว้ (ซ่อนส่วนรูปภาพรีวิวออกจากหน้าเว็บ 100%)'}
+                          ใส่ภาพแชตรีวิวจากลูกค้า ภาพสินค้าขณะใช้งาน หรือผลลัพธ์การันตี เพื่อให้ลูกค้าแตะดูรูปขยายแบบอัลบั้มได้
                         </p>
 
-                        {newLandingPage.enable_review_album && (
-                          <textarea
-                            rows={2}
-                            placeholder="URL รูปภาพรีวิว (1 บรรทัด = 1 รูป หรือ กดปุ่มอัปโหลดรูปรีวิวจากมือถือด้านบน)"
-                            value={newLandingPage.review_images_text}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, review_images_text: e.target.value })}
-                            className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono"
-                          />
+                        <textarea
+                          rows={3}
+                          placeholder="URL รูปภาพรีวิวจากลูกค้า (1 บรรทัด = 1 รูป หรือ กดปุ่มเลือกรูปจากมือถือด้านบน)"
+                          value={newLandingPage.review_images_text}
+                          onChange={(e) => setNewLandingPage({ ...newLandingPage, review_images_text: e.target.value })}
+                          className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono"
+                        />
+
+                        {/* Thumbnail Strip in Form */}
+                        {newLandingPage.review_images_text.trim() && (
+                          <div className="pt-2 border-t border-amber-200/60 dark:border-amber-900/40 space-y-2">
+                            <span className="text-[11px] font-bold text-amber-900 dark:text-amber-300">
+                              ตัวอย่างรูปภาพในอัลบั้มรีวิว ({newLandingPage.review_images_text.split('\n').filter(s => s.trim().length > 0).length} รูป):
+                            </span>
+                            <div className="flex items-center gap-2 overflow-x-auto py-1">
+                              {newLandingPage.review_images_text.split('\n').filter(s => s.trim().length > 0).map((url, idx) => (
+                                <div key={idx} className="relative group flex-shrink-0">
+                                  <img src={url.trim()} alt="" className="w-14 h-14 object-cover rounded-xl border-2 border-amber-400 shadow-sm" />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const filtered = newLandingPage.review_images_text.split('\n').filter((_, i) => i !== idx).join('\n')
+                                      setNewLandingPage({ ...newLandingPage, review_images_text: filtered })
+                                    }}
+                                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center text-[10px] shadow"
+                                    title="ลบรูปนี้"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         )}
                       </div>
 

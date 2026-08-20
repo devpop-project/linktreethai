@@ -374,7 +374,7 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
         {/* ========================================================================= */}
         {/* CUSTOMER REVIEW PHOTO ALBUM (แสดงเฉพาะเมื่อเปิดใช้งานและมีรูปภาพจริง) */}
         {/* ========================================================================= */}
-        {Boolean(pageData.enable_review_album) && reviewImagesList.length > 0 && (
+        {reviewImagesList.length > 0 && (
           <section className={`rounded-2xl p-4 space-y-3 border ${
             isLightBg ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-900/90 border-slate-800'
           }`}>
