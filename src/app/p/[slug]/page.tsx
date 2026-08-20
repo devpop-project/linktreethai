@@ -581,61 +581,114 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
 
         {/* INSTANT COD ORDER FORM (แสดงเฉพาะเมื่อเปิดใช้งานฟอร์มเก็บเงินปลายทาง) */}
         {Boolean(pageData.enable_cod_form) && (
-        <section className={`border rounded-[32px] p-6 sm:p-8 shadow-2xl space-y-4 ${
-          isLightBg ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900/95 border-slate-800 text-slate-100'
+        <section className={`border-2 rounded-[32px] p-6 sm:p-8 shadow-2xl space-y-5 backdrop-blur-xl relative z-10 ${
+          isLightBg 
+            ? 'bg-white border-slate-200 text-slate-900 shadow-slate-200/50' 
+            : 'bg-[#111827]/95 border-slate-600/80 text-white shadow-2xl'
         }`}>
-          <div className="text-center border-b border-slate-800 pb-3">
-            <h3 className="text-lg sm:text-2xl font-black text-white">📦 กรอกข้อมูลสั่งซื้อ (เก็บเงินปลายทาง)</h3>
-            <p className="text-xs sm:text-sm text-slate-200 mt-1 font-medium">กรอกชื่อ เบอร์โทร และที่อยู่จัดส่ง เจ้าหน้าที่จะติดต่อกลับเพื่อยืนยันออเดอร์</p>
+          <div className="text-center border-b border-slate-700/80 pb-3">
+            <h3 className={`text-xl sm:text-2xl font-black flex items-center justify-center gap-2 ${
+              isLightBg ? 'text-slate-950' : 'text-white'
+            }`}>
+              📦 กรอกข้อมูลสั่งซื้อ (เก็บเงินปลายทาง)
+            </h3>
+            <p className={`text-xs sm:text-sm mt-1 font-medium ${
+              isLightBg ? 'text-slate-600' : 'text-slate-200'
+            }`}>
+              กรอกชื่อ เบอร์โทร และที่อยู่จัดส่ง เจ้าหน้าที่จะติดต่อกลับเพื่อยืนยันออเดอร์
+            </p>
           </div>
 
           {orderSuccess ? (
             <div className="p-8 bg-emerald-500/10 border border-emerald-500/40 rounded-3xl text-center space-y-2">
               <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />
               <h4 className="font-extrabold text-lg text-white">บันทึกการสั่งซื้อเรียบร้อยแล้ว!</h4>
-              <p className="text-xs sm:text-sm text-slate-300">เจ้าหน้าที่จะติดต่อกลับไปยังเบอร์ที่ระบุโดยเร็วที่สุดครับ</p>
+              <p className="text-xs sm:text-sm text-slate-200">เจ้าหน้าที่จะติดต่อกลับไปยังเบอร์ที่ระบุโดยเร็วที่สุดครับ</p>
             </div>
           ) : (
-            <form onSubmit={handleOrderSubmit} className="space-y-3.5 text-xs sm:text-sm font-bold">
+            <form onSubmit={handleOrderSubmit} className="space-y-4 text-xs sm:text-sm font-bold">
               <div>
-                <label className="block mb-1.5 text-white font-bold text-xs sm:text-sm">ชื่อ-นามสกุล ผู้รับสินค้า *</label>
+                <label className={`block mb-1.5 font-extrabold text-xs sm:text-sm ${
+                  isLightBg ? 'text-slate-800' : 'text-white'
+                }`}>
+                  ชื่อ-นามสกุล ผู้รับสินค้า *
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="เช่น สมชาย ใจดี"
                   value={orderForm.name}
                   onChange={(e) => setOrderForm({ ...orderForm, name: e.target.value })}
-                  className="w-full px-4 py-3 bg-slate-900/90 border-2 border-slate-700 focus:border-emerald-400 rounded-2xl text-white placeholder:text-slate-400 focus:outline-none text-xs sm:text-sm shadow-inner font-medium"
+                  className={`w-full px-4 py-3.5 rounded-2xl text-xs sm:text-sm font-medium transition focus:outline-none border-2 shadow-sm ${
+                    isLightBg 
+                      ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white' 
+                      : 'bg-[#1E293B] border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:bg-[#0F172A]'
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="block mb-1.5 text-white font-bold text-xs sm:text-sm">เบอร์โทรศัพท์สำหรับติดต่อ *</label>
+                <label className={`block mb-1.5 font-extrabold text-xs sm:text-sm ${
+                  isLightBg ? 'text-slate-800' : 'text-white'
+                }`}>
+                  เบอร์โทรศัพท์สำหรับติดต่อ *
+                </label>
                 <input
                   type="tel"
                   required
                   placeholder="081-xxx-xxxx"
                   value={orderForm.phone}
                   onChange={(e) => setOrderForm({ ...orderForm, phone: e.target.value })}
-                  className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-white focus:outline-none focus:border-rose-500 text-xs sm:text-sm font-mono"
+                  className={`w-full px-4 py-3.5 rounded-2xl text-xs sm:text-sm font-mono font-medium transition focus:outline-none border-2 shadow-sm ${
+                    isLightBg 
+                      ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white' 
+                      : 'bg-[#1E293B] border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:bg-[#0F172A]'
+                  }`}
                 />
               </div>
 
               <div>
-                <label className="block mb-1.5 text-white font-bold text-xs sm:text-sm">ที่อยู่สำหรับจัดส่งสินค้า</label>
+                <label className={`block mb-1.5 font-extrabold text-xs sm:text-sm ${
+                  isLightBg ? 'text-slate-800' : 'text-white'
+                }`}>
+                  ที่อยู่สำหรับจัดส่งสินค้า
+                </label>
                 <textarea
                   rows={2}
                   placeholder="บ้านเลขที่, ถนน, ตำบล, อำเภอ, จังหวัด, รหัสไปรษณีย์"
                   value={orderForm.address}
                   onChange={(e) => setOrderForm({ ...orderForm, address: e.target.value })}
-                  className="w-full px-4 py-3 bg-slate-900/90 border-2 border-slate-700 focus:border-emerald-400 rounded-2xl text-white placeholder:text-slate-400 focus:outline-none text-xs sm:text-sm shadow-inner font-medium"
+                  className={`w-full px-4 py-3.5 rounded-2xl text-xs sm:text-sm font-medium transition focus:outline-none border-2 shadow-sm ${
+                    isLightBg 
+                      ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white' 
+                      : 'bg-[#1E293B] border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:bg-[#0F172A]'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className={`block mb-1.5 font-extrabold text-xs sm:text-sm ${
+                  isLightBg ? 'text-slate-800' : 'text-white'
+                }`}>
+                  หมายเหตุเพิ่มเติม (ถ้ามี)
+                </label>
+                <input
+                  type="text"
+                  placeholder="เช่น ฝากไว้หน้าบ้าน, โทรแจ้งก่อนส่ง"
+                  value={orderForm.note}
+                  onChange={(e) => setOrderForm({ ...orderForm, note: e.target.value })}
+                  className={`w-full px-4 py-3.5 rounded-2xl text-xs sm:text-sm font-medium transition focus:outline-none border-2 shadow-sm ${
+                    isLightBg 
+                      ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white' 
+                      : 'bg-[#1E293B] border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:bg-[#0F172A]'
+                  }`}
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={ordering}
-                className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl text-sm sm:text-base transition shadow-xl flex items-center justify-center gap-2 active:scale-98"
+                className="w-full py-4 sm:py-4.5 bg-[#10B981] hover:bg-[#059669] text-white font-black rounded-2xl text-sm sm:text-base transition shadow-xl shadow-emerald-500/30 flex items-center justify-center gap-2 active:scale-98 cursor-pointer border border-emerald-400/40 mt-2"
               >
                 <Send className="w-4 h-4" />
                 <span>{ordering ? 'กำลังบันทึกข้อมูล...' : 'ยืนยันการสั่งซื้อโปรโมชั่นนี้'}</span>
