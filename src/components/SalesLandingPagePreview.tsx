@@ -327,7 +327,7 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
             </div>
             <div className="space-y-2">
               {painPointsList.map((pain, idx) => (
-                <div key={idx} className="flex items-start gap-2 text-[11px] text-rose-100/90 leading-snug bg-rose-950/40 p-2.5 rounded-xl border border-rose-900/40">
+                <div key={idx} className="flex items-start gap-2 text-[11px] text-white font-bold leading-snug bg-rose-950/70 p-3 rounded-xl border border-rose-800/80 shadow">
                   <span className="text-rose-400 font-bold shrink-0">❌</span>
                   <span>{pain}</span>
                 </div>
@@ -351,7 +351,7 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
             </div>
             <div className="space-y-2">
               {benefitsList.map((benefit, idx) => (
-                <div key={idx} className={`flex items-start gap-2 text-[11px] leading-snug p-2.5 rounded-xl border ${
+                <div key={idx} className={`flex items-start gap-2 text-[11px] font-bold text-white leading-snug p-3 rounded-xl border ${
                   isLightBg ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-slate-950 border-slate-800 text-slate-200'
                 }`}>
                   <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
@@ -515,13 +515,13 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
                     <button
                       type="button"
                       onClick={() => setOpenFaq(isOpen ? null : idx)}
-                      className="w-full p-2.5 text-left font-bold flex items-center justify-between"
+                      className="w-full p-3 text-left font-extrabold text-white flex items-center justify-between transition text-xs"
                     >
                       <span>Q: {q}</span>
                       {isOpen ? <ChevronUp className="w-3 h-3 opacity-60" /> : <ChevronDown className="w-3 h-3 opacity-60" />}
                     </button>
                     {isOpen && (
-                      <div className="px-2.5 pb-2.5 text-slate-500 border-t border-slate-200 dark:border-slate-900 pt-2 leading-relaxed">
+                      <div className="px-3 pb-3 text-slate-100 border-t border-slate-800 pt-2 leading-relaxed text-[11px] font-medium bg-slate-900/50">
                         A: {a}
                       </div>
                     )}
@@ -542,9 +542,9 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
               <p className="text-[10px] text-slate-500">กรอกชื่อและเบอร์โทร เจ้าหน้าที่จะติดต่อกลับเพื่อยืนยันการจัดส่ง</p>
             </div>
             <div className="space-y-1.5 text-[10px]">
-              <input type="text" disabled placeholder="ชื่อ-นามสกุล..." className="w-full px-2.5 py-2 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl" />
-              <input type="text" disabled placeholder="เบอร์โทรศัพท์..." className="w-full px-2.5 py-2 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl" />
-              <textarea rows={1} disabled placeholder="ที่อยู่จัดส่ง..." className="w-full px-2.5 py-2 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl" />
+              <input type="text" disabled placeholder="ชื่อ-นามสกุล ผู้รับสินค้า..." className="w-full px-3 py-2.5 bg-slate-900 border-2 border-slate-700 rounded-xl text-white placeholder:text-slate-400 text-xs shadow-inner" />
+              <input type="text" disabled placeholder="เบอร์โทรศัพท์สำหรับติดต่อ..." className="w-full px-3 py-2.5 bg-slate-900 border-2 border-slate-700 rounded-xl text-white placeholder:text-slate-400 text-xs shadow-inner" />
+              <textarea rows={1} disabled placeholder="ที่อยู่สำหรับจัดส่งสินค้า..." className="w-full px-3 py-2.5 bg-slate-900 border-2 border-slate-700 rounded-xl text-white placeholder:text-slate-400 text-xs shadow-inner" />
               <div className="w-full py-2.5 bg-emerald-500 text-slate-950 font-black rounded-xl text-center flex items-center justify-center gap-1 text-xs">
                 <Send className="w-3 h-3" /> ยืนยันการสั่งซื้อโปรโมชั่นนี้
               </div>

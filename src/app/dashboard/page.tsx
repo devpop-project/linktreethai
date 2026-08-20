@@ -1868,19 +1868,21 @@ export default function DashboardPage() {
             {activeTab === 'landing_pages' && (
               <div className="space-y-6">
                 {(!isMasterUser && totalLandingSlots === 0 && !isPixelActive) ? (
-                  <div className="bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800 p-8 rounded-3xl shadow-sm text-center space-y-5">
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 sm:p-12 rounded-3xl shadow-sm text-center space-y-6 max-w-xl mx-auto my-6">
                     <div className="w-16 h-16 rounded-3xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300 flex items-center justify-center mx-auto shadow-sm">
                       <Lock className="w-8 h-8" />
                     </div>
 
-                    <div className="space-y-1 max-w-md mx-auto">
+                    <div className="space-y-1.5 max-w-md mx-auto">
                       <h3 className="text-xl font-extrabold text-[#1E1B4B] dark:text-white">
                         ระบบเซลเพจยิงแอด & Tracking Pixels เป็นฟีเจอร์พรีเมียม
                       </h3>
                       <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
-                        สร้างหน้าเซลเพจขายของ Flash Sale เฉพาะสินค้า พร้อมระบบฝัง Facebook, TikTok, Google, LINE Pixels อัตโนมัติ เพื่อยิงแอด Conversion วัดผลยอดขายได้ 100%
+                        สร้างหน้าเซลเพจขายของ Flash Sale พร้อมระบบฝัง Facebook, TikTok, Google, LINE Pixels อัตโนมัติ เพื่อยิงแอด Conversion วัดผลยอดขายได้ 100%
                       </p>
                     </div>
+
+                    
 
                     <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-sm mx-auto flex items-center justify-between">
                       <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">แต้มสะสมของคุณ:</span>

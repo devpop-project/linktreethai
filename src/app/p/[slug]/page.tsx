@@ -373,7 +373,7 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
 
             <div className="space-y-2.5 pt-1">
               {painPointsList.map((pain: string, idx: number) => (
-                <div key={idx} className="flex items-start gap-3 text-xs sm:text-sm text-rose-100/90 leading-relaxed bg-rose-950/40 p-3.5 rounded-2xl border border-rose-900/40">
+                <div key={idx} className="flex items-start gap-3 text-xs sm:text-sm text-white font-bold leading-relaxed bg-rose-950/70 p-4 rounded-2xl border border-rose-800/80 shadow-md">
                   <span className="text-rose-400 font-bold shrink-0 text-base">❌</span>
                   <span>{pain}</span>
                 </div>
@@ -398,7 +398,7 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               {benefitsList.map((benefit: string, idx: number) => (
-                <div key={idx} className="flex items-start gap-3 text-xs sm:text-sm text-slate-200 leading-relaxed bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-sm">
+                <div key={idx} className="flex items-start gap-3 text-xs sm:text-sm text-white font-bold leading-relaxed bg-slate-900/90 p-4 rounded-2xl border border-slate-700 shadow-md">
                   <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
                     <Check className="w-3.5 h-3.5" />
                   </div>
@@ -421,8 +421,8 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
                 <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
-                <h2 className={`font-extrabold text-base sm:text-lg ${isLightBg ? 'text-slate-900' : 'text-white'}`}>
-                  รูปภาพรีวิวและการใช้งานจริงจากลูกค้า ({reviewImagesList.length} รูป)
+                <h2 className="font-extrabold text-base sm:text-lg text-white">
+                  📸 รูปภาพรีวิวและการใช้งานจริงจากลูกค้า ({reviewImagesList.length} รูป)
                 </h2>
               </div>
               <span className="text-xs text-emerald-400 font-bold">แตะดูรูปขยาย</span>
@@ -555,13 +555,13 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
                     <button
                       type="button"
                       onClick={() => setOpenFaq(isOpen ? null : idx)}
-                      className="w-full p-4 text-left font-bold text-slate-200 flex items-center justify-between hover:text-white transition"
+                      className="w-full p-4 text-left font-extrabold text-white dark:text-white flex items-center justify-between transition text-sm sm:text-base"
                     >
                       <span>Q: {q}</span>
                       {isOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
                     </button>
                     {isOpen && (
-                      <div className="px-4 pb-4 text-slate-400 border-t border-slate-900 pt-3 leading-relaxed">
+                      <div className="px-4 pb-4 text-slate-100 dark:text-slate-100 border-t border-slate-800 pt-3 leading-relaxed text-xs sm:text-sm font-medium bg-slate-900/50">
                         A: {a}
                       </div>
                     )}
@@ -578,8 +578,8 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
           isLightBg ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900/95 border-slate-800 text-slate-100'
         }`}>
           <div className="text-center border-b border-slate-800 pb-3">
-            <h3 className="text-base sm:text-xl font-black text-white">กรอกข้อมูลสั่งซื้อ (เก็บเงินปลายทาง)</h3>
-            <p className="text-xs text-slate-400 mt-1">กรอกชื่อ เบอร์โทร และที่อยู่จัดส่ง เจ้าหน้าที่จะติดต่อกลับเพื่อยืนยันออเดอร์</p>
+            <h3 className="text-lg sm:text-2xl font-black text-white">📦 กรอกข้อมูลสั่งซื้อ (เก็บเงินปลายทาง)</h3>
+            <p className="text-xs sm:text-sm text-slate-200 mt-1 font-medium">กรอกชื่อ เบอร์โทร และที่อยู่จัดส่ง เจ้าหน้าที่จะติดต่อกลับเพื่อยืนยันออเดอร์</p>
           </div>
 
           {orderSuccess ? (
@@ -591,19 +591,19 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
           ) : (
             <form onSubmit={handleOrderSubmit} className="space-y-3.5 text-xs sm:text-sm font-bold">
               <div>
-                <label className="block mb-1 text-slate-300">ชื่อ-นามสกุล *</label>
+                <label className="block mb-1.5 text-white font-bold text-xs sm:text-sm">ชื่อ-นามสกุล ผู้รับสินค้า *</label>
                 <input
                   type="text"
                   required
                   placeholder="เช่น สมชาย ใจดี"
                   value={orderForm.name}
                   onChange={(e) => setOrderForm({ ...orderForm, name: e.target.value })}
-                  className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-white focus:outline-none focus:border-rose-500 text-xs sm:text-sm"
+                  className="w-full px-4 py-3 bg-slate-900/90 border-2 border-slate-700 focus:border-emerald-400 rounded-2xl text-white placeholder:text-slate-400 focus:outline-none text-xs sm:text-sm shadow-inner font-medium"
                 />
               </div>
 
               <div>
-                <label className="block mb-1 text-slate-300">เบอร์โทรศัพท์สำหรับติดต่อ *</label>
+                <label className="block mb-1.5 text-white font-bold text-xs sm:text-sm">เบอร์โทรศัพท์สำหรับติดต่อ *</label>
                 <input
                   type="tel"
                   required
@@ -615,13 +615,13 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
               </div>
 
               <div>
-                <label className="block mb-1 text-slate-300">ที่อยู่สำหรับจัดส่ง</label>
+                <label className="block mb-1.5 text-white font-bold text-xs sm:text-sm">ที่อยู่สำหรับจัดส่งสินค้า</label>
                 <textarea
                   rows={2}
                   placeholder="บ้านเลขที่, ถนน, ตำบล, อำเภอ, จังหวัด, รหัสไปรษณีย์"
                   value={orderForm.address}
                   onChange={(e) => setOrderForm({ ...orderForm, address: e.target.value })}
-                  className="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-2xl text-white focus:outline-none focus:border-rose-500 text-xs sm:text-sm"
+                  className="w-full px-4 py-3 bg-slate-900/90 border-2 border-slate-700 focus:border-emerald-400 rounded-2xl text-white placeholder:text-slate-400 focus:outline-none text-xs sm:text-sm shadow-inner font-medium"
                 />
               </div>
 
