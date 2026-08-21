@@ -663,6 +663,8 @@ export default function AdminDashboardPage() {
           extra_landing_page_slots: parseInt(grantModalUser.extra_landing_page_slots || '0', 10),
           points: parseInt(grantModalUser.points || '0', 10),
           role: grantModalUser.role || 'user',
+          line_channel_access_token: grantModalUser.line_channel_access_token?.trim() || null,
+          line_user_id: grantModalUser.line_user_id?.trim() || null,
           line_notify_token: grantModalUser.line_notify_token?.trim() || null,
           line_webhook_url: grantModalUser.line_webhook_url?.trim() || null,
           updated_at: new Date().toISOString()

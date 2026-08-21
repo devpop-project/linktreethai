@@ -688,4 +688,13 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'landing_pages' AND column_name = 'expires_at') THEN
         ALTER TABLE public.landing_pages ADD COLUMN expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '30 days');
     END IF;
+
+    -- 4. Add LINE Messaging API fields to profiles (Official Replacement for LINE Notify)
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'line_channel_access_token') THEN
+        ALTER TABLE public.profiles ADD COLUMN line_channel_access_token TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'line_user_id') THEN
+        ALTER TABLE public.profiles ADD COLUMN line_user_id TEXT;
+    END IF;
+
 END $$;

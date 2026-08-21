@@ -167,6 +167,8 @@ export default function DashboardPage() {
     tiktok_pixel_id: '',
     google_pixel_id: '',
     line_tag_id: '',
+    line_channel_access_token: '',
+    line_user_id: '',
     line_notify_token: '',
     line_webhook_url: '',
     extra_landing_page_slots: 0,
@@ -859,8 +861,8 @@ export default function DashboardPage() {
 
     // --- Real-time LINE Notification Test & Landing Page Renewal Handlers ---
   const handleTestLineNotify = async () => {
-    if (!profile.line_notify_token && !profile.line_webhook_url) {
-      showToast('❌ กรุณากรอก LINE Notify Token หรือ Webhook URL ก่อนกดทดสอบ')
+    if (!profile.line_channel_access_token && !profile.line_user_id && !profile.line_notify_token && !profile.line_webhook_url) {
+      showToast('❌ กรุณากรอก LINE Channel Access Token & User ID หรือ Webhook URL ก่อนกดทดสอบ')
       return
     }
     setTestingLineNotify(true)
@@ -869,6 +871,8 @@ export default function DashboardPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          channel_access_token: profile.line_channel_access_token,
+          user_id: profile.line_user_id,
           token: profile.line_notify_token,
           webhook_url: profile.line_webhook_url
         })
@@ -877,7 +881,7 @@ export default function DashboardPage() {
       if (res.ok && data.success) {
         showToast('🔔 ' + data.message)
       } else {
-        showToast('❌ ' + (data.error || 'ส่งข้อความไม่สำเร็จ'))
+        showToast('❌ ' + (data.error || 'ส่งข้อความไม่สำเร็จ กรุณาตรวจสอบ Token'))
       }
     } catch (e: any) {
       showToast('❌ เกิดข้อผิดพลาด: ' + e.message)
@@ -976,6 +980,8 @@ export default function DashboardPage() {
         tiktok_pixel_id: profile.tiktok_pixel_id,
         google_pixel_id: profile.google_pixel_id,
         line_tag_id: profile.line_tag_id,
+        line_channel_access_token: profile.line_channel_access_token?.trim() || null,
+        line_user_id: profile.line_user_id?.trim() || null,
         line_notify_token: profile.line_notify_token || null,
         line_webhook_url: profile.line_webhook_url || null,
         updated_at: new Date().toISOString()
@@ -4455,24 +4461,24 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* PROMINENT LINE NOTIFY & WEBHOOK REAL-TIME NOTIFICATION BOX (MASTER VIP) */}
+                  {/* PROMINENT LINE MESSAGING API (LINE OA) & WEBHOOK REAL-TIME NOTIFICATION BOX (MASTER VIP) */}
                   <div className="p-5 rounded-3xl bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-purple-500/10 border-2 border-emerald-500/30 dark:border-emerald-500/20 space-y-3.5 shadow-sm">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-emerald-500/20">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black shadow-md shadow-emerald-500/20">
+                        <div className="w-9 h-9 rounded-2xl bg-[#06C755] text-white flex items-center justify-center font-black shadow-md shadow-emerald-500/20">
                           <MessageCircle className="w-5 h-5" />
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
                             <h4 className="font-extrabold text-sm sm:text-base text-[#1E1B4B] dark:text-white">
-                              ระบบแจ้งเตือนเข้า LINE อัตโนมัติ (Real-time)
+                              ระบบแจ้งเตือนเข้า LINE Official Account (Messaging API)
                             </h4>
                             <span className="text-[10px] bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 px-2.5 py-0.5 rounded-full font-black shadow-xs">
                               👑 MASTER VIP ONLY
                             </span>
                           </div>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                            แจ้งเตือนทันทีเมื่อมีลูกค้าสั่งซื้อ COD หรือกรอกฟอร์มติดต่อในหน้า Bio Link
+                            แจ้งเตือนทันทีเข้า LINE เมื่อมีออเดอร์ COD หรือลูกค้ากรอกแบบฟอร์มติดต่อ (รองรับ LINE Messaging API & Webhook)
                           </p>
                         </div>
                       </div>
@@ -4509,54 +4515,65 @@ export default function DashboardPage() {
                       </div>
                     ) : (
                       <div className="space-y-3 pt-1 text-xs font-bold">
+                        <div className="p-3 bg-white/80 dark:bg-slate-950/80 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1 text-[11px] font-normal text-slate-600 dark:text-slate-300">
+                          <p className="font-bold text-[#06C755] flex items-center gap-1">
+                            ✨ วิธีเชื่อมต่อ LINE Messaging API (LINE Developers):
+                          </p>
+                          <p>1. เข้า <a href="https://developers.line.biz/" target="_blank" rel="noreferrer" className="text-purple-600 dark:text-purple-400 underline font-bold">LINE Developers Console</a> สร้าง Provider และ Messaging API Channel</p>
+                          <p>2. แท็บ <strong>Messaging API</strong>: กด Issue <strong>Channel Access Token (Long-lived)</strong> แล้วคัดลอกมาวางในช่อง 1</p>
+                          <p>3. แท็บ <strong>Basic settings</strong>: เลื่อนลงมาล่างสุด คัดลอก <strong>Your user ID</strong> (ขึ้นต้นด้วย U...) มาวางในช่อง 2</p>
+                        </div>
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                                <span className="w-2 h-2 rounded-full bg-[#06C755]"></span>
-                                <span>LINE Notify Access Token *</span>
-                              </label>
-                              <a
-                                href="https://notify-bot.line.me/my/"
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-0.5 font-normal"
-                              >
-                                <span>วิธีขอ Token LINE</span> <ExternalLink className="w-2.5 h-2.5" />
-                              </a>
-                            </div>
+                            <label className="block mb-1 text-slate-700 dark:text-slate-200">
+                              1. LINE Channel Access Token (Long-lived) *
+                            </label>
                             <input
                               type="text"
-                              placeholder="วาง LINE Notify Access Token ที่นี่..."
-                              value={profile.line_notify_token || ''}
-                              onChange={(e) => setProfile({ ...profile, line_notify_token: e.target.value })}
+                              placeholder="วาง Channel Access Token ที่นี่..."
+                              value={profile.line_channel_access_token || ''}
+                              onChange={(e) => setProfile({ ...profile, line_channel_access_token: e.target.value })}
                               className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white placeholder-slate-400 font-mono focus:outline-none focus:border-emerald-500 shadow-inner"
                             />
                           </div>
 
                           <div>
                             <label className="block mb-1 text-slate-700 dark:text-slate-200">
-                              LINE OA Webhook URL / Custom Webhook (ถ้ามี)
+                              2. Your LINE User ID (หรือ Group ID) *
                             </label>
                             <input
                               type="text"
-                              placeholder="https://your-webhook-endpoint.com/..."
-                              value={profile.line_webhook_url || ''}
-                              onChange={(e) => setProfile({ ...profile, line_webhook_url: e.target.value })}
+                              placeholder="เช่น U1a2b3c4d5e6f... (ดูที่ Basic Settings)"
+                              value={profile.line_user_id || ''}
+                              onChange={(e) => setProfile({ ...profile, line_user_id: e.target.value })}
                               className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white placeholder-slate-400 font-mono focus:outline-none focus:border-emerald-500 shadow-inner"
                             />
                           </div>
                         </div>
 
+                        <div>
+                          <label className="block mb-1 text-slate-700 dark:text-slate-200">
+                            3. Webhook URL สำรอง (ถ้ามี เช่น Make / Zapier / N8N / Discord)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="https://your-webhook-endpoint.com/..."
+                            value={profile.line_webhook_url || ''}
+                            onChange={(e) => setProfile({ ...profile, line_webhook_url: e.target.value })}
+                            className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white placeholder-slate-400 font-mono focus:outline-none focus:border-emerald-500 shadow-inner"
+                          />
+                        </div>
+
                         <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-1">
                           <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
-                            💡 เมื่อมีลูกค้ากดสั่งซื้อหรือส่งข้อความ ข้อมูลจะถูกส่งเข้า LINE ของคุณทันทีแบบ Real-time
+                            💡 ระบบจะส่งข้อความ Push Notification แจ้งเตือนเข้าแชต LINE ทันทีที่มีลูกค้าสั่งซื้อหรือติดต่อ
                           </p>
 
                           <div className="flex items-center gap-2 w-full sm:w-auto">
                             <button
                               type="button"
-                              disabled={testingLineNotify || (!profile.line_notify_token && !profile.line_webhook_url)}
+                              disabled={testingLineNotify || (!profile.line_channel_access_token && !profile.line_webhook_url && !profile.line_notify_token)}
                               onClick={handleTestLineNotify}
                               className="flex-1 sm:flex-initial px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition disabled:opacity-40 cursor-pointer"
                             >

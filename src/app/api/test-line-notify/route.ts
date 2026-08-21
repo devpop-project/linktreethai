@@ -4,57 +4,109 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
   try {
-    const { token, webhook_url } = await request.json()
+    const { 
+      token, 
+      webhook_url, 
+      channel_access_token, 
+      user_id 
+    } = await request.json()
 
-    if (!token && !webhook_url) {
-      return NextResponse.json({ error: 'กรุณากรอก LINE Notify Token หรือ Webhook URL' }, { status: 400 })
+    if (!channel_access_token && !user_id && !token && !webhook_url) {
+      return NextResponse.json({ 
+        error: 'กรุณาระบุ Channel Access Token & User ID ของ LINE Messaging API หรือ Webhook URL' 
+      }, { status: 400 })
     }
 
-    let notifySuccess = false
-    let webhookSuccess = false
+    let success = false
     let errorMsg = ''
 
-    if (token) {
-      const testMsg = `\n🔔 ทดสอบการเชื่อมต่อ LINE Notify สำเร็จ!\n------------------------------\nระบบ LinkTreeThai เชื่อมต่อกับ LINE ของคุณเรียบร้อยแล้ว\nเมื่อมีลูกค้ากรอกข้อมูลหรือสั่งซื้อ COD ระบบจะแจ้งเตือนมาที่นี่แบบ Real-time ทันทีครับ 🎉`
-      
-      const res = await fetch('https://notify-api.line.me/api/notify', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token.trim()}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: new URLSearchParams({ message: testMsg }).toString()
-      })
+    // 1. Official LINE Messaging API (LINE OA / Developers)
+    if (channel_access_token && user_id) {
+      const testMsg = `🔔 ทดสอบการเชื่อมต่อ LINE Messaging API สำเร็จ! 🎉\n━━━━━━━━━━━━━━━━━\nระบบ LinkTreeThai เชื่อมต่อกับ LINE OA ของคุณเรียบร้อยแล้ว\nเมื่อมีลูกค้าสั่งซื้อ COD หรือกรอกแบบฟอร์ม ข้อความจะแจ้งเตือนเข้าห้องแชตนี้ทันทีแบบ Real-time ครับ!`
 
-      const data = await res.json()
-      if (res.ok && data.status === 200) {
-        notifySuccess = true
-      } else {
-        errorMsg = data.message || 'Token LINE Notify ไม่ถูกต้อง'
-      }
-    }
-
-    if (webhook_url) {
-      const res = await fetch(webhook_url.trim(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event: 'test_notification',
-          timestamp: new Date().toISOString(),
-          message: 'ทดสอบการเชื่อมต่อ Webhook LinkTreeThai สำเร็จ'
+      try {
+        const res = await fetch('https://api.line.me/v2/bot/message/push', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${channel_access_token.trim()}`
+          },
+          body: JSON.stringify({
+            to: user_id.trim(),
+            messages: [
+              {
+                type: 'text',
+                text: testMsg
+              }
+            ]
+          })
         })
-      })
-      if (res.ok) {
-        webhookSuccess = true
-      } else {
-        if (!errorMsg) errorMsg = 'Webhook URL ตอบกลับสถานะไม่สำเร็จ'
+
+        if (res.ok) {
+          success = true
+        } else {
+          const errData = await res.json()
+          errorMsg = `LINE API Error (${res.status}): ${errData.message || 'Token หรือ User ID ไม่ถูกต้อง'}`
+        }
+      } catch (lineErr: any) {
+        errorMsg = `LINE API Error: ${lineErr.message}`
       }
     }
 
-    if (notifySuccess || webhookSuccess) {
-      return NextResponse.json({ success: true, message: 'ส่งข้อความทดสอบเข้า LINE เรียบร้อยแล้ว!' })
+    // 2. Custom Webhook / LINE OA Webhook URL
+    if (!success && webhook_url) {
+      try {
+        const res = await fetch(webhook_url.trim(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: 'test_notification',
+            timestamp: new Date().toISOString(),
+            message: 'ทดสอบการเชื่อมต่อ Webhook LinkTreeThai สำเร็จ'
+          })
+        })
+        if (res.ok) {
+          success = true
+        } else {
+          if (!errorMsg) errorMsg = 'Webhook URL ตอบกลับสถานะไม่สำเร็จ'
+        }
+      } catch (wErr: any) {
+        if (!errorMsg) errorMsg = `Webhook Error: ${wErr.message}`
+      }
+    }
+
+    // 3. Legacy LINE Notify (Fallback)
+    if (!success && token) {
+      try {
+        const testMsg = `\n🔔 ทดสอบการเชื่อมต่อ LINE Notify สำเร็จ!\n------------------------------\nระบบ LinkTreeThai เชื่อมต่อกับ LINE ของคุณเรียบร้อยแล้ว`
+        const res = await fetch('https://notify-api.line.me/api/notify', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token.trim()}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({ message: testMsg }).toString()
+        })
+        const data = await res.json()
+        if (res.ok && data.status === 200) {
+          success = true
+        } else {
+          if (!errorMsg) errorMsg = data.message || 'Token LINE Notify ไม่ถูกต้อง'
+        }
+      } catch (nErr: any) {
+        if (!errorMsg) errorMsg = `LINE Notify Error: ${nErr.message}`
+      }
+    }
+
+    if (success) {
+      return NextResponse.json({ 
+        success: true, 
+        message: 'ส่งข้อความทดสอบเข้า LINE เรียบร้อยแล้ว! ตรวจสอบที่ห้องแชต LINE ของคุณได้เลยครับ' 
+      })
     } else {
-      return NextResponse.json({ error: errorMsg || 'ไม่สามารถส่งข้อความได้ กรุณาตรวจสอบ Token' }, { status: 400 })
+      return NextResponse.json({ 
+        error: errorMsg || 'ไม่สามารถส่งข้อความได้ กรุณาตรวจสอบ Channel Access Token และ User ID' 
+      }, { status: 400 })
     }
   } catch (e: any) {
     return NextResponse.json({ error: e.message || 'เกิดข้อผิดพลาดในการส่งข้อความ' }, { status: 500 })

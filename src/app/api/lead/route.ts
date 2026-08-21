@@ -54,11 +54,11 @@ export async function POST(request: Request) {
       }])
     } catch (e) {}
 
-    // REAL-TIME LINE NOTIFICATION (MASTER VIP & ADMIN EXCLUSIVE)
+    // REAL-TIME NOTIFICATION (MASTER VIP & ADMIN EXCLUSIVE)
     try {
       const { data: owner } = await supabase
         .from('profiles')
-        .select('id, username, full_name, role, master_expires_at, line_notify_token, line_webhook_url')
+        .select('id, username, full_name, role, master_expires_at, line_channel_access_token, line_user_id, line_notify_token, line_webhook_url')
         .eq('id', user_id)
         .single()
 
@@ -66,12 +66,12 @@ export async function POST(request: Request) {
         owner?.master_expires_at && new Date(owner.master_expires_at).getTime() > Date.now()
       )
 
-      if (isMaster && (owner?.line_notify_token || owner?.line_webhook_url)) {
+      if (isMaster && (owner?.line_channel_access_token || owner?.line_webhook_url || owner?.line_notify_token)) {
         const isOrder = Boolean(address || (note && note.includes('COD')) || amount)
         const headerTitle = isOrder ? '🛒 มีออเดอร์สั่งซื้อ (COD) ใหม่!' : '💬 มีข้อความติดต่อ/ลีดใหม่!'
         
-        const lineMsg = `\n${headerTitle}\n` +
-          `------------------------------\n` +
+        const linePushMessage = `${headerTitle}\n` +
+          `━━━━━━━━━━━━━━━━━\n` +
           `👤 ลูกค้า: ${String(name).trim()}\n` +
           `📱 เบอร์โทร: ${phone ? String(phone).trim() : '-'}\n` +
           `🟢 LINE ID: ${line_id ? String(line_id).trim() : '-'}\n` +
@@ -80,26 +80,34 @@ export async function POST(request: Request) {
           (amount ? `💰 ยอดเงิน: ฿${parseFloat(String(amount)).toLocaleString()} บาท\n` : '') +
           (note ? `📝 รายละเอียด: ${String(note).trim()}\n` : '') +
           `🏷️ รหัสอ้างอิง: #${orderRef}\n` +
-          `------------------------------\n` +
+          `━━━━━━━━━━━━━━━━━\n` +
           `🔗 เข้าดูในแดชบอร์ด: https://linktreethai.com/dashboard`
 
-        // 1. Send via LINE Notify Token
-        if (owner?.line_notify_token) {
+        // 1. OFFICIAL LINE MESSAGING API (Push Message to LINE OA)
+        if (owner?.line_channel_access_token && owner?.line_user_id) {
           try {
-            await fetch('https://notify-api.line.me/api/notify', {
+            await fetch('https://api.line.me/v2/bot/message/push', {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${owner.line_notify_token.trim()}`,
-                'Content-Type': 'application/x-www-form-urlencoded'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${owner.line_channel_access_token.trim()}`
               },
-              body: new URLSearchParams({ message: lineMsg }).toString()
+              body: JSON.stringify({
+                to: owner.line_user_id.trim(),
+                messages: [
+                  {
+                    type: 'text',
+                    text: linePushMessage
+                  }
+                ]
+              })
             })
-          } catch (lineErr) {
-            console.error('Error sending LINE Notify message:', lineErr)
+          } catch (lineApiErr) {
+            console.error('Error sending LINE Messaging API push:', lineApiErr)
           }
         }
 
-        // 2. Send via LINE OA Webhook / Custom Webhook
+        // 2. LINE OA Webhook / Custom Webhook (Make, Zapier, N8N, Custom endpoint)
         if (owner?.line_webhook_url) {
           try {
             await fetch(owner.line_webhook_url.trim(), {
@@ -115,6 +123,22 @@ export async function POST(request: Request) {
             })
           } catch (webhookErr) {
             console.error('Error sending Webhook:', webhookErr)
+          }
+        }
+
+        // 3. Legacy LINE Notify (Fallback)
+        if (owner?.line_notify_token && !owner?.line_channel_access_token) {
+          try {
+            await fetch('https://notify-api.line.me/api/notify', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${owner.line_notify_token.trim()}`,
+                'Content-Type': 'application/x-www-form-urlencoded'
+              },
+              body: new URLSearchParams({ message: `\n${linePushMessage}` }).toString()
+            })
+          } catch (lineNotifyErr) {
+            console.error('Error sending LINE Notify fallback:', lineNotifyErr)
           }
         }
       }
