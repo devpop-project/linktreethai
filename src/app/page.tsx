@@ -347,11 +347,11 @@ export default function HomePage() {
                 </div>
                 <div className="text-3xl font-black text-[#1E1B4B] dark:text-white">฿0 <span className="text-xs font-normal text-slate-500">ตลอดชีพ</span></div>
                 <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-2.5 pt-3 border-t border-slate-100 dark:border-slate-800 font-medium">
-                  <li className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold"><Check className="w-4 h-4" /> เพิ่มลิงก์ได้ไม่จำกัด</li>
+                  <li className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold"><Check className="w-4 h-4" /> เพิ่มลิงก์ได้ไม่จำกัด (Unlimited)</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> วางขายได้ 2 สินค้า (0% GP)</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> 3 เทมเพลตมาตรฐาน (Classic Stack)</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> ฝัง Tracking Pixels (FB/TikTok/Google/LINE)</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> QR Code & สถิตินับคลิก Real-time</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> QR Code ดาวน์โหลด & สถิตินับคลิก Real-time</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-600" /> รองรับระบบฝังวิดีโอ YouTube</li>
                 </ul>
               </div>
               <Link href="/register" className="w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 font-extrabold rounded-2xl text-xs flex items-center justify-center transition mt-4">
@@ -369,13 +369,13 @@ export default function HomePage() {
                   <h3 className="font-extrabold text-base text-purple-900 dark:text-purple-200">PRO VIP</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">สำหรับ Creator & แม่ค้าออนไลน์</p>
                 </div>
-                <div className="text-3xl font-black text-purple-950 dark:text-white">100 แต้ม <span className="text-xs font-normal text-slate-500">/ 30 วัน</span></div>
+                <div className="text-3xl font-black text-purple-950 dark:text-white">฿299 <span className="text-xs font-normal text-slate-500">/ 30 วัน (299 แต้ม)</span></div>
                 <ul className="text-xs text-slate-700 dark:text-slate-200 space-y-2.5 pt-3 border-t border-purple-200/60 dark:border-purple-900/60 font-medium">
-                  <li className="flex items-center gap-2 text-purple-700 dark:text-purple-300 font-bold"><Check className="w-4 h-4 text-purple-600" /> เพิ่มลิงก์ได้ไม่จำกัด</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-purple-600" /> วางขายได้ 10 สินค้า</li>
+                  <li className="flex items-center gap-2 text-purple-700 dark:text-purple-300 font-bold"><Check className="w-4 h-4 text-purple-600" /> เพิ่มลิงก์ได้ไม่จำกัด (Unlimited)</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-purple-600" /> วางขายได้ 10 สินค้าในร้านค้า</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-purple-600" /> 6 เทมเพลตสไตล์ Bento Grid ยอดนิยม</li>
-                  <li className="flex items-center gap-2 font-bold text-purple-900 dark:text-purple-100"><Check className="w-4 h-4 text-purple-600" /> ซ่อนลายน้ำแบรนด์ได้ 100%</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-purple-600" /> ตั้งเวลาเปิด-ปิดลิงก์ & สินค้าล่วงหน้า</li>
+                  <li className="flex items-center gap-2 font-bold text-purple-900 dark:text-purple-100"><Check className="w-4 h-4 text-purple-600" /> ซ่อนลายน้ำแบรนด์ LinkTreeThai ได้ 100%</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-purple-600" /> QR Code ดาวน์โหลด & สถิติคนเข้าชม</li>
                 </ul>
               </div>
               <Link href="/register" className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-2xl text-xs flex items-center justify-center transition shadow-lg shadow-purple-600/25 mt-4">
@@ -386,20 +386,22 @@ export default function HomePage() {
             {/* Master VIP Plan */}
             <div className="bg-amber-50/70 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700 p-6 rounded-3xl space-y-4 shadow-md flex flex-col justify-between relative overflow-hidden">
               <div className="absolute top-4 right-4 text-[10px] font-black bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 px-3 py-1 rounded-full shadow">
-                ULTIMATE
+                BEST VALUE • ครบทุกฟังก์ชัน
               </div>
               <div className="space-y-4">
                 <div>
                   <h3 className="font-extrabold text-base text-amber-950 dark:text-amber-200">MASTER VIP</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">สำหรับแบรนด์และธุรกิจยิงแอดเต็มตัว</p>
                 </div>
-                <div className="text-3xl font-black text-amber-950 dark:text-white">250 แต้ม <span className="text-xs font-normal text-slate-500">/ 30 วัน</span></div>
+                <div className="text-3xl font-black text-amber-950 dark:text-white">฿599 <span className="text-xs font-normal text-slate-500">/ 30 วัน (599 แต้ม)</span></div>
                 <ul className="text-xs text-slate-700 dark:text-slate-200 space-y-2.5 pt-3 border-t border-amber-200/60 dark:border-amber-900/60 font-medium">
-                  <li className="flex items-center gap-2 text-amber-700 dark:text-amber-300 font-bold"><Check className="w-4 h-4 text-amber-600" /> เพิ่มลิงก์ได้ไม่จำกัด</li>
-                  <li className="flex items-center gap-2 font-bold text-amber-950 dark:text-amber-100"><Check className="w-4 h-4 text-amber-600" /> วางขายสินค้าได้ไม่จำกัด (50+)</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-amber-600" /> ครบทั้ง 9 เทมเพลต (Mobile App & Store)</li>
-                  <li className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-bold"><Check className="w-4 h-4 text-rose-500" /> ฟรี! เซลเพจยิงแอด 1 URL (+ปลดล็อกเพิ่ม 350 แต้ม)</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-amber-600" /> ปลดล็อกระบบย่อลิงก์สั้นฟรี</li>
+                  <li className="flex items-center gap-2 text-amber-700 dark:text-amber-300 font-bold"><Check className="w-4 h-4 text-amber-600" /> เพิ่มลิงก์ได้ไม่จำกัด (Unlimited)</li>
+                  <li className="flex items-center gap-2 font-bold text-amber-950 dark:text-amber-100"><Check className="w-4 h-4 text-amber-600" /> วางขายสินค้าได้ไม่จำกัด (50+ รายการ)</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-amber-600" /> ครบทั้ง 9 เทมเพลตระดับสูงสุด (รวม Template 7, 8, 9)</li>
+                  <li className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-bold"><Check className="w-4 h-4 text-rose-500" /> ฟรี! หน้าเซลเพจยิงแอด COD 1 URL (อายุ 30 วัน)</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-amber-600" /> ปลดล็อกระบบย่อลิงก์สั้นไม่จำกัด</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-amber-600" /> ระบบฝัง Tracking Pixels (FB / TikTok / Google / LINE)</li>
+                  <li className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold"><Check className="w-4 h-4 text-emerald-600" /> แจ้งเตือนเข้า LINE Messaging API / Webhook Real-time</li>
                 </ul>
               </div>
               <Link href="/register" className="w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black rounded-2xl text-xs flex items-center justify-center transition shadow-lg shadow-amber-500/25 mt-4">
