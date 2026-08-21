@@ -3,6 +3,8 @@ export type TierType = 'free' | 'pro' | 'master'
 export interface TierLimits {
   tier: TierType
   name: string
+  price: number
+  pointsCost: number
   maxLinks: number
   maxProducts: number
   maxLandingPages: number
@@ -29,6 +31,8 @@ export function getUserTier(profile: any): TierLimits {
     return {
       tier: 'master',
       name: 'Admin Master',
+      price: 0,
+      pointsCost: 0,
       maxLinks: 9999,
       maxProducts: 9999,
       maxLandingPages: 9999,
@@ -57,6 +61,8 @@ export function getUserTier(profile: any): TierLimits {
     return {
       tier: 'master',
       name: 'MASTER VIP',
+      price: 599,
+      pointsCost: 599,
       maxLinks: 9999,
       maxProducts: 9999,
       maxLandingPages: 1 + extraSlots,
@@ -85,6 +91,8 @@ export function getUserTier(profile: any): TierLimits {
     return {
       tier: 'pro',
       name: 'PRO VIP',
+      price: 299,
+      pointsCost: 299,
       maxLinks: 9999,
       maxProducts: 10,
       maxLandingPages: 0 + extraSlots,
@@ -109,6 +117,8 @@ export function getUserTier(profile: any): TierLimits {
   return {
     tier: 'free',
     name: 'Free Plan',
+    price: 0,
+    pointsCost: 0,
     maxLinks: 9999,
     maxProducts: 2,
     maxLandingPages: 0 + extraSlots,

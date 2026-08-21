@@ -185,6 +185,60 @@ export default function DashboardPage() {
 
   // Modal States
   const [accountModalOpen, setAccountModalOpen] = useState(false)
+  // --- ACCOUNT & PROFILE EDITING & PASSWORD STATES ---
+    // --- Confirmation Modal for Spending Points ---
+  const [confirmRedeemModal, setConfirmRedeemModal] = useState<{
+    isOpen: boolean
+    title: string
+    desc: string
+    cost: number
+    onConfirm: () => void
+  } | null>(null)
+
+  // --- Download & Share QR Code Helpers ---
+  const handleDownloadQrCode = async (targetUrl: string, filename: string = 'qrcode.png') => {
+    try {
+      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&margin=15&data=${encodeURIComponent(targetUrl)}`
+      const res = await fetch(qrApiUrl)
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(blobUrl)
+      showToast('💾 ดาวน์โหลดรูปภาพ QR Code สำเร็จแล้ว')
+    } catch (e) {
+      // Fallback open image in new tab
+      window.open(`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(targetUrl)}`, '_blank')
+    }
+  }
+
+  const handleShareUrl = async (title: string, url: string) => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: title || 'LinkTreeThai',
+          url: url
+        })
+        return
+      } catch (err) {}
+    }
+    // Fallback to clipboard
+    handleCopyLink(url, 'share_url')
+    showToast('🔗 คัดลอกลิงก์พร้อมแชร์เรียบร้อยแล้ว')
+  }
+
+  const [accountActiveTab, setAccountActiveTab] = useState<'info' | 'password' | 'points'>('info')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [changingPassword, setChangingPassword] = useState(false)
+  const [passwordChangeMsg, setPasswordChangeMsg] = useState('')
+
   const [pointsDetailModalOpen, setPointsDetailModalOpen] = useState(false)
   const [topUpModalOpen, setTopUpModalOpen] = useState(false)
   const [unlockingPixels, setUnlockingPixels] = useState(false)
@@ -767,6 +821,61 @@ export default function DashboardPage() {
     } catch (e) {}
   }
 
+    // --- Change Password & Save Account Info ---
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newPassword || newPassword.length < 6) {
+      showToast('❌ รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      showToast('❌ รหัสผ่านทั้งสองช่องไม่ตรงกัน')
+      return
+    }
+    setChangingPassword(true)
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      })
+      if (error) {
+        showToast('❌ เปลี่ยนรหัสผ่านไม่สำเร็จ: ' + error.message)
+      } else {
+        showToast('✅ เปลี่ยนรหัสผ่านใหม่เรียบร้อยแล้ว')
+        setNewPassword('')
+        setConfirmPassword('')
+        setPasswordChangeMsg('✓ เปลี่ยนรหัสผ่านสำเร็จเรียบร้อยแล้ว')
+        setTimeout(() => setPasswordChangeMsg(''), 5000)
+      }
+    } catch (err: any) {
+      showToast('❌ ข้อผิดพลาด: ' + err.message)
+    } finally {
+      setChangingPassword(false)
+    }
+  }
+
+  const handleSaveAccountInfo = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) return
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: profile.full_name,
+          bio: profile.bio,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+
+      if (!error) {
+        showToast('✅ บันทึกข้อมูลส่วนตัวเรียบร้อยแล้ว')
+      } else {
+        showToast('❌ ไม่สามารถบันทึกข้อมูลได้: ' + error.message)
+      }
+    } catch (err: any) {
+      showToast('❌ ข้อผิดพลาด: ' + err.message)
+    }
+  }
+
   const handleSaveProfile = async () => {
     if (!user) return
     const { error } = await supabase
@@ -1322,7 +1431,7 @@ export default function DashboardPage() {
   // --- Redeem VIP Tiers with Points ---
   const handleRedeemTierWithPoints = async (tierType: 'pro' | 'master') => {
     if (!user) return
-    const cost = tierType === 'master' ? 250 : 100
+    const cost = tierType === 'master' ? 599 : 299
     if ((profile.points || 0) < cost) {
       showToast(`❌ แต้มสะสมไม่เพียงพอ (ต้องการ ${cost} แต้ม แต่คุณมี ${profile.points || 0} แต้ม)`)
       return
@@ -1453,19 +1562,19 @@ export default function DashboardPage() {
   const handleExportLeadsCSV = () => {
     if (leads.length === 0) return
     const headers = ['วันที่', 'ชื่อ', 'อีเมล', 'เบอร์โทร', 'ข้อความ/หมายเหตุ']
-    const rows = leads.map(l => [
+    const rows = leads.map((l: any) => [
       new Date(l.created_at).toLocaleString('th-TH'),
-      `"${(l.name || '').replace(/"/g, '""')}"`,
-      `"${(l.email || '').replace(/"/g, '""')}"`,
-      `"${(l.phone || '').replace(/"/g, '""')}"`,
-      `"${(l.note || '').replace(/"/g, '""')}"`
+      '"' + (l.name || '').split('"').join('""') + '"',
+      '"' + (l.email || '').split('"').join('""') + '"',
+      '"' + (l.phone || '').split('"').join('""') + '"',
+      '"' + (l.note || '').split('"').join('""') + '"'
     ])
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r: any) => r.join(','))].join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.setAttribute('href', url)
-    link.setAttribute('download', `leads_${profile.username}_${Date.now()}.csv`)
+    link.setAttribute('download', 'leads_' + (profile.username || 'data') + '_' + Date.now() + '.csv')
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -1939,6 +2048,27 @@ export default function DashboardPage() {
 
                           <button
                             type="button"
+                            onClick={() => {
+                              setQrTargetUrl(link.url)
+                              setQrModalOpen(true)
+                            }}
+                            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition cursor-pointer"
+                            title="QR Code & แชร์ลิ้งก์"
+                          >
+                            <QrCode className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleEditLink(link)}
+                            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition cursor-pointer"
+                            title="แก้ไขข้อมูลลิ้งก์"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            type="button"
                             onClick={() => handleToggleLinkActive(link.id, link.is_active)}
                             className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition ${
                               link.is_active 
@@ -2130,8 +2260,28 @@ export default function DashboardPage() {
 
                             <button
                               type="button"
+                              onClick={() => {
+                                setQrTargetUrl(prod.buy_url)
+                                setQrModalOpen(true)
+                              }}
+                              className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition cursor-pointer"
+                              title="QR Code & แชร์สินค้า"
+                            >
+                              <QrCode className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleEditProduct(prod)}
+                              className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition cursor-pointer"
+                              title="แก้ไขข้อมูลสินค้า"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => handleDeleteProduct(prod.id)}
-                              className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
+                              className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer"
+                              title="ลบสินค้า"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -2480,9 +2630,14 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                                {/* Templates Selector in Clean White Tiles */}
+                                {/* Templates Selector in Clean White Tiles (Free Users Can Preview All Paid Templates) */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4">
-                  <h3 className="font-extrabold text-base text-[#1E1B4B] dark:text-white">เลือกธีมและรูปแบบเทมเพลต</h3>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <div>
+                      <h3 className="font-extrabold text-base text-[#1E1B4B] dark:text-white">เลือกธีมและรูปแบบเทมเพลต</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">แตะเพื่อดูตัวอย่างสดแบบ Real-time บนสมาร์ตโฟนด้านขวาได้ทุกธีม (สมาชิกฟรีสามารถดูตัวอย่างธีม VIP ได้)</p>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {[
                       { id: 'template_1', name: 'Classic Clean', tier: 'free' },
@@ -2501,31 +2656,34 @@ export default function DashboardPage() {
                         <div
                           key={t.id}
                           onClick={() => {
-                            if (!isLocked) {
-                              setProfile({ ...profile, template_id: t.id })
-                            }
+                            setProfile({ ...profile, template_id: t.id })
                           }}
                           className={`p-4 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between h-24 ${
                             isSelected 
-                              ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-500 ring-2 ring-purple-300 dark:ring-purple-700 text-purple-900 dark:text-purple-200 font-bold'
-                              : isLocked
-                              ? 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 opacity-60'
+                              ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-500 ring-2 ring-purple-300 dark:ring-purple-700 text-purple-900 dark:text-purple-200 font-bold shadow-sm'
                               : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:border-purple-300 text-slate-700 dark:text-slate-300'
                           }`}
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold">{t.name}</span>
-                            {isLocked ? (
-                              <Lock className="w-3.5 h-3.5 text-slate-400" />
-                            ) : isSelected ? (
-                              <Check className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            {isSelected ? (
+                              <span className="text-[10px] bg-purple-600 text-white px-2 py-0.5 rounded-full font-bold shadow-xs">
+                                {isLocked ? '👁️ ตัวอย่าง VIP' : '✓ ใช้งาน'}
+                              </span>
+                            ) : isLocked ? (
+                              <Lock className="w-3.5 h-3.5 text-amber-500" />
                             ) : null}
                           </div>
-                          <span className={`text-[9px] uppercase font-extrabold px-2 py-0.5 rounded-full w-fit ${
-                            t.tier === 'master' ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300' : t.tier === 'pro' ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                          }`}>
-                            {t.tier}
-                          </span>
+                          <div className="flex items-center justify-between">
+                            <span className={`text-[9px] uppercase font-extrabold px-2 py-0.5 rounded-full w-fit ${
+                              t.tier === 'master' ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300' : t.tier === 'pro' ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                            }`}>
+                              {t.tier}
+                            </span>
+                            {isLocked && !isSelected && (
+                              <span className="text-[9px] text-purple-600 dark:text-purple-400 font-bold">แตะพรีวิว</span>
+                            )}
+                          </div>
                         </div>
                       )
                     })}
@@ -4347,7 +4505,7 @@ export default function DashboardPage() {
                     <span className="font-bold text-xs bg-white px-2 py-0.5 rounded-full">PromptPay QR</span>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-black">เติมแต้มสะสมเพื่อปลดล็อกฟังก์ชัน VIP ทันที</h3>
-                  <p className="text-xs opacity-90">100 แต้ม = 100 บาท | 250 แต้ม = 250 บาท (Master VIP) | 350 แต้ม = เซลเพจยิงแอด</p>
+                  <p className="text-xs opacity-90">100 แต้ม = 100 บ. | 300 แต้ม = 299 บ. (PRO VIP) | 600 แต้ม = 599 บ. (MASTER VIP)</p>
                 </div>
 
                 <button
@@ -4416,20 +4574,29 @@ export default function DashboardPage() {
                           POPULAR
                         </div>
                         <h4 className="font-bold text-sm text-purple-900 dark:text-purple-300">PRO VIP</h4>
-                        <div className="text-2xl font-black text-[#1E1B4B] dark:text-white">100 แต้ม <span className="text-xs font-normal text-slate-500">/ 30 วัน</span></div>
+                        <div className="text-2xl font-black text-[#1E1B4B] dark:text-white">฿299 <span className="text-xs font-normal text-slate-500">/ 30 วัน (299 แต้ม)</span></div>
                         <ul className="text-xs text-slate-700 dark:text-slate-300 space-y-1.5">
                           <li>✓ เพิ่มลิงก์ได้ไม่จำกัด (Unlimited)</li>
                           <li>✓ สูงสุด 10 สินค้า</li>
-                          <li>✓ 6 เทมเพลตยอดนิยม</li>
-                          <li>✓ ซ่อนลายน้ำแบรนด์ได้</li>
+                          <li>✓ 6 เทมเพลตยอดนิยม (Template 1-6)</li>
+                          <li>✓ ซ่อนลายน้ำแบรนด์ LinkTreeThai ได้</li>
+                          <li>✓ QR Code และสถิติคนเข้าชม</li>
                         </ul>
                       </div>
                       <button
-                        onClick={() => handleRedeemTierWithPoints('pro')}
-                        disabled={redeemingTier === 'pro' || (profile.points || 0) < 100}
-                        className="w-full py-2.5 bg-purple-500 hover:bg-purple-600 text-white font-bold rounded-xl text-xs transition disabled:opacity-40 shadow"
+                        onClick={() => {
+                          setConfirmRedeemModal({
+                            isOpen: true,
+                            title: 'ยืนยันการแลกสิทธิ์ PRO VIP (30 วัน)',
+                            desc: 'ปลดล็อก 6 เทมเพลตยอดนิยม, เพิ่ม 10 สินค้า, และซ่อนลายน้ำแบรนด์',
+                            cost: 299,
+                            onConfirm: () => handleRedeemTierWithPoints('pro')
+                          })
+                        }}
+                        disabled={redeemingTier === 'pro' || (profile.points || 0) < 299}
+                        className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-xl text-xs transition disabled:opacity-40 shadow-md shadow-purple-500/20 active:scale-95 cursor-pointer"
                       >
-                        {redeemingTier === 'pro' ? 'กำลังแลก...' : '💎 แลก 100 แต้ม (30 วัน)'}
+                        {redeemingTier === 'pro' ? 'กำลังแลก...' : '💎 แลก PRO VIP (299 แต้ม)'}
                       </button>
                     </div>
 
@@ -4439,21 +4606,30 @@ export default function DashboardPage() {
                           ULTIMATE
                         </div>
                         <h4 className="font-bold text-sm text-amber-900 dark:text-amber-300">MASTER VIP</h4>
-                        <div className="text-2xl font-black text-[#1E1B4B] dark:text-white">250 แต้ม <span className="text-xs font-normal text-slate-500">/ 30 วัน</span></div>
+                        <div className="text-2xl font-black text-[#1E1B4B] dark:text-white">฿599 <span className="text-xs font-normal text-slate-500">/ 30 วัน (599 แต้ม)</span></div>
                         <ul className="text-xs text-slate-700 dark:text-slate-300 space-y-1.5">
                           <li>✓ เพิ่มลิงก์ได้ไม่จำกัด (Unlimited)</li>
-                          <li>✓ สินค้าไม่จำกัด (50+)</li>
-                          <li>✓ ครบทั้ง 9 เทมเพลต</li>
-                          <li>✓ ฟรี! เซลเพจยิงแอด 1 URL (+ปลดล็อกเพิ่ม 350 แต้ม)</li>
-                          <li>✓ ปลดล็อกระบบย่อลิงก์สั้นฟรี</li>
+                          <li>✓ สินค้าไม่จำกัด (50+ รายการ)</li>
+                          <li>✓ ครบทั้ง 9 เทมเพลตระดับสูงสุด (รวม Template 7, 8, 9)</li>
+                          <li>✓ ฟรี! เซลเพจยิงแอด COD 1 URL ทันที</li>
+                          <li>✓ ปลดล็อกระบบย่อลิงก์สั้นไม่จำกัด</li>
+                          <li>✓ ระบบฝัง Tracking Pixels (FB/TikTok/Google/Line)</li>
                         </ul>
                       </div>
                       <button
-                        onClick={() => handleRedeemTierWithPoints('master')}
-                        disabled={redeemingTier === 'master' || (profile.points || 0) < 250}
-                        className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs transition disabled:opacity-40 shadow"
+                        onClick={() => {
+                          setConfirmRedeemModal({
+                            isOpen: true,
+                            title: 'ยืนยันการแลกสิทธิ์ MASTER VIP (30 วัน)',
+                            desc: 'ปลดล็อกครบทุกฟังก์ชันสูงสุด: 9 เทมเพลต, เซลเพจยิงแอด COD, ย่อลิงก์, และ Tracking Pixels',
+                            cost: 599,
+                            onConfirm: () => handleRedeemTierWithPoints('master')
+                          })
+                        }}
+                        disabled={redeemingTier === 'master' || (profile.points || 0) < 599}
+                        className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 text-slate-950 font-black rounded-xl text-xs transition disabled:opacity-40 shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer"
                       >
-                        {redeemingTier === 'master' ? 'กำลังแลก...' : '👑 แลก 250 แต้ม (30 วัน)'}
+                        {redeemingTier === 'master' ? 'กำลังแลก...' : '👑 แลก MASTER VIP (599 แต้ม)'}
                       </button>
                     </div>
                   </div>
@@ -4771,16 +4947,16 @@ export default function DashboardPage() {
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 my-8 max-h-[90vh] overflow-y-auto no-scrollbar relative animate-in fade-in zoom-in-95 duration-150 cursor-default"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-7 max-w-lg w-full shadow-2xl space-y-5 my-8 max-h-[90vh] overflow-y-auto no-scrollbar relative animate-in fade-in zoom-in-95 duration-150 cursor-default text-[#1E1B4B] dark:text-white"
           >
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center border border-amber-200 dark:border-amber-800 shadow-inner font-bold">
-                  <Coins className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-200 dark:border-purple-800 shadow-inner font-bold">
+                  <KeyRound className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-[#1E1B4B] dark:text-white">ข้อมูลสถานะบัญชี & แต้มสะสม</h3>
+                  <h3 className="font-extrabold text-base text-[#1E1B4B] dark:text-white">จัดการบัญชี & ข้อมูลส่วนตัว</h3>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">@{profile.username}</p>
                 </div>
               </div>
@@ -4793,182 +4969,308 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            {/* Profile & Role Summary Card */}
-            <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between">
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">ตำแหน่ง / บทบาท</span>
-                <div className="flex items-center gap-1.5">
-                  {profile.role === 'admin' ? (
-                    <span className="px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-700 text-xs font-black flex items-center gap-1">
-                      <ShieldCheck className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" /> Admin (ผู้ดูแลระบบ)
-                    </span>
-                  ) : (
-                    <span className="px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-bold flex items-center gap-1 shadow-sm">
-                      <Users className="w-3.5 h-3.5 text-slate-500" /> Member (สมาชิกทั่วไป)
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="text-right space-y-1">
-                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">ระดับแพ็กเกจ</span>
-                <div>
-                  <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black border ${
-                    tier.tier === 'master'
-                      ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700'
-                      : tier.tier === 'pro'
-                      ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-700'
-                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 shadow-sm'
-                  }`}>
-                    {tier.tier === 'master' ? '👑' : tier.tier === 'pro' ? '💎' : '🌱'} {tier.name}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Points Balance Highlight */}
-            <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-2xl flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-amber-200 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 flex items-center justify-center font-bold">
-                  <Coins className="w-6 h-6 animate-pulse" />
-                </div>
-                <div>
-                  <span className="text-xs text-amber-900/80 dark:text-amber-200 font-bold">แต้มคงเหลือปัจจุบัน</span>
-                  <p className="text-2xl font-black text-amber-800 dark:text-amber-300 font-mono leading-none mt-0.5">
-                    {profile.points || 0} <span className="text-xs font-normal text-amber-700 dark:text-amber-400">แต้ม</span>
-                  </p>
-                </div>
-              </div>
+            {/* Modal Navigation Tabs */}
+            <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-2xl gap-1 text-xs font-bold">
               <button
                 type="button"
-                onClick={() => {
-                  handleCloseAccountModal()
-                  setTopUpModalOpen(true)
-                }}
-                className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs transition shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer"
+                onClick={() => setAccountActiveTab('info')}
+                className={`flex-1 py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
+                  accountActiveTab === 'info'
+                    ? 'bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-300 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
               >
-                + เติมแต้ม
+                <Users className="w-3.5 h-3.5" />
+                <span>ข้อมูลส่วนตัว</span>
               </button>
-            </div>
-
-            {/* Expiration Dates & Remaining Days */}
-            <div className="space-y-2.5">
-              <h4 className="text-xs font-bold text-[#1E1B4B] dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" /> วันหมดอายุและระยะเวลาที่เหลือ
-              </h4>
-
-              <div className="space-y-2 text-xs">
-                {/* VIP Plan Expiration */}
-                <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between">
-                  <span className="text-slate-500 dark:text-slate-400 font-medium">สถานะ VIP สมาชิก:</span>
-                  <span className="font-bold text-[#1E1B4B] dark:text-white">
-                    {profile.role === 'admin' ? (
-                      <span className="text-purple-700 dark:text-purple-400 font-bold">🛡️ สิทธิ์ถาวร (Admin)</span>
-                    ) : tier.tier === 'master' && profile.master_expires_at ? (
-                      <span className="text-amber-800 dark:text-amber-300 font-mono">
-                        ถึง {new Date(profile.master_expires_at).toLocaleDateString('th-TH')} ({Math.max(0, Math.ceil((new Date(profile.master_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} วัน)
-                      </span>
-                    ) : tier.tier === 'pro' && profile.pro_expires_at ? (
-                      <span className="text-purple-800 dark:text-purple-300 font-mono">
-                        ถึง {new Date(profile.pro_expires_at).toLocaleDateString('th-TH')} ({Math.max(0, Math.ceil((new Date(profile.pro_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} วัน)
-                      </span>
-                    ) : (
-                      <span className="text-slate-500">Free Plan (ตลอดชีพ)</span>
-                    )}
-                  </span>
-                </div>
-
-                {/* URL Shortener Pass Expiration */}
-                <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between">
-                  <span className="text-slate-500 dark:text-slate-400 font-medium">สถานะระบบย่อลิงก์:</span>
-                  <span className="font-bold">
-                    {profile.role === 'admin' ? (
-                      <span className="text-purple-700 dark:text-purple-400 font-bold">🛡️ ไม่จำกัด (Admin)</span>
-                    ) : (profile.master_expires_at && new Date(profile.master_expires_at).getTime() > Date.now()) ? (
-                      <span className="text-amber-800 dark:text-amber-300 font-bold">👑 รวมใน Master VIP</span>
-                    ) : isShortenerActive && profile.shortener_expires_at ? (
-                      <span className="text-purple-700 dark:text-purple-400 font-mono">
-                        ถึง {new Date(profile.shortener_expires_at).toLocaleDateString('th-TH')} ({shortenerDaysRemaining} วัน)
-                      </span>
-                    ) : (
-                      <span className="text-rose-600 dark:text-rose-400 font-bold">🔒 ยังไม่ปลดล็อก</span>
-                    )}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Active Permissions & Quotas */}
-            <div className="space-y-2.5">
-              <h4 className="text-xs font-bold text-[#1E1B4B] dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" /> สิทธิ์และโควตาระบบที่ใช้งานได้
-              </h4>
-
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1">
-                  <span className="text-slate-500 dark:text-slate-400 text-[11px]">โควตาปุ่มลิ้งก์</span>
-                  <p className="font-bold text-[#1E1B4B] dark:text-white font-mono">{links.length}/{tier.maxLinks >= 999 ? 'ไม่จำกัด' : tier.maxLinks} ลิ้งก์</p>
-                </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1">
-                  <span className="text-slate-500 dark:text-slate-400 text-[11px]">โควตาสินค้าในร้าน</span>
-                  <p className="font-bold text-[#1E1B4B] dark:text-white font-mono">{products.length}/{tier.maxProducts >= 999 ? 'ไม่จำกัด' : tier.maxProducts} รายการ</p>
-                </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1">
-                  <span className="text-slate-500 dark:text-slate-400 text-[11px]">เซลเพจยิงแอด</span>
-                  <p className="font-bold text-[#1E1B4B] dark:text-white font-mono">
-                    {profile.role === 'admin' ? '🛡️ ไม่จำกัด (Admin)' : `${landingPages.length}/${totalLandingSlots} URL`}
-                  </p>
-                </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1">
-                  <span className="text-slate-500 dark:text-slate-400 text-[11px]">Tracking Pixels</span>
-                  <p className="font-bold text-[#1E1B4B] dark:text-white font-mono">
-                    {profile.fb_pixel_id || profile.tiktok_pixel_id || profile.google_pixel_id ? '✅ ฝังเรียบร้อย' : '⚪ ยังไม่กรอก'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Fast Actions / Spend Points */}
-            <div className="pt-2 space-y-2 border-t border-slate-100 dark:border-slate-800">
-              <h4 className="text-xs font-bold text-[#1E1B4B] dark:text-white mb-2">แลกแต้มเพื่อปลดล็อกฟังก์ชัน:</h4>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  onClick={handleUnlockShortener}
-                  disabled={unlockingShortener || (profile.points || 0) < 100}
-                  className="p-3 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-200 rounded-2xl text-xs font-bold flex items-center justify-between transition disabled:opacity-40"
-                >
-                  <span>✂️ ปลดล็อกย่อลิงก์ 30 วัน</span>
-                  <span className="font-mono text-[10px] bg-purple-200 dark:bg-purple-800 text-purple-900 dark:text-purple-100 px-2 py-0.5 rounded font-bold">100 แต้ม</span>
-                </button>
-
-                <button
-                  onClick={() => handleRedeemTierWithPoints('pro')}
-                  disabled={redeemingTier === 'pro' || (profile.points || 0) < 100}
-                  className="p-3 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-200 dark:border-purple-800 text-purple-900 dark:text-purple-200 rounded-2xl text-xs font-bold flex items-center justify-between transition disabled:opacity-40"
-                >
-                  <span>💎 แลก PRO VIP 30 วัน</span>
-                  <span className="font-mono text-[10px] bg-purple-200 dark:bg-purple-800 text-purple-900 dark:text-purple-100 px-2 py-0.5 rounded font-bold">100 แต้ม</span>
-                </button>
-              </div>
 
               <button
-                onClick={() => handleRedeemTierWithPoints('master')}
-                disabled={redeemingTier === 'master' || (profile.points || 0) < 250}
-                className="w-full p-3 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 rounded-2xl text-xs font-bold flex items-center justify-between transition disabled:opacity-40"
+                type="button"
+                onClick={() => setAccountActiveTab('password')}
+                className={`flex-1 py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
+                  accountActiveTab === 'password'
+                    ? 'bg-white dark:bg-slate-800 text-purple-700 dark:text-purple-300 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
               >
-                <span>👑 แลก MASTER VIP 30 วัน (ปลดล็อกทุกอย่าง)</span>
-                <span className="font-mono text-[10px] bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 px-2 py-0.5 rounded font-bold">250 แต้ม</span>
+                <Lock className="w-3.5 h-3.5" />
+                <span>เปลี่ยนรหัสผ่าน</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAccountActiveTab('points')}
+                className={`flex-1 py-2 rounded-xl transition flex items-center justify-center gap-1.5 ${
+                  accountActiveTab === 'points'
+                    ? 'bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Coins className="w-3.5 h-3.5" />
+                <span>แต้ม & สิทธิ์</span>
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={handleCloseAccountModal}
-              className="w-full py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-xs transition cursor-pointer"
-            >
-              ปิดหน้าต่าง
-            </button>
+            {/* TAB 1: PERSONAL PROFILE INFO (EDITABLE EXCEPT URL) */}
+            {accountActiveTab === 'info' && (
+              <form onSubmit={handleSaveAccountInfo} className="space-y-4 text-xs font-bold">
+                
+                {/* Locked Username & URL */}
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-slate-400 text-[11px] flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-amber-500" /> ลิงก์ URL โปรไฟล์ของคุณ (ล็อคถาวร)
+                    </span>
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
+                      ยกเว้น URL ไม่สามารถแก้ไขได้
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    disabled
+                    value={`https://linktreethai.com/${profile.username}`}
+                    className="w-full px-3 py-2 bg-slate-200/60 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-mono text-xs text-slate-500 dark:text-slate-400 cursor-not-allowed select-all"
+                  />
+                </div>
+
+                {/* Email (Read Only Display) */}
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">อีเมลเข้าสู่ระบบ (Email)</label>
+                  <input
+                    type="email"
+                    disabled
+                    value={user?.email || ''}
+                    className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-xs text-slate-500 cursor-not-allowed"
+                  />
+                </div>
+
+                {/* Full Name / Display Name (Editable) */}
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">ชื่อที่แสดง (Display Name / ชื่อ-นามสกุล) *</label>
+                  <input
+                    type="text"
+                    required
+                    value={profile.full_name || ''}
+                    onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
+                    placeholder="เช่น Amanita Thailand หรือ ชื่อของคุณ"
+                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-500 text-xs font-bold"
+                  />
+                </div>
+
+                {/* Bio / Description (Editable) */}
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">คำบรรยายตัวเอง (Bio Description)</label>
+                  <textarea
+                    rows={3}
+                    value={profile.bio || ''}
+                    onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                    placeholder="แนะนำตัวหรือบอกเล่าเกี่ยวกับแบรนด์ของคุณสั้นๆ..."
+                    className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-500 text-xs leading-relaxed font-normal"
+                  />
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCloseAccountModal}
+                    className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs hover:bg-slate-200 transition font-bold"
+                  >
+                    ปิด
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-xl text-xs transition shadow-md shadow-purple-500/20 active:scale-95 flex items-center gap-1.5"
+                  >
+                    <Save className="w-3.5 h-3.5" /> บันทึกข้อมูลส่วนตัว
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* TAB 2: CHANGE PASSWORD WITH EYE TOGGLE BUTTON */}
+            {accountActiveTab === 'password' && (
+              <form onSubmit={handleChangePassword} className="space-y-4 text-xs font-bold">
+                <div className="p-3 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-2xl">
+                  <p className="text-[11px] text-purple-900 dark:text-purple-200 font-medium">
+                    🔒 กำหนดรหัสผ่านใหม่สำหรับเข้าสู่ระบบ บัญชี: <strong className="font-mono">{user?.email}</strong>
+                  </p>
+                </div>
+
+                {passwordChangeMsg && (
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-xl text-center font-bold animate-in fade-in">
+                    {passwordChangeMsg}
+                  </div>
+                )}
+
+                {/* New Password Input with Eye Toggle */}
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร) *</label>
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      required
+                      minLength={6}
+                      placeholder="•••••••• (รหัสผ่านใหม่)"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full pl-3.5 pr-10 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-500 font-mono text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-purple-600 transition cursor-pointer p-1"
+                      title={showNewPassword ? "ซ่อนรหัสผ่าน" : "กดปุ่มตาเพื่อดูรหัสผ่าน"}
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Confirm New Password Input with Eye Toggle */}
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">ยืนยันรหัสผ่านใหม่อีกครั้ง *</label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      required
+                      minLength={6}
+                      placeholder="•••••••• (ยืนยันรหัสผ่านใหม่อีกครั้ง)"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full pl-3.5 pr-10 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-500 font-mono text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-purple-600 transition cursor-pointer p-1"
+                      title={showConfirmPassword ? "ซ่อนรหัสผ่าน" : "กดปุ่มตาเพื่อดูรหัสผ่าน"}
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCloseAccountModal}
+                    className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs hover:bg-slate-200 transition font-bold"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={changingPassword || !newPassword || !confirmPassword}
+                    className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-extrabold rounded-xl text-xs transition shadow-md shadow-purple-500/20 active:scale-95 flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>{changingPassword ? 'กำลังอัปเดต...' : '🔒 ยืนยันเปลี่ยนรหัสผ่าน'}</span>
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* TAB 3: POINTS & SUBSCRIPTION STATUS */}
+            {accountActiveTab === 'points' && (
+              <div className="space-y-4 text-xs font-bold">
+                {/* Profile & Role Summary Card */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between">
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">ตำแหน่ง / บทบาท</span>
+                    <div className="flex items-center gap-1.5">
+                      {profile.role === 'admin' ? (
+                        <span className="px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-700 text-xs font-black flex items-center gap-1">
+                          <ShieldCheck className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" /> Admin (ผู้ดูแลระบบ)
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-bold flex items-center gap-1 shadow-sm">
+                          <Users className="w-3.5 h-3.5 text-slate-500" /> Member (สมาชิกทั่วไป)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-right space-y-1">
+                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">ระดับแพ็กเกจ</span>
+                    <div>
+                      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black border ${
+                        tier.tier === 'master'
+                          ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                          : tier.tier === 'pro'
+                          ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-700'
+                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 shadow-sm'
+                      }`}>
+                        {tier.tier === 'master' ? '👑' : tier.tier === 'pro' ? '💎' : '🌱'} {tier.name}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Points Balance Highlight */}
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-2xl flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-200 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 flex items-center justify-center font-bold">
+                      <Coins className="w-6 h-6 animate-pulse" />
+                    </div>
+                    <div>
+                      <span className="text-xs text-amber-900/80 dark:text-amber-200 font-bold">แต้มคงเหลือปัจจุบัน</span>
+                      <p className="text-2xl font-black text-amber-800 dark:text-amber-300 font-mono leading-none mt-0.5">
+                        {profile.points || 0} <span className="text-xs font-normal text-amber-700 dark:text-amber-400">แต้ม</span>
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleCloseAccountModal()
+                      setTopUpModalOpen(true)
+                    }}
+                    className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs transition shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer"
+                  >
+                    + เติมแต้ม
+                  </button>
+                </div>
+
+                {/* Expiration Dates & Remaining Days */}
+                <div className="space-y-2.5">
+                  <h4 className="text-xs font-bold text-[#1E1B4B] dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" /> วันหมดอายุและระยะเวลาที่เหลือ
+                  </h4>
+
+                  <div className="space-y-2 text-xs">
+                    <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between">
+                      <span className="text-slate-500 dark:text-slate-400 font-medium">สถานะ VIP สมาชิก:</span>
+                      <span className="font-bold text-[#1E1B4B] dark:text-white">
+                        {profile.role === 'admin' ? (
+                          <span className="text-purple-700 dark:text-purple-400 font-bold">🛡️ สิทธิ์ถาวร (Admin)</span>
+                        ) : tier.tier === 'master' && profile.master_expires_at ? (
+                          <span className="text-amber-800 dark:text-amber-300 font-mono">
+                            ถึง {new Date(profile.master_expires_at).toLocaleDateString('th-TH')} ({Math.max(0, Math.ceil((new Date(profile.master_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} วัน)
+                          </span>
+                        ) : tier.tier === 'pro' && profile.pro_expires_at ? (
+                          <span className="text-purple-800 dark:text-purple-300 font-mono">
+                            ถึง {new Date(profile.pro_expires_at).toLocaleDateString('th-TH')} ({Math.max(0, Math.ceil((new Date(profile.pro_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} วัน)
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">Free Plan (ตลอดชีพ)</span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleCloseAccountModal}
+                    className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs hover:bg-slate-200 transition font-bold"
+                  >
+                    ปิด
+                  </button>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       )}
@@ -5026,6 +5328,69 @@ export default function DashboardPage() {
         profile={profile}
         landingPages={landingPages}
       />
+
+      
+      {/* CONFIRMATION POPUP MODAL FOR SPENDING POINTS & PURCHASING VIP */}
+      {confirmRedeemModal && confirmRedeemModal.isOpen && (
+        <div 
+          onClick={() => setConfirmRedeemModal(null)}
+          className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 cursor-pointer animate-in fade-in"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 border-2 border-purple-500/50 rounded-[32px] p-6 max-w-sm w-full shadow-2xl space-y-4 text-center text-[#1E1B4B] dark:text-white cursor-default"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto shadow-inner">
+              <Coins className="w-6 h-6 animate-pulse" />
+            </div>
+
+            <div className="space-y-1">
+              <h4 className="font-extrabold text-base">{confirmRedeemModal.title}</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                {confirmRedeemModal.desc}
+              </p>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs space-y-1.5 text-left font-bold">
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-normal">แต้มที่ใช้แลก:</span>
+                <span className="font-mono text-base font-black text-amber-600 dark:text-amber-400">🪙 {confirmRedeemModal.cost} แต้ม</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-normal">แต้มคงเหลือของคุณ:</span>
+                <span className="font-mono">{profile.points || 0} แต้ม</span>
+              </div>
+              <div className="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-1">
+                <span className="text-slate-500 font-normal">แต้มคงเหลือหลังแลก:</span>
+                <span className="font-mono text-purple-600 dark:text-purple-400 font-black">
+                  {Math.max(0, (profile.points || 0) - confirmRedeemModal.cost)} แต้ม
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setConfirmRedeemModal(null)}
+                className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs transition cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const cb = confirmRedeemModal.onConfirm
+                  setConfirmRedeemModal(null)
+                  if (cb) cb()
+                }}
+                className="flex-1 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-black rounded-xl text-xs transition shadow-md shadow-purple-500/20 active:scale-95 cursor-pointer"
+              >
+                ✓ ยืนยันการแลก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* 1. EDIT LINK MODAL */}

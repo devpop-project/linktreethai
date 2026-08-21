@@ -4,12 +4,13 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Link2, UserPlus, Sparkles, ArrowRight, Mail, Lock, AtSign, CheckCircle2, ShieldCheck } from 'lucide-react'
+import { Link2, UserPlus, Sparkles, ArrowRight, Mail, Lock, AtSign, CheckCircle2, ShieldCheck, Eye, EyeOff } from 'lucide-react'
 
 function RegisterForm() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [isEmailSent, setIsEmailSent] = useState(false)
@@ -168,14 +169,22 @@ function RegisterForm() {
                   <Lock className="w-4 h-4" />
                 </div>
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   minLength={6}
                   placeholder="•••••••• (อย่างน้อย 6 ตัวอักษร)"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-3.5 py-3 bg-white border border-slate-200 rounded-2xl text-[#1E1B4B] placeholder-slate-400 text-sm focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition"
+                  className="w-full pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-[#1E1B4B] placeholder-slate-400 text-sm focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition font-mono"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-purple-600 transition cursor-pointer p-1"
+                  title={showPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 

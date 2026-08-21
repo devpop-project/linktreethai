@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { 
   X, Coins, Sparkles, Check, QrCode, ArrowRight, 
   CreditCard, ShieldCheck, MessageCircle, ExternalLink, Flame, 
-  Upload, Clock, CheckCircle2, AlertCircle, RefreshCw, Eye, Image as ImageIcon, Send
+  Upload, Clock, CheckCircle2, AlertCircle, RefreshCw, Eye, Image as ImageIcon, Send, AlertTriangle
 } from 'lucide-react'
 import { generatePromptPayPayload, PROMPTPAY_PHONE, PROMPTPAY_BANK, PROMPTPAY_ACCOUNT_NAME } from '@/lib/promptpay'
 
@@ -23,12 +23,13 @@ export default function TopUpPointsModal({
   onSuccess,
 }: TopUpPointsModalProps) {
   const [activeTab, setActiveTab] = useState<'pay' | 'history'>('pay')
-  const [selectedPkg, setSelectedPkg] = useState<number>(250)
+  const [selectedPkg, setSelectedPkg] = useState<number>(600)
   const [uploadingSlip, setUploadingSlip] = useState(false)
   const [slipUrl, setSlipUrl] = useState<string>('')
   const [userNote, setUserNote] = useState<string>('')
   const [submitting, setSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [isConfirmPayModalOpen, setIsConfirmPayModalOpen] = useState(false)
 
   // Transaction History
   const [myTransactions, setMyTransactions] = useState<any[]>([])
@@ -38,14 +39,14 @@ export default function TopUpPointsModal({
   const supabase = createClient()
 
   const packages = [
-    { points: 100, price: 100, desc: 'ปลดล็อกย่อลิงก์ / Pixels / PRO VIP 30 วัน', tag: '' },
-    { points: 250, price: 250, desc: 'ปลดล็อก MASTER VIP 30 วัน (ฟรีเซลเพจ 1 URL)', tag: 'POPULAR' },
-    { points: 350, price: 350, desc: 'ปลดล็อกสร้างหน้าเซลเพจยิงแอดเพิ่ม 1 URL', tag: 'HOT' },
-    { points: 500, price: 450, desc: 'แพ็กเกจสุดคุ้ม ประหยัด 50 บาท (ลด 10%)', tag: 'คุ้มค่า' },
-    { points: 1000, price: 850, desc: 'แพ็กเกจโปรคุ้มสุด ประหยัด 150 บาท (ลด 15%)', tag: 'BEST VALUE' }
+    { points: 100, price: 100, desc: 'ปลดล็อกย่อลิงก์ / Tracking Pixels 30 วัน', tag: 'STARTER' },
+    { points: 300, price: 299, desc: 'ปลดล็อก PRO VIP 30 วัน (ทุกลิงก์ไม่จำกัด + 10 สินค้า)', tag: 'PRO' },
+    { points: 600, price: 599, desc: 'ปลดล็อก MASTER VIP 30 วัน (ครบทุกฟังก์ชัน + ฟรีเซลเพจ 1 URL)', tag: 'HOT • POPULAR' },
+    { points: 1800, price: 1599, desc: 'MASTER VIP 3 เดือน (ประหยัด 200 บาท • เฉลี่ยเดือนละ 533 บ.)', tag: 'คุ้มค่า' },
+    { points: 7200, price: 5990, desc: 'MASTER VIP รายปี 12 เดือน (คุ้มค่าที่สุด • ประหยัดกว่า 1,198 บ.)', tag: 'BEST VALUE' }
   ]
 
-  const currentPkg = packages.find(p => p.points === selectedPkg) || packages[1]
+  const currentPkg = packages.find(p => p.points === selectedPkg) || packages[2]
 
   // Generate Real EMVCo PromptPay QR Code Payload for 0909964514 with exact THB amount!
   const promptpayPayload = generatePromptPayPayload(PROMPTPAY_PHONE, currentPkg.price)
@@ -101,13 +102,17 @@ export default function TopUpPointsModal({
     }
   }
 
-  const handleSubmitSlip = async (e: React.FormEvent) => {
+  const handlePromptConfirmSlip = (e: React.FormEvent) => {
     e.preventDefault()
     if (!slipUrl || !profile?.id) {
       alert('กรุณาแนบรูปภาพสลิปการโอนเงินก่อนส่งแจ้งชำระเงินครับ')
       return
     }
+    setIsConfirmPayModalOpen(true)
+  }
 
+  const handleFinalSubmitSlip = async () => {
+    setIsConfirmPayModalOpen(false)
     setSubmitting(true)
     try {
       const { data, error } = await supabase
@@ -207,13 +212,10 @@ export default function TopUpPointsModal({
           </button>
         </div>
 
-        {/* ========================================================================= */}
         {/* TAB 1: PAY & UPLOAD SLIP FORM */}
-        {/* ========================================================================= */}
         {activeTab === 'pay' && (
           <div className="space-y-5">
-            {submitSuccess ? (
-              <div className="p-6 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-3xl text-center space-y-4 animate-in zoom-in-95">
+            {submitSuccess ? (              <div className="p-6 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-3xl text-center space-y-4 animate-in zoom-in-95">
                 <div className="w-16 h-16 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/30">
                   <CheckCircle2 className="w-10 h-10" />
                 </div>
@@ -255,7 +257,7 @@ export default function TopUpPointsModal({
                       <div
                         key={pkg.points}
                         onClick={() => setSelectedPkg(pkg.points)}
-                        className={`p-3 rounded-2xl border-2 cursor-pointer transition flex items-center justify-between ${
+                        className={`p-3.5 rounded-2xl border-2 cursor-pointer transition flex items-center justify-between ${
                           selectedPkg === pkg.points
                             ? 'border-amber-500 bg-amber-50/60 dark:bg-amber-950/40 shadow-sm ring-2 ring-amber-500/20'
                             : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-950'
@@ -320,7 +322,7 @@ export default function TopUpPointsModal({
                 </div>
 
                 {/* 3. Slip Upload & Submission Form */}
-                <form onSubmit={handleSubmitSlip} className="space-y-3 pt-1">
+                <form onSubmit={handlePromptConfirmSlip} className="space-y-3 pt-1">
                   <label className="block text-xs font-black text-slate-700 dark:text-slate-300">
                     3. แนบสลิปการโอนเงินเพื่อส่งให้แอดมินตรวจสอบ:
                   </label>
@@ -395,9 +397,7 @@ export default function TopUpPointsModal({
           </div>
         )}
 
-        {/* ========================================================================= */}
         {/* TAB 2: MY PAYMENT TRANSACTIONS HISTORY */}
-        {/* ========================================================================= */}
         {activeTab === 'history' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -495,6 +495,62 @@ export default function TopUpPointsModal({
 
       </div>
 
+      {/* CONFIRMATION POPUP BEFORE FINAL SUBMIT */}
+      {isConfirmPayModalOpen && (
+        <div 
+          onClick={() => setIsConfirmPayModalOpen(false)}
+          className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4 cursor-pointer animate-in fade-in"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-slate-900 border-2 border-amber-500/60 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 text-center cursor-default"
+          >
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto shadow-inner">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-1">
+              <h4 className="font-extrabold text-base text-[#1E1B4B] dark:text-white">ยืนยันการแจ้งชำระเงิน</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                กรุณาตรวจสอบยอดเงินและสลิปก่อนส่งแจ้งแอดมิน
+              </p>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs space-y-1.5 text-left font-bold">
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-normal">แพ็กเกจแต้ม:</span>
+                <span className="font-mono text-amber-600 dark:text-amber-400">🪙 {currentPkg.points} แต้ม</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-normal">ยอดโอนชำระ:</span>
+                <span className="font-mono text-base font-black text-emerald-600 dark:text-emerald-400">฿{currentPkg.price}.00 บาท</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-normal">สถานะสลิป:</span>
+                <span className="text-emerald-600 font-bold">✓ แนบรูปภาพแล้ว</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setIsConfirmPayModalOpen(false)}
+                className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs transition cursor-pointer"
+              >
+                ตรวจสอบใหม่
+              </button>
+              <button
+                type="button"
+                onClick={handleFinalSubmitSlip}
+                className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black rounded-xl text-xs transition shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer"
+              >
+                ✓ ยืนยันส่งสลิป
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Fullscreen Zoom Slip Lightbox */}
       {zoomSlipUrl && (
         <div 
@@ -513,14 +569,5 @@ export default function TopUpPointsModal({
         </div>
       )}
     </div>
-  )
-}
-
-function SendIcon(props: any) {
-  return (
-    <svg {...props} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="22" y1="2" x2="11" y2="13"></line>
-      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-    </svg>
   )
 }
