@@ -30,7 +30,14 @@ export default function Template5({ profile, links, products, handleLinkClick, i
   const hasProducts = products && products.length > 0
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-5 px-4 py-6 text-[#FFF8E7] font-serif antialiased relative z-10">
+    <div className="w-full max-w-md mx-auto space-y-5 px-4 py-6 text-[#FFF8E7] font-serif antialiased relative z-10" style={{
+        backgroundColor: profile.bg_color || undefined,
+        ...(profile.inner_bg_image_url ? { 
+          backgroundImage: `url(${profile.inner_bg_image_url})`, 
+          backgroundSize: 'cover', 
+          backgroundPosition: 'center' 
+        } : {})
+      }}>
       
       {/* Top Cover Banner */}
       {profile.cover_url && (
@@ -55,14 +62,14 @@ export default function Template5({ profile, links, products, handleLinkClick, i
         </div>
 
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-wide text-amber-200 font-serif drop-shadow-md">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-wide text-amber-200 font-serif drop-shadow-md" style={{ color: profile.text_color || undefined }}>
             {profile.full_name || profile.username}
           </h1>
-          <p className="text-xs font-semibold text-amber-400 font-sans mt-0.5">@{profile.username}</p>
+          <p className="text-xs font-semibold text-amber-400 font-sans mt-0.5" style={{ color: profile.text_color || undefined }}>@{profile.username}</p>
         </div>
 
         {profile.bio && (
-          <p className="text-xs text-amber-100/90 leading-relaxed max-w-xs mx-auto font-sans">
+          <p className="text-xs text-amber-100/90 leading-relaxed max-w-xs mx-auto font-sans" style={{ color: profile.text_color || undefined }}>
             {profile.bio}
           </p>
         )}
@@ -126,7 +133,7 @@ export default function Template5({ profile, links, products, handleLinkClick, i
                     </div>
                   )}
                   <div className="overflow-hidden">
-                    <p className="text-xs sm:text-sm font-black truncate leading-snug">
+                    <p className="text-xs sm:text-sm font-black truncate leading-snug" style={{ color: profile?.text_secondary_color || undefined }}>
                       {link.title}
                     </p>
                     {link.subtitle && <p className="text-[11px] opacity-80 truncate mt-0.5">{link.subtitle}</p>}

@@ -114,11 +114,15 @@ export default function UserBioPage({ params }: { params: { username: string } }
   }
 
   const currentUrl = typeof window !== 'undefined' ? window.location.href : `https://linktreethai.com/${username}`
+  const isLightBg = profile?.bg_color === '#FFFFFF' || profile?.bg_color === '#F9F9FF' || profile?.bg_color === '#F1F5F9'
 
   return (
     <div 
       className="min-h-screen bg-[#0b0f17] text-slate-100 relative flex flex-col items-center justify-between bg-cover bg-center bg-no-repeat transition-all duration-300 overflow-x-hidden"
-      style={profile.bg_image_url ? { backgroundImage: `url(${profile.bg_image_url})` } : {}}
+      style={{
+        backgroundColor: '#0B0F17',
+        ...(profile.bg_image_url ? { backgroundImage: `url(${profile.bg_image_url})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' } : {})
+      }}
     >
       {/* 1. AUTO INJECT TRACKING PIXELS (Meta FB, TikTok, Google, LINE) */}
       <TrackingPixels
@@ -130,7 +134,7 @@ export default function UserBioPage({ params }: { params: { username: string } }
 
       {/* Background Overlay */}
       {profile.bg_image_url && (
-        <div className="absolute inset-0 bg-[#0b0f17]/75 backdrop-blur-sm z-0 pointer-events-none"></div>
+        <div className={`absolute inset-0 z-0 pointer-events-none ${isLightBg ? "bg-white/80" : "bg-[#0b0f17]/75"} backdrop-blur-xs`}></div>
       )}
 
       {/* Floating Top App Action Bar */}

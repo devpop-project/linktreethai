@@ -10,10 +10,7 @@ import TemplateRenderer from '@/components/templates/TemplateRenderer'
 import SalesLandingPagePreview from '@/components/SalesLandingPagePreview'
 import PixelAnalyticsModal from '@/components/PixelAnalyticsModal'
 import TopUpPointsModal from '@/components/TopUpPointsModal'
-import { 
-  Link2, ShoppingBag, Palette, ExternalLink, Activity, Rocket, Plus, Trash2, 
-  Save, LogOut, Check, Eye, Upload, Image as ImageIcon, Sparkles, Globe, Youtube, RefreshCw, Share2, LayoutTemplate, Crown, Coins, Lock, AlertCircle, Users, Download, ShieldCheck, Zap, QrCode, X, MessageCircle, Scissors, Copy, Smartphone, Menu, ChevronRight, CheckCircle2, ArrowUpRight, Clock, KeyRound, Edit2, Camera, Sun, Moon
-} from 'lucide-react'
+import { Link2, ShoppingBag, Palette, ExternalLink, Activity, Rocket, Plus, Trash2, Save, LogOut, Check, Eye, Upload, Image as ImageIcon, Sparkles, Globe, Youtube, RefreshCw, Share2, LayoutTemplate, Crown, Coins, Lock, AlertCircle, Users, Download, ShieldCheck, Zap, QrCode, X, MessageCircle, Scissors, Copy, Smartphone, Menu, ChevronRight, CheckCircle2, ArrowUpRight, Clock, KeyRound, Edit2, Camera, Sun, Moon, Filter, Search, BarChart3, ChevronDown, Phone, Mail, MapPin, DollarSign, Calendar, FileText, CheckSquare, Layers, EyeOff, ArrowUpDown, UserCheck, UserX, ListOrdered, Sliders, Flame, Send, ArrowRight, CheckCircle } from 'lucide-react'
 
 interface LandingPageFormData {
   slug: string
@@ -29,13 +26,21 @@ interface LandingPageFormData {
   countdown_minutes: number
   cta_text: string
   cta_url: string
+  sticky_btn1_text: string
+  sticky_btn1_url: string
+  sticky_btn2_text: string
+  sticky_btn2_url: string
+  sticky_btn3_text: string
+  sticky_btn3_url: string
+  cta_secondary_text: string
+  cta_secondary_url: string
+  cta_shop_text: string
+  cta_shop_url: string
   features_text: string
   body_content: string
   theme_color: string
   bg_color: string
   bg_image_url: string
-  text_color: string
-  subtext_color: string
   card_style: string
   gallery_images_text: string
   review_images_text: string
@@ -50,7 +55,6 @@ interface LandingPageFormData {
   trust_badge_2: string
   trust_badge_3: string
   enable_cod_form: boolean
-  enable_review_album: boolean
   seo_title: string
   seo_description: string
   seo_keywords: string
@@ -75,16 +79,25 @@ const DEFAULT_LANDING_PAGE_FORM: LandingPageFormData = {
   countdown_minutes: 15,
   cta_text: 'สั่งซื้อโปรโมชั่นพิเศษนี้ทันที',
   cta_url: '',
+  sticky_btn1_text: 'ติดต่อสั่งซื้อด่วน',
+  sticky_btn1_url: '',
+  sticky_btn2_text: 'ช่องทางติดต่ออื่นๆ',
+  sticky_btn2_url: '',
+  sticky_btn3_text: 'สั่งซื้อออนไลน์',
+  sticky_btn3_url: '',
+  cta_secondary_text: 'ช่องทางติดต่ออื่นๆ',
+  cta_secondary_url: '',
+  cta_shop_text: 'สั่งซื้อออนไลน์',
+  cta_shop_url: '',
   features_text: '✓ ส่งฟรีทั่วไทย (จัดส่งด่วน 1-2 วัน)\n✓ มีบริการเก็บเงินปลายทาง (COD)\n✓ รับประกันของแท้ 100% ตรงจากผู้ผลิต\n✓ มีทีมงานผู้เชี่ยวชาญให้คำแนะนำตลอด 24 ชม.',
   body_content: '',
   theme_color: '#EF4444',
   bg_color: '#0B0F17',
   bg_image_url: '',
-  text_color: '#FFFFFF',
-  subtext_color: '#E2E8F0',
+    inner_bg_image_url: '',
   card_style: 'glass',
   gallery_images_text: '',
-  review_images_text: 'https://images.unsplash.com/photo-1556742049-0a67c5574f73?w=500&auto=format&fit=crop&q=80\nhttps://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&auto=format&fit=crop&q=80',
+  review_images_text: '',
   pain_headline: 'คุณกำลังเจอปัญหาเหล่านี้อยู่ใช่หรือไม่?',
   pain_points_text: '❌ เบื่อไหม? ลูกค้าทักมาขอลิงก์ช้อปปิ้งทีละแอปจนตอบไม่ทัน\n❌ ยิงแอดไปเท่าไหร่ แต่เก็บ Data ลูกค้าไม่ได้เลยใช่ไหม?\n❌ ปิดการขายช้าเพราะลูกค้าสับสนช่องทางชำระเงิน',
   benefits_headline: 'ทางออกและผลลัพธ์ที่คุณจะได้รับ',
@@ -95,8 +108,7 @@ const DEFAULT_LANDING_PAGE_FORM: LandingPageFormData = {
   trust_badge_1: 'ส่งฟรีด่วน',
   trust_badge_2: 'ของแท้ 100%',
   trust_badge_3: 'ชำระเงินปลอดภัย',
-  enable_cod_form: false,
-  enable_review_album: false,
+  enable_cod_form: true,
   seo_title: '',
   seo_description: '',
   seo_keywords: '',
@@ -120,7 +132,12 @@ export default function DashboardPage() {
     avatar_url: '',
     cover_url: '',
     bg_image_url: '',
+    inner_bg_image_url: '',
     youtube_url: '',
+    bg_color: '#0B0F17',
+    text_color: '#FFFFFF',
+    inner_bg_image_url: '',
+    inner_bg_image_url: '',
     template_id: 'template_1',
     role: 'user',
     points: 0,
@@ -131,6 +148,8 @@ export default function DashboardPage() {
     og_title: '',
     og_description: '',
     og_image_url: '',
+    bg_color: '#0B0F17',
+    text_color: '#FFFFFF',
     custom_button_color: '#1E1B4B',
     custom_button_text_color: '#FFFFFF',
     theme_name: 'default',
@@ -178,6 +197,42 @@ export default function DashboardPage() {
   const [redeemingTier, setRedeemingTier] = useState<string | null>(null)
 
   // Form States
+    // --- FULL CRUD MODALS & EDIT STATES FOR ALL 10 TABLES ---
+  const [editingLink, setEditingLink] = useState<any>(null)
+  const [isEditLinkOpen, setIsEditLinkOpen] = useState(false)
+  const [uploadingEditLinkLogo, setUploadingEditLinkLogo] = useState(false)
+
+  const [editingProduct, setEditingProduct] = useState<any>(null)
+  const [isEditProductOpen, setIsEditProductOpen] = useState(false)
+  const [uploadingEditProductImg, setUploadingEditProductImg] = useState(false)
+
+  const [editingShortLink, setEditingShortLink] = useState<any>(null)
+  const [isEditShortLinkOpen, setIsEditShortLinkOpen] = useState(false)
+  const [shortLinkAnalyticsModalOpen, setShortLinkAnalyticsModalOpen] = useState(false)
+  const [selectedShortLinkForAnalytics, setSelectedShortLinkForAnalytics] = useState<any>(null)
+  const [shortLinkAnalyticsLogs, setShortLinkAnalyticsLogs] = useState<any[]>([])
+  const [loadingShortLinkAnalytics, setLoadingShortLinkAnalytics] = useState(false)
+
+  const [analyticsEventsModalOpen, setAnalyticsEventsModalOpen] = useState(false)
+  const [analyticsEventsList, setAnalyticsEventsList] = useState<any[]>([])
+  const [loadingAnalyticsEvents, setLoadingAnalyticsEvents] = useState(false)
+
+  const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false)
+  const [newLeadForm, setNewLeadForm] = useState({
+    name: '', phone: '', email: '', line_id: '', amount: '', address: '', order_code: '', note: '', status: 'pending'
+  })
+  const [isEditLeadModalOpen, setIsEditLeadModalOpen] = useState(false)
+  const [editingLead, setEditingLead] = useState<any>(null)
+  const [isLeadDetailsModalOpen, setIsLeadDetailsModalOpen] = useState(false)
+  const [selectedLeadDetails, setSelectedLeadDetails] = useState<any>(null)
+  const [leadStatusFilter, setLeadStatusFilter] = useState<string>('all')
+  const [loadingLeads, setLoadingLeads] = useState(false)
+  const [leadSearchQuery, setLeadSearchQuery] = useState<string>('')
+
+  const [myPaymentTransactions, setMyPaymentTransactions] = useState<any[]>([])
+  const [loadingPaymentTransactions, setLoadingPaymentTransactions] = useState(false)
+  const [zoomSlipUrl, setZoomSlipUrl] = useState<string | null>(null)
+
   const [newLink, setNewLink] = useState({ 
     title: '', 
     subtitle: '', 
@@ -185,7 +240,9 @@ export default function DashboardPage() {
     icon: 'website', 
     logo_url: '',
     bg_color: '#1E1B4B',
-    text_color: '#FFFFFF'
+    text_color: '#FFFFFF',
+    starts_at: '',
+    ends_at: ''
   })
   
   const [newProduct, setNewProduct] = useState({ 
@@ -319,6 +376,397 @@ export default function DashboardPage() {
   }
 
   // --- Save Profile ---
+    // =========================================================================
+  // FULL CRUD HANDLERS FOR ALL 10 TABLES (LINKS, PRODUCTS, SHORT LINKS, LEADS, ETC.)
+  // =========================================================================
+
+  // --- 1. LINKS CRUD: Update & Toggle ---
+  const handleEditLink = (link: any) => {
+    setEditingLink({ ...link })
+    setIsEditLinkOpen(true)
+  }
+
+  const handleUpdateLink = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingLink || !user) return
+    try {
+      const { error } = await supabase
+        .from('links')
+        .update({
+          title: editingLink.title,
+          subtitle: editingLink.subtitle || null,
+          url: editingLink.url,
+          icon: editingLink.icon || 'website',
+          logo_url: editingLink.logo_url || null,
+          bg_color: editingLink.bg_color || '#1E1B4B',
+          text_color: editingLink.text_color || '#FFFFFF',
+          starts_at: editingLink.starts_at || null,
+          ends_at: editingLink.ends_at || null,
+          is_active: editingLink.is_active
+        })
+        .eq('id', editingLink.id)
+        .eq('user_id', user.id)
+
+      if (!error) {
+        setLinks(links.map(l => l.id === editingLink.id ? { ...l, ...editingLink } : l))
+        setIsEditLinkOpen(false)
+        setEditingLink(null)
+        showToast('✓ อัปเดตข้อมูลลิ้งก์เรียบร้อยแล้ว')
+      } else {
+        showToast('❌ ไม่สามารถอัปเดตได้: ' + error.message)
+      }
+    } catch (err: any) {
+      showToast('❌ ข้อผิดพลาด: ' + err.message)
+    }
+  }
+
+  const handleToggleLinkActive = async (linkId: string, currentStatus: boolean) => {
+    if (!user) return
+    const nextStatus = !currentStatus
+    try {
+      const { error } = await supabase
+        .from('links')
+        .update({ is_active: nextStatus })
+        .eq('id', linkId)
+        .eq('user_id', user.id)
+
+      if (!error) {
+        setLinks(links.map(l => l.id === linkId ? { ...l, is_active: nextStatus } : l))
+        showToast(nextStatus ? '✓ เปิดใช้งานลิ้งก์แล้ว' : '✓ ปิดใช้งานลิ้งก์ชั่วคราวแล้ว')
+      }
+    } catch (e) {}
+  }
+
+  // --- 2. PRODUCTS CRUD: Update & Toggle ---
+  const handleEditProduct = (prod: any) => {
+    setEditingProduct({ ...prod })
+    setIsEditProductOpen(true)
+  }
+
+  const handleUpdateProduct = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingProduct || !user) return
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({
+          title: editingProduct.title,
+          description: editingProduct.description || null,
+          price: parseFloat(String(editingProduct.price)) || 0,
+          currency: editingProduct.currency || 'THB',
+          category: editingProduct.category || 'ทั่วไป',
+          image_url: editingProduct.image_url || null,
+          buy_url: editingProduct.buy_url,
+          badge: editingProduct.badge || null,
+          starts_at: editingProduct.starts_at || null,
+          ends_at: editingProduct.ends_at || null,
+          is_active: editingProduct.is_active
+        })
+        .eq('id', editingProduct.id)
+        .eq('user_id', user.id)
+
+      if (!error) {
+        setProducts(products.map(p => p.id === editingProduct.id ? { ...p, ...editingProduct } : p))
+        setIsEditProductOpen(false)
+        setEditingProduct(null)
+        showToast('✓ อัปเดตข้อมูลสินค้าเรียบร้อยแล้ว')
+      } else {
+        showToast('❌ ไม่สามารถอัปเดตได้: ' + error.message)
+      }
+    } catch (err: any) {
+      showToast('❌ ข้อผิดพลาด: ' + err.message)
+    }
+  }
+
+  const handleToggleProductActive = async (productId: string, currentStatus: boolean) => {
+    if (!user) return
+    const nextStatus = !currentStatus
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ is_active: nextStatus })
+        .eq('id', productId)
+        .eq('user_id', user.id)
+
+      if (!error) {
+        setProducts(products.map(p => p.id === productId ? { ...p, is_active: nextStatus } : p))
+        showToast(nextStatus ? '✓ เปิดใช้งานสินค้าแล้ว' : '✓ ปิดใช้งานสินค้าชั่วคราวแล้ว')
+      }
+    } catch (e) {}
+  }
+
+  // --- 3. SHORT LINKS CRUD: Update, Toggle & Analytics Logs ---
+  const handleEditShortLink = (sl: any) => {
+    setEditingShortLink({ ...sl })
+    setIsEditShortLinkOpen(true)
+  }
+
+  const handleUpdateShortLink = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingShortLink || !user) return
+    const cleanSlug = editingShortLink.slug.toLowerCase().trim().replace(/[^a-z0-9-_]/g, '')
+    try {
+      const { error } = await supabase
+        .from('short_links')
+        .update({
+          slug: cleanSlug,
+          title: editingShortLink.title || null,
+          original_url: editingShortLink.original_url,
+          is_active: editingShortLink.is_active,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingShortLink.id)
+        .eq('created_by', user.id)
+
+      if (!error) {
+        setShortLinks(shortLinks.map(s => s.id === editingShortLink.id ? { ...s, ...editingShortLink, slug: cleanSlug } : s))
+        setIsEditShortLinkOpen(false)
+        setEditingShortLink(null)
+        showToast('✓ อัปเดตลิงก์ย่อเรียบร้อยแล้ว')
+      } else {
+        showToast('❌ เกิดข้อผิดพลาด: ' + error.message)
+      }
+    } catch (err: any) {
+      showToast('❌ ข้อผิดพลาด: ' + err.message)
+    }
+  }
+
+  const handleToggleShortLinkActive = async (shortLinkId: string, currentStatus: boolean) => {
+    if (!user) return
+    const nextStatus = !currentStatus
+    try {
+      const { error } = await supabase
+        .from('short_links')
+        .update({ is_active: nextStatus, updated_at: new Date().toISOString() })
+        .eq('id', shortLinkId)
+        .eq('created_by', user.id)
+
+      if (!error) {
+        setShortLinks(shortLinks.map(s => s.id === shortLinkId ? { ...s, is_active: nextStatus } : s))
+        showToast(nextStatus ? '✓ เปิดใช้งานลิงก์ย่อแล้ว' : '✓ ปิดใช้งานลิงก์ย่อแล้ว')
+      }
+    } catch (e) {}
+  }
+
+  const handleOpenShortLinkAnalytics = async (shortLink: any) => {
+    setSelectedShortLinkForAnalytics(shortLink)
+    setShortLinkAnalyticsModalOpen(true)
+    setLoadingShortLinkAnalytics(true)
+    try {
+      const { data, error } = await supabase
+        .from('short_link_analytics')
+        .select('*')
+        .eq('short_link_id', shortLink.id)
+        .order('created_at', { ascending: false })
+        .limit(150)
+
+      if (!error && data) {
+        setShortLinkAnalyticsLogs(data)
+      }
+    } catch (e) {}
+    setLoadingShortLinkAnalytics(false)
+  }
+
+  const handleClearShortLinkAnalytics = async (shortLinkId: string) => {
+    if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการล้างสถิติคลิกทั้งหมดของลิงก์นี้?')) return
+    try {
+      await supabase.from('short_link_analytics').delete().eq('short_link_id', shortLinkId)
+      await supabase.from('short_links').update({ clicks: 0 }).eq('id', shortLinkId)
+      setShortLinks(shortLinks.map(s => s.id === shortLinkId ? { ...s, clicks: 0 } : s))
+      setShortLinkAnalyticsLogs([])
+      showToast('✓ ล้างสถิติคลิกเรียบร้อยแล้ว')
+    } catch (e) {}
+  }
+
+  // --- 4. ANALYTICS EVENTS CRUD: View & Clear Logs ---
+  const handleOpenAnalyticsEvents = async () => {
+    if (!user) return
+    setAnalyticsEventsModalOpen(true)
+    setLoadingAnalyticsEvents(true)
+    try {
+      const { data, error } = await supabase
+        .from('analytics_events')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(100)
+
+      if (!error && data) {
+        setAnalyticsEventsList(data)
+      }
+    } catch (e) {}
+    setLoadingAnalyticsEvents(false)
+  }
+
+  const handleClearAnalyticsEvents = async () => {
+    if (!user) return
+    if (!confirm('คุณต้องการลบประวัติกิจกรรม Event Logs ทั้งหมดใช่หรือไม่?')) return
+    try {
+      await supabase.from('analytics_events').delete().eq('user_id', user.id)
+      setAnalyticsEventsList([])
+      showToast('✓ ล้างประวัติ Event Logs เรียบร้อยแล้ว')
+    } catch (e) {}
+  }
+
+  // --- 5. LEADS CRM CRUD: Create, Read, Update, Delete & Details ---
+    const handleRefreshLeads = async () => {
+    if (!user?.id) return
+    setLoadingLeads(true)
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (!error && data) {
+        setLeads(data)
+        showToast('✓ รีเฟรชข้อมูลลูกค้าเรียบร้อยแล้ว (' + data.length + ' รายการ)')
+      }
+    } catch (e) {}
+    setLoadingLeads(false)
+  }
+
+  const handleCreateManualLead = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newLeadForm.name || !user) return
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .insert([{
+          user_id: user.id,
+          name: newLeadForm.name.trim(),
+          phone: newLeadForm.phone.trim() || null,
+          email: newLeadForm.email.trim() || null,
+          line_id: newLeadForm.line_id.trim() || null,
+          amount: newLeadForm.amount ? parseFloat(newLeadForm.amount) : null,
+          address: newLeadForm.address.trim() || null,
+          order_code: newLeadForm.order_code.trim() || `MAN-${Date.now().toString().slice(-6)}`,
+          note: newLeadForm.note.trim() || null,
+          status: newLeadForm.status || 'pending'
+        }])
+        .select()
+
+      if (!error && data) {
+        setLeads([data[0], ...leads])
+        setIsAddLeadModalOpen(false)
+        setNewLeadForm({ name: '', phone: '', email: '', line_id: '', amount: '', address: '', order_code: '', note: '', status: 'pending' })
+        showToast('✓ เพิ่มข้อมูลลูกค้าใหม่เรียบร้อยแล้ว')
+      } else {
+        showToast('❌ ไม่สามารถเพิ่มลีดได้: ' + (error?.message || ''))
+      }
+    } catch (e: any) {
+      showToast('❌ ข้อผิดพลาด: ' + e.message)
+    }
+  }
+
+  const handleEditLead = (lead: any) => {
+    setEditingLead({ ...lead })
+    setIsEditLeadModalOpen(true)
+  }
+
+  const handleUpdateLead = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingLead || !user) return
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({
+          name: editingLead.name,
+          phone: editingLead.phone || null,
+          email: editingLead.email || null,
+          line_id: editingLead.line_id || null,
+          amount: editingLead.amount ? parseFloat(String(editingLead.amount)) : null,
+          address: editingLead.address || null,
+          order_code: editingLead.order_code || null,
+          note: editingLead.note || null,
+          status: editingLead.status || 'pending'
+        })
+        .eq('id', editingLead.id)
+        .eq('user_id', user.id)
+
+      if (!error) {
+        setLeads(leads.map(l => l.id === editingLead.id ? { ...l, ...editingLead } : l))
+        setIsEditLeadModalOpen(false)
+        setEditingLead(null)
+        showToast('✓ อัปเดตข้อมูลลูกค้าเรียบร้อยแล้ว')
+      } else {
+        showToast('❌ ไม่สามารถอัปเดตได้: ' + error.message)
+      }
+    } catch (e: any) {
+      showToast('❌ ข้อผิดพลาด: ' + e.message)
+    }
+  }
+
+  const handleUpdateLeadStatus = async (leadId: string, nextStatus: string) => {
+    if (!user) return
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ status: nextStatus })
+        .eq('id', leadId)
+        .eq('user_id', user.id)
+
+      if (!error) {
+        setLeads(leads.map(l => l.id === leadId ? { ...l, status: nextStatus } : l))
+        showToast('✓ อัปเดตสถานะเป็น ' + nextStatus)
+      }
+    } catch (e) {}
+  }
+
+  const handleDeleteLead = async (leadId: string) => {
+    if (!user) return
+    if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลลูกค้ารายนี้?')) return
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .delete()
+        .eq('id', leadId)
+        .eq('user_id', user.id)
+
+      if (!error) {
+        setLeads(leads.filter(l => l.id !== leadId))
+        showToast('✓ ลบข้อมูลลูกค้าเรียบร้อยแล้ว')
+      }
+    } catch (e) {}
+  }
+
+  // --- 6. PAYMENT TRANSACTIONS CRUD: User History & Cancel ---
+  const loadMyPaymentTransactions = async () => {
+    if (!user?.id) return
+    setLoadingPaymentTransactions(true)
+    try {
+      const { data, error } = await supabase
+        .from('payment_transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (!error && data) {
+        setMyPaymentTransactions(data)
+      }
+    } catch (e) {}
+    setLoadingPaymentTransactions(false)
+  }
+
+  const handleCancelPendingSlip = async (txId: string) => {
+    if (!user) return
+    if (!confirm('คุณต้องการยกเลิกรายการสลิปที่รอตรวจสอบนี้ใช่หรือไม่?')) return
+    try {
+      const { error } = await supabase
+        .from('payment_transactions')
+        .delete()
+        .eq('id', txId)
+        .eq('user_id', user.id)
+        .eq('status', 'pending')
+
+      if (!error) {
+        setMyPaymentTransactions(myPaymentTransactions.filter(t => t.id !== txId))
+        showToast('✓ ยกเลิกรายการสลิปเรียบร้อยแล้ว')
+      }
+    } catch (e) {}
+  }
+
   const handleSaveProfile = async () => {
     if (!user) return
     const { error } = await supabase
@@ -328,7 +776,14 @@ export default function DashboardPage() {
         bio: profile.bio,
         avatar_url: profile.avatar_url,
         cover_url: profile.cover_url,
-        bg_image_url: profile.bg_image_url,
+        bg_color: profile.bg_color || '#0B0F17',
+        text_color: profile.text_color || '#FFFFFF',
+        inner_bg_image_url: profile.inner_bg_image_url || null,
+        inner_bg_color: profile.inner_bg_color || profile.bg_color || '#0B0F17',
+        outer_bg_color: profile.outer_bg_color || '#0B0F17',
+        text_secondary_color: profile.text_secondary_color || '#94A3B8',
+        card_bg_color: profile.card_bg_color || '#FFFFFF',
+        bg_image_url: profile.bg_image_url || null,
         youtube_url: profile.youtube_url,
         template_id: profile.template_id,
         hide_branding: profile.hide_branding,
@@ -401,12 +856,7 @@ export default function DashboardPage() {
     }
   }
 
-  const handleToggleLinkActive = async (id: string, currentStatus: boolean) => {
-    const { error } = await supabase.from('links').update({ is_active: !currentStatus }).eq('id', id)
-    if (!error) {
-      setLinks(links.map(l => l.id === id ? { ...l, is_active: !currentStatus } : l))
-    }
-  }
+
 
   // --- Shop Products Management ---
   const handleAddProduct = async (e: React.FormEvent) => {
@@ -564,13 +1014,21 @@ export default function DashboardPage() {
       countdown_minutes: lp.countdown_minutes ?? 15,
       cta_text: lp.cta_text || 'สั่งซื้อโปรโมชั่นพิเศษนี้ทันที',
       cta_url: lp.cta_url || '',
+      sticky_btn1_text: lp.sticky_btn1_text || lp.cta_text || 'ติดต่อสั่งซื้อด่วน',
+      sticky_btn1_url: lp.sticky_btn1_url || lp.cta_url || '',
+      sticky_btn2_text: lp.sticky_btn2_text || lp.cta_secondary_text || 'ช่องทางติดต่ออื่นๆ',
+      sticky_btn2_url: lp.sticky_btn2_url || lp.cta_secondary_url || '',
+      sticky_btn3_text: lp.sticky_btn3_text || lp.cta_shop_text || 'สั่งซื้อออนไลน์',
+      sticky_btn3_url: lp.sticky_btn3_url || lp.cta_shop_url || '',
+      cta_secondary_text: lp.cta_secondary_text || lp.sticky_btn2_text || 'ช่องทางติดต่ออื่นๆ',
+      cta_secondary_url: lp.cta_secondary_url || lp.sticky_btn2_url || '',
+      cta_shop_text: lp.cta_shop_text || lp.sticky_btn3_text || 'สั่งซื้อออนไลน์',
+      cta_shop_url: lp.cta_shop_url || lp.sticky_btn3_url || '',
       features_text: Array.isArray(lp.features) ? lp.features.join('\n') : (lp.features || DEFAULT_LANDING_PAGE_FORM.features_text),
       body_content: lp.body_content || '',
       theme_color: lp.theme_color || '#EF4444',
       bg_color: lp.bg_color || '#0B0F17',
       bg_image_url: lp.bg_image_url || '',
-      text_color: lp.text_color || '#FFFFFF',
-      subtext_color: lp.subtext_color || '#E2E8F0',
       card_style: lp.card_style || 'glass',
       gallery_images_text: Array.isArray(lp.gallery_images) ? lp.gallery_images.join('\n') : (lp.gallery_images || ''),
       review_images_text: Array.isArray(lp.review_images) ? lp.review_images.join('\n') : (lp.review_images || ''),
@@ -584,8 +1042,7 @@ export default function DashboardPage() {
       trust_badge_1: lp.trust_badge_1 || 'ส่งฟรีด่วน',
       trust_badge_2: lp.trust_badge_2 || 'ของแท้ 100%',
       trust_badge_3: lp.trust_badge_3 || 'ชำระเงินปลอดภัย',
-      enable_cod_form: Boolean(lp.enable_cod_form),
-      enable_review_album: Boolean(lp.enable_review_album),
+      enable_cod_form: lp.enable_cod_form !== false,
       seo_title: lp.seo_title || '',
       seo_description: lp.seo_description || '',
       seo_keywords: lp.seo_keywords || '',
@@ -651,15 +1108,11 @@ export default function DashboardPage() {
     (profile?.master_expires_at && new Date(profile.master_expires_at).getTime() > Date.now()) ||
     (profile?.pixel_expires_at && new Date(profile.pixel_expires_at).getTime() > Date.now())
 
-  const isLandingTabLocked = profile.role !== 'admin' && 
-    !(profile.master_expires_at && new Date(profile.master_expires_at).getTime() > Date.now()) &&
-    !(profile.extra_landing_page_slots && profile.extra_landing_page_slots > 0)
-
-  const isMasterUser = profile.role === 'admin' || Boolean(profile?.master_expires_at && new Date(profile.master_expires_at).getTime() > Date.now())
+  const isMasterUser = profile?.role === 'admin' || (profile?.master_expires_at && new Date(profile.master_expires_at).getTime() > Date.now())
   const baseLandingSlots = isMasterUser ? 1 : 0
-  const totalLandingSlots = profile.role === 'admin' ? 9999 : (baseLandingSlots + (profile?.extra_landing_page_slots || 0))
-  const isLandingQuotaFull = profile.role !== 'admin' && landingPages.length >= totalLandingSlots
-  const isLandingPageUnlocked = profile.role === 'admin' || isMasterUser || totalLandingSlots > 0
+  const totalLandingSlots = profile?.role === 'admin' ? 9999 : (baseLandingSlots + (profile?.extra_landing_page_slots || 0))
+  const isLandingQuotaFull = profile?.role !== 'admin' && landingPages.length >= totalLandingSlots
+  const isLandingActive = isMasterUser || totalLandingSlots > 0 || isPixelActive
 
   const handleUnlockLandingPageSlot = async () => {
     if (!user) return
@@ -735,6 +1188,16 @@ export default function DashboardPage() {
       original_price: parseFloat(newLandingPage.original_price) || null,
       cta_text: newLandingPage.cta_text.trim() || 'สั่งซื้อโปรโมชั่นพิเศษนี้ทันที',
       cta_url: rawCtaUrl,
+      sticky_btn1_text: newLandingPage.sticky_btn1_text?.trim() || newLandingPage.cta_text?.trim() || 'ติดต่อสั่งซื้อด่วน',
+      sticky_btn1_url: newLandingPage.sticky_btn1_url?.trim() || rawCtaUrl,
+      sticky_btn2_text: newLandingPage.sticky_btn2_text?.trim() || newLandingPage.cta_secondary_text?.trim() || 'ช่องทางติดต่ออื่นๆ',
+      sticky_btn2_url: newLandingPage.sticky_btn2_url?.trim() || newLandingPage.cta_secondary_url?.trim() || null,
+      sticky_btn3_text: newLandingPage.sticky_btn3_text?.trim() || newLandingPage.cta_shop_text?.trim() || 'สั่งซื้อออนไลน์',
+      sticky_btn3_url: newLandingPage.sticky_btn3_url?.trim() || newLandingPage.cta_shop_url?.trim() || null,
+      cta_secondary_text: newLandingPage.sticky_btn2_text?.trim() || newLandingPage.cta_secondary_text?.trim() || 'ช่องทางติดต่ออื่นๆ',
+      cta_secondary_url: newLandingPage.sticky_btn2_url?.trim() || newLandingPage.cta_secondary_url?.trim() || null,
+      cta_shop_text: newLandingPage.sticky_btn3_text?.trim() || newLandingPage.cta_shop_text?.trim() || 'สั่งซื้อออนไลน์',
+      cta_shop_url: newLandingPage.sticky_btn3_url?.trim() || newLandingPage.cta_shop_url?.trim() || null,
       countdown_minutes: parseInt(String(newLandingPage.countdown_minutes), 10) || 15,
       features: newLandingPage.features_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
       gallery_images: newLandingPage.gallery_images_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
@@ -749,8 +1212,7 @@ export default function DashboardPage() {
       trust_badge_1: newLandingPage.trust_badge_1.trim() || 'ส่งฟรีด่วน',
       trust_badge_2: newLandingPage.trust_badge_2.trim() || 'ของแท้ 100%',
       trust_badge_3: newLandingPage.trust_badge_3.trim() || 'ชำระเงินปลอดภัย',
-      enable_cod_form: Boolean(newLandingPage.enable_cod_form),
-      enable_review_album: Boolean(newLandingPage.enable_review_album),
+      enable_cod_form: newLandingPage.enable_cod_form,
       seo_title: newLandingPage.seo_title.trim() || null,
       seo_description: newLandingPage.seo_description.trim() || null,
       seo_keywords: newLandingPage.seo_keywords.trim() || null,
@@ -759,8 +1221,6 @@ export default function DashboardPage() {
       theme_color: newLandingPage.theme_color || '#EF4444',
       bg_color: newLandingPage.bg_color || '#0B0F17',
       bg_image_url: newLandingPage.bg_image_url.trim() || null,
-      text_color: newLandingPage.text_color || '#FFFFFF',
-      subtext_color: newLandingPage.subtext_color || '#E2E8F0',
       card_style: newLandingPage.card_style || 'glass',
       fb_pixel_id: newLandingPage.fb_pixel_id.trim() || null,
       tiktok_pixel_id: newLandingPage.tiktok_pixel_id.trim() || null,
@@ -860,13 +1320,11 @@ export default function DashboardPage() {
   }
 
   // --- Redeem VIP Tiers with Points ---
-  const handleFastUpgrade = (tier: 'pro' | 'master') => handleRedeemTierWithPoints(tier)
   const handleRedeemTierWithPoints = async (tierType: 'pro' | 'master') => {
     if (!user) return
     const cost = tierType === 'master' ? 250 : 100
     if ((profile.points || 0) < cost) {
-      showToast(`❌ แต้มสะสมไม่เพียงพอ (ต้องการ ${cost} แต้ม แต่คุณมี ${profile.points || 0} แต้ม) กรุณาเติมแต้มก่อนครับ`)
-      setTopUpModalOpen(true)
+      showToast(`❌ แต้มสะสมไม่เพียงพอ (ต้องการ ${cost} แต้ม แต่คุณมี ${profile.points || 0} แต้ม)`)
       return
     }
 
@@ -900,6 +1358,49 @@ export default function DashboardPage() {
     }
   }
 
+  // --- REORDERING / SWAPPING POSITIONS (LINKS & PRODUCTS) ---
+  const handleMoveLink = async (index: number, direction: 'up' | 'down') => {
+    if ((direction === 'up' && index === 0) || (direction === 'down' && index === links.length - 1)) return
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    const newLinks = [...links]
+    const temp = newLinks[index]
+    newLinks[index] = newLinks[targetIndex]
+    newLinks[targetIndex] = temp
+
+    // Update positions in state
+    setLinks(newLinks)
+
+    // Persist to Supabase
+    try {
+      await Promise.all([
+        supabase.from('links').update({ position: targetIndex }).eq('id', temp.id),
+        supabase.from('links').update({ position: index }).eq('id', newLinks[index].id)
+      ])
+      showToast('↕️ สลับตำแหน่งลิงก์เรียบร้อย')
+    } catch (e) {}
+  }
+
+  const handleMoveProduct = async (index: number, direction: 'up' | 'down') => {
+    if ((direction === 'up' && index === 0) || (direction === 'down' && index === products.length - 1)) return
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    const newProducts = [...products]
+    const temp = newProducts[index]
+    newProducts[index] = newProducts[targetIndex]
+    newProducts[targetIndex] = temp
+
+    // Update positions in state
+    setProducts(newProducts)
+
+    // Persist to Supabase
+    try {
+      await Promise.all([
+        supabase.from('products').update({ position: targetIndex }).eq('id', temp.id),
+        supabase.from('products').update({ position: index }).eq('id', newProducts[index].id)
+      ])
+      showToast('↕️ สลับตำแหน่งสินค้าเรียบร้อย')
+    } catch (e) {}
+  }
+
   // --- Image Upload ---
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetField: string) => {
     const file = e.target.files?.[0]
@@ -928,7 +1429,11 @@ export default function DashboardPage() {
     } else if (targetField === 'newLink') {
       setNewLink(prev => ({ ...prev, logo_url: publicUrl }))
     } else {
-      setProfile((prev: any) => ({ ...prev, [targetField]: publicUrl }))
+      if (targetField === 'inner_bg_image_url' || targetField === 'inner_bg_image_url') {
+        setProfile((prev: any) => ({ ...prev, inner_bg_image_url: publicUrl, inner_bg_image_url: publicUrl }))
+      } else {
+        setProfile((prev: any) => ({ ...prev, [targetField]: publicUrl }))
+      }
     }
 
     setUploading(null)
@@ -1130,7 +1635,7 @@ export default function DashboardPage() {
               {[
                 { id: 'links', label: 'ลิ้งก์', icon: Link2, count: links.length },
                 { id: 'shop', label: 'ร้านค้า', icon: ShoppingBag, count: products.length },
-                { id: 'landing_pages', label: 'เซลเพจยิงแอด', icon: Rocket, count: landingPages.length, locked: isLandingTabLocked },
+                { id: 'landing_pages', label: 'เซลเพจยิงแอด', icon: Rocket, count: landingPages.length, locked: !isLandingActive },
                 { id: 'appearance', label: 'ข้อมูลโปรไฟล์', icon: Palette },
                 { id: 'shortener', label: 'ย่อลิงก์', icon: Scissors, count: shortLinks.length, locked: !isShortenerActive },
                 { id: 'leads', label: 'ลีด CRM', icon: Users, count: leads.length },
@@ -1144,11 +1649,7 @@ export default function DashboardPage() {
                     onClick={() => {
                   setActiveTab(tab.id as any)
                   if (tab.id === 'landing_pages') {
-                    if (isLandingPageUnlocked) {
-                      setPreviewMode('landing')
-                    } else {
-                      setPreviewMode('bio')
-                    }
+                    setPreviewMode('landing')
                   } else if (tab.id === 'links' || tab.id === 'shop' || tab.id === 'appearance') {
                     setPreviewMode('bio')
                   }
@@ -1252,7 +1753,7 @@ export default function DashboardPage() {
 
                     {/* Image Thumbnail / Logo Upload for Link */}
                     <div>
-                      <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1.5">รูปภาพตัวอย่าง (Thumbnail Image)</label>
+                      <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1.5">รูปภาพไอคอน/โลโก้บนปุ่ม (Logo / Thumbnail)</label>
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden shrink-0">
                           {newLink.logo_url ? (
@@ -1264,7 +1765,7 @@ export default function DashboardPage() {
 
                         <label className="flex-1 py-3 px-4 bg-white dark:bg-slate-950 border border-dashed border-purple-300 dark:border-purple-700 hover:border-purple-500 text-purple-600 dark:text-purple-400 rounded-2xl text-xs font-bold cursor-pointer transition flex items-center justify-center gap-2">
                           <Upload className="w-4 h-4" />
-                          <span>{uploading === 'newLink' ? 'กำลังอัปโหลด...' : 'อัปโหลดรูปภาพ'}</span>
+                          <span>{uploading === 'newLink' ? 'กำลังอัปโหลด...' : '📸 เลือกรูปภาพจากมือถือ'}</span>
                           <input
                             type="file"
                             accept="image/*"
@@ -1272,6 +1773,89 @@ export default function DashboardPage() {
                             className="hidden"
                           />
                         </label>
+
+                        {newLink.logo_url && (
+                          <button
+                            type="button"
+                            onClick={() => setNewLink({ ...newLink, logo_url: '' })}
+                            className="text-xs text-rose-500 hover:underline shrink-0"
+                          >
+                            ลบรูป
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Custom Button Color & Text Color per Link */}
+                    <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
+                      <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
+                        🎨 ปรับแต่งสีปุ่มนี้แยกอิสระ (Custom Button Styling)
+                      </label>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <span className="text-[11px] font-bold text-slate-500 mb-1 block">สีพื้นหลังปุ่ม (Background Color)</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={newLink.bg_color || '#1E1B4B'}
+                              onChange={(e) => setNewLink({ ...newLink, bg_color: e.target.value })}
+                              className="w-9 h-9 rounded-xl border border-slate-300 dark:border-slate-700 cursor-pointer p-0.5 bg-white"
+                            />
+                            <input
+                              type="text"
+                              value={newLink.bg_color || '#1E1B4B'}
+                              onChange={(e) => setNewLink({ ...newLink, bg_color: e.target.value })}
+                              className="flex-1 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-[11px] font-bold text-slate-500 mb-1 block">สีตัวอักษรบนปุ่ม (Text Color)</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={newLink.text_color || '#FFFFFF'}
+                              onChange={(e) => setNewLink({ ...newLink, text_color: e.target.value })}
+                              className="w-9 h-9 rounded-xl border border-slate-300 dark:border-slate-700 cursor-pointer p-0.5 bg-white"
+                            />
+                            <input
+                              type="text"
+                              value={newLink.text_color || '#FFFFFF'}
+                              onChange={(e) => setNewLink({ ...newLink, text_color: e.target.value })}
+                              className="flex-1 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Schedule Link */}
+                    <div className="p-3.5 bg-purple-50/40 dark:bg-purple-950/20 border border-purple-200/60 dark:border-purple-900/40 rounded-2xl space-y-2">
+                      <label className="block text-xs font-bold text-purple-900 dark:text-purple-300 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>ตั้งเวลาเปิด-ปิดปุ่มนี้ล่วงหน้า (Schedule - ไม่ระบุก็ได้)</span>
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-[10px] text-slate-500 block mb-0.5">เริ่มแสดงตั้งแต่</span>
+                          <input
+                            type="datetime-local"
+                            value={newLink.starts_at}
+                            onChange={(e) => setNewLink({ ...newLink, starts_at: e.target.value })}
+                            className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 block mb-0.5">สิ้นสุดการแสดง</span>
+                          <input
+                            type="datetime-local"
+                            value={newLink.ends_at}
+                            onChange={(e) => setNewLink({ ...newLink, ends_at: e.target.value })}
+                            className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono"
+                          />
+                        </div>
                       </div>
                     </div>
 
@@ -1330,8 +1914,31 @@ export default function DashboardPage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          {/* Move Up / Move Down Reorder Buttons */}
+                          <div className="flex flex-col gap-1 mr-1">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveLink(links.indexOf(link), 'up')}
+                              disabled={links.indexOf(link) === 0}
+                              className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-purple-100 dark:hover:bg-purple-900 text-xs font-black flex items-center justify-center disabled:opacity-30"
+                              title="เลื่อนขึ้น"
+                            >
+                              ▲
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveLink(links.indexOf(link), 'down')}
+                              disabled={links.indexOf(link) === links.length - 1}
+                              className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-purple-100 dark:hover:bg-purple-900 text-xs font-black flex items-center justify-center disabled:opacity-30"
+                              title="เลื่อนลง"
+                            >
+                              ▼
+                            </button>
+                          </div>
+
                           <button
+                            type="button"
                             onClick={() => handleToggleLinkActive(link.id, link.is_active)}
                             className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition ${
                               link.is_active 
@@ -1342,6 +1949,7 @@ export default function DashboardPage() {
                             {link.is_active ? 'เปิดอยู่' : 'ปิด'}
                           </button>
                           <button
+                            type="button"
                             onClick={() => handleDeleteLink(link.id)}
                             className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
                             title="ลบลิ้งก์"
@@ -1491,15 +2099,37 @@ export default function DashboardPage() {
                           </div>
 
                           <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
-                            <a
-                              href={prod.buy_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-[11px] text-purple-600 dark:text-purple-400 font-bold hover:underline flex items-center gap-1"
-                            >
-                              <span>ทดสอบลิงก์</span> <ArrowUpRight className="w-3.5 h-3.5" />
-                            </a>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleMoveProduct(products.indexOf(prod), 'up')}
+                                disabled={products.indexOf(prod) === 0}
+                                className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-purple-100 dark:hover:bg-purple-900 text-xs font-black flex items-center justify-center disabled:opacity-30"
+                                title="เลื่อนขึ้น"
+                              >
+                                ▲
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleMoveProduct(products.indexOf(prod), 'down')}
+                                disabled={products.indexOf(prod) === products.length - 1}
+                                className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-purple-100 dark:hover:bg-purple-900 text-xs font-black flex items-center justify-center disabled:opacity-30"
+                                title="เลื่อนลง"
+                              >
+                                ▼
+                              </button>
+                              <a
+                                href={prod.buy_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[11px] text-purple-600 dark:text-purple-400 font-bold hover:underline flex items-center gap-1 ml-1"
+                              >
+                                <span>ทดสอบ</span> <ArrowUpRight className="w-3 h-3" />
+                              </a>
+                            </div>
+
                             <button
+                              type="button"
                               onClick={() => handleDeleteProduct(prod.id)}
                               className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
                             >
@@ -1597,6 +2227,234 @@ export default function DashboardPage() {
                         className="w-full px-4 py-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 dark:focus:ring-purple-900/30 font-mono"
                       />
                     </div>
+
+                  {/* FULL PRO APPEARANCE: BACKGROUND COLOR, WALLPAPER IMAGE, TYPOGRAPHY & BUTTON COLORS */}
+                  <div className="p-5 bg-slate-50 dark:bg-slate-950 border border-slate-200/90 dark:border-slate-800 rounded-3xl space-y-5">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                      <h4 className="text-xs font-extrabold text-[#1E1B4B] dark:text-white flex items-center gap-2">
+                        <Palette className="w-4 h-4 text-purple-600" />
+                        <span>ปรับแต่งสีพื้นหลังกรอบเล็ก/ใหญ่ & สีตัวหนังสือทุกจุด (Colors & Backgrounds)</span>
+                      </h4>
+                      <span className="text-[10px] bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold px-2 py-0.5 rounded-full">
+                        พรีวิวสดทันที
+                      </span>
+                    </div>
+
+                    {/* 1. Page Background Color Presets & Custom Hex */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
+                        1. สีพื้นหลังของกรอบเล็ก (Inner Card Background Color)
+                      </label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {[
+                          { color: '#0B0F17', label: 'ดำ Obsidian' },
+                          { color: '#FFFFFF', label: 'ขาวสว่าง Clean' },
+                          { color: '#F9F9FF', label: 'พาสเทล Lavender' },
+                          { color: '#0F172A', label: 'มิดไนท์ Navy' },
+                          { color: '#18080E', label: 'แดงเบอร์กันดี' }
+                        ].map((preset) => (
+                          <button
+                            key={preset.color}
+                            type="button"
+                            onClick={() => setProfile({ ...profile, bg_color: preset.color })}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
+                              profile.bg_color === preset.color
+                                ? 'border-purple-600 ring-2 ring-purple-500/30 bg-white dark:bg-slate-900 shadow-sm'
+                                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300'
+                            }`}
+                          >
+                            <span className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shadow-inner" style={{ backgroundColor: preset.color }}></span>
+                            <span>{preset.label}</span>
+                          </button>
+                        ))}
+
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          <input
+                            type="color"
+                            value={profile.bg_color || '#0B0F17'}
+                            onChange={(e) => setProfile({ ...profile, bg_color: e.target.value })}
+                            className="w-7 h-7 rounded-lg border border-slate-300 dark:border-slate-700 cursor-pointer p-0.5 bg-white"
+                          />
+                          <input
+                            type="text"
+                            placeholder="#0B0F17"
+                            value={profile.bg_color || '#0B0F17'}
+                            onChange={(e) => setProfile({ ...profile, bg_color: e.target.value })}
+                            className="w-24 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono font-bold text-[#1E1B4B] dark:text-white focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 2. Text Color (Name, Bio, Subtitles) */}
+                    <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-slate-800">
+                      <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
+                        2. สีตัวหนังสือ (Text & Title Color)
+                      </label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {[
+                          { color: '#FFFFFF', label: 'ขาวสว่าง (สำหรับพื้นหลังมืด)' },
+                          { color: '#1E1B4B', label: 'ดำน้ำเงิน (สำหรับพื้นหลังสว่าง)' },
+                          { color: '#A78BFA', label: 'ม่วงพาสเทล' },
+                          { color: '#F59E0B', label: 'ทองคำหรูหรา' }
+                        ].map((preset) => (
+                          <button
+                            key={preset.color}
+                            type="button"
+                            onClick={() => setProfile({ ...profile, text_color: preset.color })}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
+                              profile.text_color === preset.color
+                                ? 'border-purple-600 ring-2 ring-purple-500/30 bg-white dark:bg-slate-900 shadow-sm'
+                                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300'
+                            }`}
+                          >
+                            <span className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shadow-inner" style={{ backgroundColor: preset.color }}></span>
+                            <span>{preset.label}</span>
+                          </button>
+                        ))}
+
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          <input
+                            type="color"
+                            value={profile.text_color || '#FFFFFF'}
+                            onChange={(e) => setProfile({ ...profile, text_color: e.target.value })}
+                            className="w-7 h-7 rounded-lg border border-slate-300 dark:border-slate-700 cursor-pointer p-0.5 bg-white"
+                          />
+                          <input
+                            type="text"
+                            placeholder="#FFFFFF"
+                            value={profile.text_color || '#FFFFFF'}
+                            onChange={(e) => setProfile({ ...profile, text_color: e.target.value })}
+                            className="w-24 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono font-bold text-[#1E1B4B] dark:text-white focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 3. Button Background & Button Text Color */}
+                    <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-slate-800">
+                      <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
+                        3. สีปุ่มลิงก์รวม & สีตัวอักษรบนปุ่ม (Buttons Style)
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1.5">
+                          <span className="text-[11px] font-bold text-slate-500 block">สีพื้นหลังปุ่ม (Button Color)</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={profile.custom_button_color || '#1E1B4B'}
+                              onChange={(e) => setProfile({ ...profile, custom_button_color: e.target.value })}
+                              className="w-8 h-8 rounded-xl border border-slate-300 dark:border-slate-700 cursor-pointer p-0.5 bg-white shrink-0"
+                            />
+                            <input
+                              type="text"
+                              value={profile.custom_button_color || '#1E1B4B'}
+                              onChange={(e) => setProfile({ ...profile, custom_button_color: e.target.value })}
+                              className="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1.5">
+                          <span className="text-[11px] font-bold text-slate-500 block">สีตัวอักษรบนปุ่ม (Button Text Color)</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={profile.custom_button_text_color || '#FFFFFF'}
+                              onChange={(e) => setProfile({ ...profile, custom_button_text_color: e.target.value })}
+                              className="w-8 h-8 rounded-xl border border-slate-300 dark:border-slate-700 cursor-pointer p-0.5 bg-white shrink-0"
+                            />
+                            <input
+                              type="text"
+                              value={profile.custom_button_text_color || '#FFFFFF'}
+                              onChange={(e) => setProfile({ ...profile, custom_button_text_color: e.target.value })}
+                              className="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 4. Background Wallpaper Image: In the Small Frame (Inner Card) */}
+                    <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
+                          4. ภาพวอลเปเปอร์เฉพาะในกรอบเล็ก (Inner Card Wallpaper Image)
+                        </label>
+                        <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">แสดงภายในกรอบสมาร์ตโฟน / กรอบเล็ก</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                          {profile.inner_bg_image_url ? (
+                            <img src={profile.inner_bg_image_url} alt="Inner BG" className="w-full h-full object-cover" />
+                          ) : (
+                            <ImageIcon className="w-5 h-5 text-slate-400" />
+                          )}
+                        </div>
+
+                        <label className="flex-1 py-3 px-4 bg-white dark:bg-slate-900 border border-dashed border-purple-300 dark:border-purple-700 hover:border-purple-500 text-purple-600 dark:text-purple-400 rounded-2xl text-xs font-bold cursor-pointer transition flex items-center justify-center gap-2 shadow-sm active:scale-98">
+                          <Upload className="w-4 h-4" />
+                          <span>{uploading === 'inner_bg_image_url' ? 'กำลังอัปโหลด...' : '📸 เลือกภาพพื้นหลังกรอบเล็กจากมือถือ'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileUpload(e, 'inner_bg_image_url')}
+                            className="hidden"
+                          />
+                        </label>
+
+                        {profile.inner_bg_image_url && (
+                          <button
+                            type="button"
+                            onClick={() => setProfile({ ...profile, inner_bg_image_url: '' })}
+                            className="text-xs text-rose-500 hover:underline shrink-0 font-bold"
+                          >
+                            ลบรูป
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 5. Background Wallpaper Image: Outer Full-Screen Wallpaper */}
+                    <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
+                          5. ภาพวอลเปเปอร์พื้นหลังใหญ่สุดด้านหลัง (Outer Full-Screen Wallpaper)
+                        </label>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">แสดงเต็มจอคอมพิวเตอร์ / พื้นหลังหลัก</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                          {profile.bg_image_url ? (
+                            <img src={profile.bg_image_url} alt="Outer BG" className="w-full h-full object-cover" />
+                          ) : (
+                            <ImageIcon className="w-5 h-5 text-slate-400" />
+                          )}
+                        </div>
+
+                        <label className="flex-1 py-3 px-4 bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 hover:border-purple-500 text-slate-700 dark:text-slate-300 rounded-2xl text-xs font-bold cursor-pointer transition flex items-center justify-center gap-2 shadow-sm active:scale-98">
+                          <Upload className="w-4 h-4" />
+                          <span>{uploading === 'bg_image_url' ? 'กำลังอัปโหลด...' : '📸 เลือกภาพพื้นหลังใหญ่ด้านหลังจากมือถือ'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileUpload(e, 'bg_image_url')}
+                            className="hidden"
+                          />
+                        </label>
+
+                        {profile.bg_image_url && (
+                          <button
+                            type="button"
+                            onClick={() => setProfile({ ...profile, bg_image_url: '' })}
+                            className="text-xs text-rose-500 hover:underline shrink-0 font-bold"
+                          >
+                            ลบรูป
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
                     {/* iOS Style Hide Branding Switch */}
                     <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/90 dark:border-slate-800 rounded-2xl flex items-center justify-between">
@@ -1868,18 +2726,18 @@ export default function DashboardPage() {
               </div>
             )}
 
-                                                {/* TAB: DEDICATED ADS SALES LANDING PAGES */}
+                        {/* TAB: DEDICATED ADS SALES LANDING PAGES */}
             {activeTab === 'landing_pages' && (
               <div className="space-y-6">
-                {isLandingTabLocked ? (
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 sm:p-12 rounded-3xl shadow-sm text-center space-y-6 max-w-xl mx-auto my-6 animate-in fade-in duration-200">
-                    <div className="w-16 h-16 rounded-3xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300 flex items-center justify-center mx-auto shadow-sm">
+                {!isLandingActive ? (
+                  <div className="bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/60 p-8 rounded-3xl shadow-sm text-center space-y-5 max-w-xl mx-auto my-6">
+                    <div className="w-16 h-16 rounded-3xl bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto shadow-sm">
                       <Lock className="w-8 h-8" />
                     </div>
 
-                    <div className="space-y-1.5 max-w-md mx-auto">
+                    <div className="space-y-1 max-w-md mx-auto">
                       <h3 className="text-xl font-extrabold text-[#1E1B4B] dark:text-white">
-                        ระบบเซลเพจยิงแอดเป็นฟีเจอร์พรีเมียม
+                        ระบบเซลเพจยิงแอด & Tracking Pixels เป็นฟีเจอร์พรีเมียม
                       </h3>
                       <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
                         สร้างหน้าเซลเพจขายของ Flash Sale พร้อมระบบฝัง Facebook, TikTok, Google, LINE Pixels อัตโนมัติ เพื่อยิงแอด Conversion วัดผลยอดขายได้ 100%
@@ -1888,7 +2746,7 @@ export default function DashboardPage() {
 
                     <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-sm mx-auto flex items-center justify-between shadow-inner">
                       <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">แต้มสะสมของคุณ:</span>
-                      <span className="text-sm font-black text-amber-600 dark:text-amber-400 font-mono flex items-center gap-1">
+                      <span className="text-sm font-black text-amber-600 dark:text-amber-400 flex items-center gap-1 font-mono">
                         <Coins className="w-4 h-4 text-amber-500" /> {profile?.points || 0} แต้ม
                       </span>
                     </div>
@@ -1896,172 +2754,175 @@ export default function DashboardPage() {
                     <div className="flex flex-col gap-2.5 max-w-sm mx-auto pt-2">
                       <button
                         type="button"
-                        onClick={handleUnlockLandingPageSlot}
-                        className="w-full py-3.5 px-4 bg-[#34D399] hover:bg-[#10B981] text-white font-extrabold rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20 transition active:scale-95 cursor-pointer"
+                        onClick={() => handleFastUpgrade('master')}
+                        className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition active:scale-95 cursor-pointer"
                       >
-                        <Rocket className="w-4 h-4" />
-                        <span>🔓 ปลดล็อก 350 แต้ม (1 เซลเพจ)</span>
+                        <Crown className="w-4 h-4" />
+                        <span>👑 แลก MASTER VIP 30 วัน (250 แต้ม)</span>
                       </button>
 
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => handleFastUpgrade('master')}
-                          className="flex-1 py-3 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow transition active:scale-95 cursor-pointer"
+                          onClick={handleUnlockLandingPageSlot}
+                          className="flex-1 py-3 px-3 bg-[#34D399] hover:bg-[#10B981] text-white font-extrabold rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow transition active:scale-95 cursor-pointer"
                         >
-                          <Crown className="w-4 h-4" />
-                          <span>แลก MASTER 250 แต้ม</span>
+                          <Rocket className="w-4 h-4" />
+                          <span>ปลดล็อก 350 แต้ม (1 URL)</span>
                         </button>
 
                         <button
                           type="button"
-                          onClick={() => setTopUpModalOpen(true)}
-                          className="flex-1 py-3 px-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-2xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                          onClick={handleUnlockPixels}
+                          className="flex-1 py-3 px-3 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow transition active:scale-95 cursor-pointer"
                         >
-                          <Coins className="w-4 h-4 text-amber-500" />
-                          <span>+ เติมแต้ม</span>
+                          <Zap className="w-4 h-4 text-amber-300" />
+                          <span>ปลดล็อก Pixels 100 แต้ม</span>
                         </button>
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setTopUpModalOpen(true)}
+                        className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                      >
+                        <Coins className="w-4 h-4 text-amber-500" />
+                        <span>+ เติมแต้มสะสมทันที (PromptPay)</span>
+                      </button>
                     </div>
                   </div>
                 ) : (
                   <>
-                    {/* 1. TRACKING PIXELS CONFIGURATION (Facebook, TikTok, Google, LINE) */}
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold shadow-sm">
-                            <Sparkles className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h3 className="font-extrabold text-base text-[#1E1B4B] dark:text-white flex items-center gap-2">
-                              <span>ฝังโค้ด Tracking Pixels สำหรับยิงแอด</span>
-                              <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
-                                ✓ ใช้งานได้
-                              </span>
-                            </h3>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400">ระบบจะนำ Pixel ID ไปฝังในหน้า Bio และหน้าเซลเพจของคุณอัตโนมัติ 100%</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <button
-                            type="button"
-                            onClick={() => setPixelAnalyticsOpen(true)}
-                            className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5 active:scale-95 animate-pulse cursor-pointer"
-                          >
-                            <Activity className="w-3.5 h-3.5" />
-                            <span>📊 ตรวจสอบสถานะ Pixel & สถิติสด</span>
-                          </button>
-
-                          <button
-                            onClick={handleSaveProfile}
-                            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
-                          >
-                            <Save className="w-3.5 h-3.5" />
-                            <span>บันทึก Pixel ID</span>
-                          </button>
-                        </div>
+                {/* 1. TRACKING PIXELS CONFIGURATION (Facebook, TikTok, Google, LINE) */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold shadow-sm">
+                        <Sparkles className="w-5 h-5" />
                       </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1 flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                            <span>Facebook Pixel ID (Meta)</span>
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="เช่น 123456789012345 (ตัวเลข 15-16 หลัก)"
-                            value={profile.fb_pixel_id || ''}
-                            onChange={(e) => setProfile({ ...profile, fb_pixel_id: e.target.value })}
-                            className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono font-bold"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1 flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-black dark:bg-white"></span>
-                            <span>TikTok Pixel ID</span>
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="เช่น C9A1B2C3D4E5F6G7..."
-                            value={profile.tiktok_pixel_id || ''}
-                            onChange={(e) => setProfile({ ...profile, tiktok_pixel_id: e.target.value })}
-                            className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono font-bold"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1 flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                            <span>Google Analytics / Tag ID (GA4 / Ads)</span>
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="เช่น G-XXXXXXXXXX หรือ AW-XXXXXXXXX"
-                            value={profile.google_pixel_id || ''}
-                            onChange={(e) => setProfile({ ...profile, google_pixel_id: e.target.value })}
-                            className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono font-bold"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1 flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                            <span>LINE Tag ID</span>
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="เช่น xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                            value={profile.line_tag_id || ''}
-                            onChange={(e) => setProfile({ ...profile, line_tag_id: e.target.value })}
-                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono font-bold"
-                          />
-                        </div>
+                      <div>
+                        <h3 className="font-extrabold text-base text-[#1E1B4B] dark:text-white">ฝังโค้ด Tracking Pixels สำหรับยิงแอด</h3>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">ระบบจะนำ Pixel ID ไปฝังในหน้า Bio และหน้าเซลเพจของคุณอัตโนมัติ 100%</p>
                       </div>
                     </div>
 
-                    {/* Header & Quota Card */}
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold shadow-sm">
-                            <Rocket className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h3 className="font-extrabold text-base text-[#1E1B4B] dark:text-white">ระบบสร้างหน้าเซลเพจยิงแอด (Sales Landing Pages)</h3>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400">สร้างหน้าเว็บแยกสำหรับยิงแอด Facebook & TikTok พร้อมฝัง Pixel อัตโนมัติ</p>
-                          </div>
-                        </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => setPixelAnalyticsOpen(true)}
+                        className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5 active:scale-95 animate-pulse"
+                      >
+                        <Activity className="w-3.5 h-3.5" />
+                        <span>📊 ตรวจสอบสถานะ Pixel & สถิติสด</span>
+                      </button>
 
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full font-mono">
-                            โควตา: {landingPages.length}/{profile.role === 'admin' ? 'ไม่จำกัด (Admin)' : `${totalLandingSlots} เซลเพจ`}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={handleUnlockLandingPageSlot}
-                            disabled={unlockingLandingSlot}
-                            className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs transition shadow flex items-center gap-1 active:scale-95 cursor-pointer"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>{unlockingLandingSlot ? 'กำลังปลดล็อก...' : '+ เพิ่ม URL (350 แต้ม)'}</span>
-                          </button>
-                        </div>
+                      <button
+                        onClick={handleSaveProfile}
+                        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5 active:scale-95"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        <span>บันทึก Pixel ID</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                    <div>
+                      <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1 flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                        <span>Facebook Pixel ID (Meta)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="เช่น 123456789012345 (ตัวเลข 15-16 หลัก)"
+                        value={profile.fb_pixel_id || ''}
+                        onChange={(e) => setProfile({ ...profile, fb_pixel_id: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1 flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-black dark:bg-white"></span>
+                        <span>TikTok Pixel ID</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="เช่น C9A1B2C3D4E5F6G7..."
+                        value={profile.tiktok_pixel_id || ''}
+                        onChange={(e) => setProfile({ ...profile, tiktok_pixel_id: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1 flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <span>Google Analytics / Tag ID (GA4 / Ads)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="เช่น G-XXXXXXXXXX หรือ AW-XXXXXXXXX"
+                        value={profile.google_pixel_id || ''}
+                        onChange={(e) => setProfile({ ...profile, google_pixel_id: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1 flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        <span>LINE Tag ID</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="เช่น xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                        value={profile.line_tag_id || ''}
+                        onChange={(e) => setProfile({ ...profile, line_tag_id: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono font-bold"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Header & Quota Card */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold shadow-sm">
+                        <Rocket className="w-5 h-5" />
                       </div>
-
-                      {/* Quota Details Notice */}
-                      <div className="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl text-xs text-rose-900 dark:text-rose-200 flex items-start gap-2.5">
-                        <Sparkles className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
-                        <div>
-                          <span className="font-black">👑 สิทธิพิเศษ:</span> สมาชิก <strong>MASTER VIP</strong> สร้างเซลเพจฟรีได้ 1 URL ทันที และสามารถใช้ <strong>350 แต้ม</strong> เพื่อปลดล็อกเพิ่มได้ไม่จำกัด URL
-                        </div>
+                      <div>
+                        <h3 className="font-extrabold text-base text-[#1E1B4B] dark:text-white">ระบบสร้างหน้าเซลเพจยิงแอด (Sales Landing Pages)</h3>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">สร้างหน้าเว็บแยกสำหรับยิงแอด Facebook & TikTok พร้อมฝัง Pixel อัตโนมัติ</p>
                       </div>
+                    </div>
 
-                      {/* Complete 6-Section & SEO Landing Page Builder Form */}
-                      {(!isLandingQuotaFull || profile.role === 'admin') ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full font-mono">
+                        โควตา: {landingPages.length}/{profile.role === 'admin' ? 'ไม่จำกัด (Admin)' : `${totalLandingSlots} เซลเพจ`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleUnlockLandingPageSlot}
+                        className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs transition shadow flex items-center gap-1 active:scale-95 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>{unlockingLandingSlot ? 'กำลังปลดล็อก...' : '+ เพิ่ม URL (350 แต้ม)'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Quota Details Notice */}
+                  <div className="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl text-xs text-rose-900 dark:text-rose-200 flex items-start gap-2.5">
+                    <Sparkles className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-black">👑 สิทธิพิเศษ:</span> สมาชิก <strong>MASTER VIP</strong> สร้างเซลเพจฟรีได้ 1 URL ทันที และสามารถใช้ <strong>350 แต้ม</strong> เพื่อปลดล็อกเพิ่มได้ไม่จำกัด URL
+                    </div>
+                  </div>
+
+                  {/* Complete 6-Section & SEO Landing Page Builder Form */}
+                  {(!isLandingQuotaFull || profile.role === 'admin') ? (
                     <form onSubmit={handleAddLandingPage} className="space-y-6 pt-2">
                       
                       {/* --- SECTION 1: HERO & AD SCENT (Above the Fold) --- */}
@@ -2232,34 +3093,27 @@ export default function DashboardPage() {
                           </div>
 
                           {/* COD Form Toggle Switch */}
-                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                             <div>
-                              <p className="text-xs font-extrabold text-[#1E1B4B] dark:text-white flex items-center gap-1.5">
-                                <span>ฟอร์มสั่งซื้อเก็บเงินปลายทาง (COD Form)</span>
-                                <span className={`text-[10px] px-2 py-0.2 rounded-full font-bold ${
-                                  newLandingPage.enable_cod_form 
-                                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40' 
-                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-                                }`}>
-                                  {newLandingPage.enable_cod_form ? '✓ เปิดใช้งาน' : '✕ ปิดใช้งาน (ซ่อนฟอร์ม)'}
-                                </span>
+                              <p className="text-xs font-extrabold text-[#1E1B4B] dark:text-white">
+                                แสดง "ฟอร์มสั่งซื้อเก็บเงินปลายทาง (COD Form)" ด้านล่าง
                               </p>
-                              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              <p className="text-[10px] text-slate-500">
                                 {newLandingPage.enable_cod_form 
-                                  ? 'แสดงฟอร์มกรอกที่อยู่สั่งซื้อ COD ด้านล่างของเซลเพจ' 
-                                  : 'แนะนำสำหรับร้านที่ไม่มี COD: ซ่อนฟอร์มทั้งหมด ลูกค้าจะคลิกสั่งซื้อผ่าน LINE OA / เว็บไซต์แทน 100%'}
+                                  ? '✓ เปิดใช้งาน: ลูกค้าสามารถกรอกชื่อ-เบอร์โทร-ที่อยู่สั่งซื้อ COD ได้ทันที' 
+                                  : '✕ ปิดใช้งาน: ซ่อนฟอร์ม COD และให้ลูกค้าคลิกปุ่มสั่งซื้อผ่าน LINE OA / เว็บไซต์แทน'}
                               </p>
                             </div>
                             <button
                               type="button"
                               onClick={() => setNewLandingPage({ ...newLandingPage, enable_cod_form: !newLandingPage.enable_cod_form })}
-                              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 ${
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                                 newLandingPage.enable_cod_form 
-                                  ? 'bg-emerald-500 text-slate-950 font-black shadow-md shadow-emerald-500/20' 
-                                  : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300'
+                                  ? 'bg-emerald-500 text-slate-950 font-black shadow' 
+                                  : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                               }`}
                             >
-                              <span>{newLandingPage.enable_cod_form ? '✓ เปิดใช้งาน COD อยู่' : '✕ ปิดฟอร์ม COD (ซ่อนฟอร์ม)'}</span>
+                              <span>{newLandingPage.enable_cod_form ? 'เปิดใช้งาน COD' : 'ปิดฟอร์ม COD'}</span>
                             </button>
                           </div>
                         </div>
@@ -2352,19 +3206,18 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      {/* --- SECTION: CUSTOMER REVIEW PHOTO ALBUM (อัลบั้มรูปรีวิวลูกค้า) --- */}
-                      <div className="p-4 bg-amber-50/50 dark:bg-amber-950/30 border-2 border-amber-300/80 dark:border-amber-900/60 rounded-2xl space-y-3">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200 dark:border-amber-900/50 pb-2">
+                      {/* --- SECTION: CUSTOMER REVIEW PHOTO ALBUM (อัลบั้มรูปรีวิว) --- */}
+                      <div className="p-4 bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 rounded-2xl space-y-3">
+                        <div className="flex items-center justify-between border-b border-amber-200 dark:border-amber-900/50 pb-2">
                           <div className="flex items-center gap-2">
                             <ImageIcon className="w-5 h-5 text-amber-500" />
                             <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white">
-                              📸 อัลบั้มรูปภาพรีวิวและการใช้งานจริงจากลูกค้า (Review Photos Album)
+                              รูปภาพรีวิวและการใช้งานจริงจากลูกค้า (Review Photos Album)
                             </h4>
                           </div>
-
-                          <label className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition shadow-md shadow-amber-500/20 active:scale-95 flex-shrink-0">
-                            <Upload className="w-4 h-4" />
-                            <span>{uploadingLpImg ? 'กำลังอัปโหลด...' : '📸 เลือกรูปรีวิวจากมือถือ'}</span>
+                          <label className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition shadow-sm">
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>📸 เพิ่มรูปรีวิวจากมือถือ</span>
                             <input
                               type="file"
                               accept="image/*"
@@ -2375,43 +3228,16 @@ export default function DashboardPage() {
                         </div>
 
                         <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                          ใส่ภาพแชตรีวิวจากลูกค้า ภาพสินค้าขณะใช้งาน หรือผลลัพธ์การันตี เพื่อให้ลูกค้าแตะดูรูปขยายแบบอัลบั้มได้
+                          ใส่ภาพแชตรีวิวจากลูกค้า หรือภาพสินค้าขณะใช้งานจริง เพื่อให้ลูกค้าแตะดูรูปขยายแบบอัลบั้มได้
                         </p>
 
                         <textarea
-                          rows={3}
-                          placeholder="URL รูปภาพรีวิวจากลูกค้า (1 บรรทัด = 1 รูป หรือ กดปุ่มเลือกรูปจากมือถือด้านบน)"
+                          rows={2}
+                          placeholder="URL รูปภาพรีวิว (1 บรรทัด = 1 รูป หรือ กดปุ่มอัปโหลดรูปรีวิวจากมือถือด้านบน)"
                           value={newLandingPage.review_images_text}
                           onChange={(e) => setNewLandingPage({ ...newLandingPage, review_images_text: e.target.value })}
-                          className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono"
+                          className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono"
                         />
-
-                        {/* Thumbnail Strip in Form */}
-                        {newLandingPage.review_images_text.trim() && (
-                          <div className="pt-2 border-t border-amber-200/60 dark:border-amber-900/40 space-y-2">
-                            <span className="text-[11px] font-bold text-amber-900 dark:text-amber-300">
-                              ตัวอย่างรูปภาพในอัลบั้มรีวิว ({newLandingPage.review_images_text.split('\n').filter(s => s.trim().length > 0).length} รูป):
-                            </span>
-                            <div className="flex items-center gap-2 overflow-x-auto py-1">
-                              {newLandingPage.review_images_text.split('\n').filter(s => s.trim().length > 0).map((url, idx) => (
-                                <div key={idx} className="relative group flex-shrink-0">
-                                  <img src={url.trim()} alt="" className="w-14 h-14 object-cover rounded-xl border-2 border-amber-400 shadow-sm" />
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const filtered = newLandingPage.review_images_text.split('\n').filter((_, i) => i !== idx).join('\n')
-                                      setNewLandingPage({ ...newLandingPage, review_images_text: filtered })
-                                    }}
-                                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center text-[10px] shadow"
-                                    title="ลบรูปนี้"
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
 
                       {/* --- SECTION 4: SOCIAL PROOF & REVIEWS --- */}
@@ -2522,6 +3348,109 @@ export default function DashboardPage() {
                             onChange={(e) => setNewLandingPage({ ...newLandingPage, features_text: e.target.value })}
                             className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-sans"
                           />
+                        </div>
+
+                        {/* --- SUBSECTION: 3 BOTTOM STICKY ACTION BUTTONS --- */}
+                        <div className="p-4 bg-white dark:bg-slate-900 border-2 border-rose-300/80 dark:border-rose-900/80 rounded-2xl space-y-3.5 shadow-sm mt-3">
+                          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                            <div className="flex items-center gap-2">
+                              <Flame className="w-5 h-5 text-rose-500 animate-pulse" />
+                              <h5 className="font-extrabold text-xs sm:text-sm text-[#1E1B4B] dark:text-white">
+                                🔥 ปรับแต่ง 3 ปุ่มลอยด่วนด้านล่าง (Bottom Sticky Action Buttons)
+                              </h5>
+                            </div>
+                            <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950/60 px-2.5 py-0.5 rounded-full border border-rose-200 dark:border-rose-900">
+                              แถบลอยติดขอบล่างหน้าจอ
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                            
+                            {/* Button 1: Red Flame Primary Button */}
+                            <div className="p-3.5 bg-rose-50/70 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl space-y-2">
+                              <div className="flex items-center gap-1.5 font-extrabold text-rose-700 dark:text-rose-300">
+                                <Flame className="w-4 h-4" />
+                                <span>ปุ่มที่ 1 (สีแดง/สีธีมหลัก)</span>
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">ข้อความบนปุ่ม 1</label>
+                                <input
+                                  type="text"
+                                  placeholder="ติดต่อสั่งซื้อด่วน"
+                                  value={newLandingPage.sticky_btn1_text}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn1_text: e.target.value, cta_text: e.target.value })}
+                                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800 rounded-xl font-bold text-[#1E1B4B] dark:text-white text-xs"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">URL ปลายทางปุ่ม 1</label>
+                                <input
+                                  type="text"
+                                  placeholder="https://... (หรือเว้นว่างเพื่อใช้ CTA หลัก)"
+                                  value={newLandingPage.sticky_btn1_url}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn1_url: e.target.value, cta_url: e.target.value || newLandingPage.cta_url })}
+                                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800 rounded-xl font-mono text-[11px] text-[#1E1B4B] dark:text-white"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Button 2: Purple Send Secondary Button */}
+                            <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
+                              <div className="flex items-center gap-1.5 font-extrabold text-purple-700 dark:text-purple-300">
+                                <Send className="w-4 h-4" />
+                                <span>ปุ่มที่ 2 (สีม่วง/น้ำเงิน)</span>
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">ข้อความบนปุ่ม 2</label>
+                                <input
+                                  type="text"
+                                  placeholder="ช่องทางติดต่ออื่นๆ"
+                                  value={newLandingPage.sticky_btn2_text}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn2_text: e.target.value, cta_secondary_text: e.target.value })}
+                                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-[#1E1B4B] dark:text-white text-xs"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">URL ปลายทางปุ่ม 2 (LINE OA / Bio)</label>
+                                <input
+                                  type="text"
+                                  placeholder="https://line.me/ti/p/@amth"
+                                  value={newLandingPage.sticky_btn2_url}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn2_url: e.target.value, cta_secondary_url: e.target.value })}
+                                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-[11px] text-[#1E1B4B] dark:text-white"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Button 3: Green Shopping Bag Shop Button */}
+                            <div className="p-3.5 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-2xl space-y-2">
+                              <div className="flex items-center gap-1.5 font-extrabold text-emerald-700 dark:text-emerald-300">
+                                <ShoppingBag className="w-4 h-4" />
+                                <span>ปุ่มที่ 3 (สีเขียว สั่งซื้อออนไลน์)</span>
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">ข้อความบนปุ่ม 3</label>
+                                <input
+                                  type="text"
+                                  placeholder="สั่งซื้อออนไลน์"
+                                  value={newLandingPage.sticky_btn3_text}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn3_text: e.target.value, cta_shop_text: e.target.value })}
+                                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded-xl font-bold text-[#1E1B4B] dark:text-white text-xs"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">URL ปลายทางปุ่ม 3 (Shopee / ร้านค้า)</label>
+                                <input
+                                  type="text"
+                                  placeholder="https://shopee.co.th/..."
+                                  value={newLandingPage.sticky_btn3_url}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn3_url: e.target.value, cta_shop_url: e.target.value })}
+                                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded-xl font-mono text-[11px] text-[#1E1B4B] dark:text-white"
+                                />
+                              </div>
+                            </div>
+
+                          </div>
                         </div>
                       </div>
 
@@ -2648,19 +3577,18 @@ export default function DashboardPage() {
                           </div>
                         </div>
 
-                        {/* 3. Headline Text Color Presets */}
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-white border border-slate-300"></span>
-                            <span>สีตัวหนังสือหัวข้อหลัก (Headline Text Color)</span>
+                        {/* 3. Text & Headline Color */}
+                        <div className="space-y-2 pt-2 border-t border-indigo-200/60 dark:border-indigo-900/40">
+                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
+                            3. สีตัวหนังสือและหัวข้อในจอเล็ก (Text & Headline Color)
                           </label>
                           <div className="flex flex-wrap items-center gap-2">
                             {[
-                              { color: '#FFFFFF', label: 'ขาวคมชัด' },
-                              { color: '#0F172A', label: 'ดำชาร์โคล' },
-                              { color: '#FDE047', label: 'ทองคำหรู' },
-                              { color: '#FB923C', label: 'ส้มสดใส' },
-                              { color: '#6EE7B7', label: 'เขียวมิ้นต์' }
+                              { color: '#FFFFFF', label: 'ขาวสว่าง (สำหรับพื้นหลังมืด)' },
+                              { color: '#0F172A', label: 'ดำเข้ม (สำหรับพื้นหลังสว่าง)' },
+                              { color: '#FCD34D', label: 'ทองอร่าม' },
+                              { color: '#F43F5E', label: 'กุหลาบชมพู' },
+                              { color: '#34D399', label: 'เขียวมิ้นต์' }
                             ].map((preset) => (
                               <button
                                 key={preset.color}
@@ -2672,17 +3600,22 @@ export default function DashboardPage() {
                                     : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300'
                                 }`}
                               >
-                                <span className="w-3.5 h-3.5 rounded-full border border-slate-300 shadow-inner" style={{ backgroundColor: preset.color }}></span>
+                                <span className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shadow-inner" style={{ backgroundColor: preset.color }}></span>
                                 <span>{preset.label}</span>
                               </button>
                             ))}
 
                             <div className="flex items-center gap-1.5 ml-auto">
-                              <span className="text-[11px] text-slate-400 font-bold">Custom Hex:</span>
+                              <input
+                                type="color"
+                                value={newLandingPage.text_color || '#FFFFFF'}
+                                onChange={(e) => setNewLandingPage({ ...newLandingPage, text_color: e.target.value })}
+                                className="w-7 h-7 rounded-lg border border-slate-300 dark:border-slate-700 cursor-pointer p-0.5 bg-white"
+                              />
                               <input
                                 type="text"
                                 placeholder="#FFFFFF"
-                                value={newLandingPage.text_color}
+                                value={newLandingPage.text_color || '#FFFFFF'}
                                 onChange={(e) => setNewLandingPage({ ...newLandingPage, text_color: e.target.value })}
                                 className="w-24 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono font-bold text-[#1E1B4B] dark:text-white focus:outline-none"
                               />
@@ -2690,49 +3623,7 @@ export default function DashboardPage() {
                           </div>
                         </div>
 
-                        {/* 4. Sub-headline & Description Text Color Presets */}
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-full bg-slate-300 border border-slate-400"></span>
-                            <span>สีตัวหนังสือคำอธิบายรอง (Subheadline & Description Color)</span>
-                          </label>
-                          <div className="flex flex-wrap items-center gap-2">
-                            {[
-                              { color: '#E2E8F0', label: 'เทาสว่างอ่านง่าย' },
-                              { color: '#F8FAFC', label: 'ขาวนวล' },
-                              { color: '#FEF3C7', label: 'ครีมอุ่น' },
-                              { color: '#BAE6FD', label: 'ฟ้าครามสว่าง' },
-                              { color: '#334155', label: 'เทาเข้ม' }
-                            ].map((preset) => (
-                              <button
-                                key={preset.color}
-                                type="button"
-                                onClick={() => setNewLandingPage({ ...newLandingPage, subtext_color: preset.color })}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
-                                  newLandingPage.subtext_color === preset.color
-                                    ? 'border-indigo-600 ring-2 ring-indigo-500/30 bg-white dark:bg-slate-900 shadow-sm'
-                                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300'
-                                }`}
-                              >
-                                <span className="w-3.5 h-3.5 rounded-full border border-slate-300 shadow-inner" style={{ backgroundColor: preset.color }}></span>
-                                <span>{preset.label}</span>
-                              </button>
-                            ))}
-
-                            <div className="flex items-center gap-1.5 ml-auto">
-                              <span className="text-[11px] text-slate-400 font-bold">Custom Hex:</span>
-                              <input
-                                type="text"
-                                placeholder="#E2E8F0"
-                                value={newLandingPage.subtext_color}
-                                onChange={(e) => setNewLandingPage({ ...newLandingPage, subtext_color: e.target.value })}
-                                className="w-24 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono font-bold text-[#1E1B4B] dark:text-white focus:outline-none"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 5. Page Background Wallpaper Image (URL & Mobile Upload) */}
+                        {/* 4. Page Background Wallpaper Image (URL & Mobile Upload) */}
                         <div className="space-y-2 pt-1 border-t border-indigo-200/60 dark:border-indigo-900/40">
                           <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 flex items-center gap-1.5">
                             <ImageIcon className="w-4 h-4 text-indigo-500" />
@@ -3183,67 +4074,269 @@ export default function DashboardPage() {
                     })
                   )}
                 </div>
+
                   </>
                 )}
               </div>
             )}
 
-            {/* TAB 5: LEADS CRM */}
             {activeTab === 'leads' && (
               <div className="space-y-6">
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                
+                {/* LEADS CRM TOP METRICS SUMMARY */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4 rounded-2xl shadow-sm space-y-1">
+                    <span className="text-[11px] font-bold text-slate-500 block">👥 ลูกค้าทั้งหมด</span>
+                    <span className="text-xl font-extrabold text-[#1E1B4B] dark:text-white font-mono">{leads.length}</span>
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4 rounded-2xl shadow-sm space-y-1">
+                    <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 block">🟡 รอติดต่อ/รอดำเนินการ</span>
+                    <span className="text-xl font-extrabold text-amber-600 dark:text-amber-400 font-mono">
+                      {leads.filter(l => !l.status || l.status === 'pending').length}
+                    </span>
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4 rounded-2xl shadow-sm space-y-1">
+                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 block">🟢 ปิดการขายสำเร็จ</span>
+                    <span className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
+                      {leads.filter(l => l.status === 'completed').length}
+                    </span>
+                  </div>
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-4 rounded-2xl shadow-sm space-y-1">
+                    <span className="text-[11px] font-bold text-purple-600 dark:text-purple-400 block">💰 ยอดเงินรวม</span>
+                    <span className="text-xl font-extrabold text-purple-600 dark:text-purple-400 font-mono">
+                      ฿{leads.reduce((sum, l) => sum + (parseFloat(l.amount) || 0), 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-5">
+                  
+                  {/* Header & Main Actions */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
                     <div>
-                      <h3 className="font-extrabold text-base text-[#1E1B4B] dark:text-white">รายชื่อผู้ติดต่อ / ลูกค้าเป้าหมาย (Leads)</h3>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">ข้อมูลจากผู้ที่กรอกแบบฟอร์มติดต่อในหน้าโปรไฟล์ของคุณ</p>
+                      <h3 className="font-extrabold text-base text-[#1E1B4B] dark:text-white flex items-center gap-2">
+                        <Users className="w-5 h-5 text-purple-600" />
+                        <span>ระบบจัดการข้อมูลลูกค้า & ลีด CRM (Leads Management)</span>
+                      </h3>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        รวมข้อมูลลูกค้าจากหน้าเซลเพจ COD, แบบฟอร์มติดต่อ Bio Link และข้อมูลที่เพิ่มด้วยตนเอง
+                      </p>
                     </div>
-                    {leads.length > 0 && (
+
+                    <div className="flex items-center gap-2 flex-wrap">
                       <button
-                        onClick={handleExportLeadsCSV}
-                        className="px-4 py-2 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 rounded-2xl text-xs font-bold flex items-center gap-1.5 hover:bg-purple-100 transition shadow-sm"
+                        type="button"
+                        onClick={handleRefreshLeads}
+                        className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                        title="รีเฟรชข้อมูลลีดล่าสุด"
                       >
-                        <Download className="w-3.5 h-3.5" /> Export CSV
+                        <RefreshCw className={`w-3.5 h-3.5 ${loadingLeads ? 'animate-spin' : ''}`} />
+                        <span>รีเฟรช</span>
                       </button>
-                    )}
+
+                      <button
+                        type="button"
+                        onClick={() => setIsAddLeadModalOpen(true)}
+                        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-extrabold rounded-2xl text-xs flex items-center gap-1.5 shadow-md shadow-purple-500/20 active:scale-95 transition cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" /> เพิ่มลูกค้าด้วยตนเอง
+                      </button>
+
+                      {leads.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleExportLeadsCSV}
+                          className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition"
+                          title="ดาวน์โหลดไฟล์ Excel/CSV"
+                        >
+                          <Download className="w-3.5 h-3.5" /> CSV
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  {leads.length === 0 ? (
-                    <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center text-slate-500 text-xs">
-                      ยังไม่มีรายชื่อติดต่อเข้ามา เมื่อมีผู้กรอกแบบฟอร์มในหน้า Bio Link ข้อมูลจะปรากฏที่นี่ทันที 📋
+                  {/* Filter & Search Bar */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative flex-1">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="ค้นหาชื่อ, เบอร์โทร, LINE ID, หรือรหัสออเดอร์..."
+                        value={leadSearchQuery}
+                        onChange={(e) => setLeadSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-500"
+                      />
                     </div>
-                  ) : (
-                    <div className="space-y-2.5">
-                      {leads.map((lead) => (
-                        <div
-                          key={lead.id}
-                          className="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-                        >
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-xs text-[#1E1B4B] dark:text-white">{lead.name}</span>
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                {new Date(lead.created_at).toLocaleDateString('th-TH')}
-                              </span>
+
+                    <div className="flex items-center gap-2">
+                      <Filter className="w-4 h-4 text-slate-400" />
+                      <select
+                        value={leadStatusFilter}
+                        onChange={(e) => setLeadStatusFilter(e.target.value)}
+                        className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-bold text-[#1E1B4B] dark:text-white focus:outline-none"
+                      >
+                        <option value="all">สถานะทั้งหมด ({leads.length})</option>
+                        <option value="pending">🟡 รอติดต่อ / รอดำเนินการ</option>
+                        <option value="contacted">🔵 ติดต่อแล้ว</option>
+                        <option value="completed">🟢 สำเร็จ / ปิดการขาย</option>
+                        <option value="cancelled">🔴 ยกเลิก / ไม่สำเร็จ</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Leads List Rendering */}
+                  {(() => {
+                    const filteredLeads = leads.filter(l => {
+                      const matchStatus = leadStatusFilter === 'all' || (l.status || 'pending') === leadStatusFilter
+                      const q = leadSearchQuery.toLowerCase().trim()
+                      const matchQuery = !q || (
+                        (l.name && l.name.toLowerCase().includes(q)) ||
+                        (l.phone && l.phone.toLowerCase().includes(q)) ||
+                        (l.email && l.email.toLowerCase().includes(q)) ||
+                        (l.line_id && l.line_id.toLowerCase().includes(q)) ||
+                        (l.order_code && l.order_code.toLowerCase().includes(q)) ||
+                        (l.note && l.note.toLowerCase().includes(q))
+                      )
+                      return matchStatus && matchQuery
+                    })
+
+                    if (filteredLeads.length === 0) {
+                      return (
+                        <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center text-slate-500 text-xs space-y-2">
+                          <Users className="w-8 h-8 text-slate-400 mx-auto" />
+                          <p className="font-bold">ไม่พบข้อมูลลูกค้าตามเงื่อนไขที่ค้นหา</p>
+                          <p className="text-[11px] text-slate-400">คุณสามารถกดปุ่ม "+ เพิ่มลูกค้าด้วยตนเอง" ด้านบน เพื่อสร้างรายการใหม่ได้ทันที</p>
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <div className="space-y-3">
+                        {filteredLeads.map((lead) => (
+                          <div
+                            key={lead.id}
+                            className="bg-white dark:bg-slate-950 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition space-y-3"
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 flex items-center justify-center font-black text-sm">
+                                  {lead.name ? lead.name[0].toUpperCase() : 'U'}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white">{lead.name}</h4>
+                                    {lead.order_code && (
+                                      <span className="text-[10px] font-mono px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md font-bold">
+                                        #{lead.order_code}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 font-mono">
+                                    📅 {new Date(lead.created_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Status Select & Quick Amount Badge */}
+                              <div className="flex items-center gap-2 self-start sm:self-center">
+                                {lead.amount && (
+                                  <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 font-mono bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                                    ฿{parseFloat(String(lead.amount)).toLocaleString()}
+                                  </span>
+                                )}
+
+                                <select
+                                  value={lead.status || 'pending'}
+                                  onChange={(e) => handleUpdateLeadStatus(lead.id, e.target.value)}
+                                  className={`text-[11px] font-bold px-2.5 py-1 rounded-xl border transition cursor-pointer ${
+                                    lead.status === 'completed'
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                                      : lead.status === 'contacted'
+                                      ? 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800'
+                                      : lead.status === 'cancelled'
+                                      ? 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800'
+                                      : 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
+                                  }`}
+                                >
+                                  <option value="pending">🟡 รอติดต่อ</option>
+                                  <option value="contacted">🔵 ติดต่อแล้ว</option>
+                                  <option value="completed">🟢 สำเร็จ</option>
+                                  <option value="cancelled">🔴 ยกเลิก</option>
+                                </select>
+                              </div>
                             </div>
-                            <div className="text-xs text-slate-600 dark:text-slate-300 flex flex-wrap gap-x-3 gap-y-1 mt-1 font-mono">
-                              {lead.phone && <span>📞 {lead.phone}</span>}
-                              {lead.email && <span>✉️ {lead.email}</span>}
+
+                            {/* Contact Badges & Address */}
+                            <div className="flex flex-wrap gap-2 text-xs font-medium text-slate-600 dark:text-slate-300">
+                              {lead.phone && (
+                                <a href={`tel:${lead.phone}`} className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 dark:bg-slate-900 rounded-lg hover:text-purple-600 font-mono">
+                                  <Phone className="w-3 h-3 text-purple-500" /> {lead.phone}
+                                </a>
+                              )}
+                              {lead.line_id && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 rounded-lg font-mono">
+                                  <MessageCircle className="w-3 h-3 text-emerald-500" /> LINE: {lead.line_id}
+                                </span>
+                              )}
+                              {lead.email && (
+                                <a href={`mailto:${lead.email}`} className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 dark:bg-slate-900 rounded-lg hover:text-purple-600 font-mono">
+                                  <Mail className="w-3 h-3 text-blue-500" /> {lead.email}
+                                </a>
+                              )}
                             </div>
+
+                            {lead.address && (
+                              <p className="text-[11px] text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 flex items-start gap-1.5">
+                                <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                                <span>ที่อยู่จัดส่ง: {lead.address}</span>
+                              </p>
+                            )}
+
                             {lead.note && (
-                              <p className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 mt-2">
+                              <p className="text-xs text-slate-700 dark:text-slate-300 bg-purple-50/50 dark:bg-purple-950/20 p-2.5 rounded-xl border border-purple-100 dark:border-purple-900/30">
                                 💬 {lead.note}
                               </p>
                             )}
+
+                            {/* Row Action Footer */}
+                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedLeadDetails(lead)
+                                  setIsLeadDetailsModalOpen(true)
+                                }}
+                                className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold hover:bg-slate-200 flex items-center gap-1 transition"
+                              >
+                                <Eye className="w-3.5 h-3.5" /> รายละเอียด
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleEditLead(lead)}
+                                className="px-3 py-1.5 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 rounded-xl text-xs font-bold hover:bg-purple-100 flex items-center gap-1 transition"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" /> แก้ไข
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteLead(lead.id)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition"
+                                title="ลบข้อมูลลูกค้า"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    )
+                  })()}
+
                 </div>
               </div>
             )}
 
-            {/* TAB 6: BILLING & PACKAGES */}
+            {/* TAB 7: BILLING & PACKAGES */}
             {activeTab === 'billing' && (
               <div className="space-y-6">
               {/* TOP UP POINTS PROMINENT BANNER */}
@@ -3422,7 +4515,24 @@ export default function DashboardPage() {
                 <div className="w-2.5 h-2.5 bg-slate-950 rounded-full ml-auto mr-2.5"></div>
               </div>
 
-              <div className="w-full bg-[#0b0f17] rounded-[38px] overflow-y-auto max-h-[580px] no-scrollbar relative">
+              <div 
+                className="w-full rounded-[38px] overflow-y-auto max-h-[580px] no-scrollbar relative transition-all duration-300"
+                style={{
+                  backgroundColor: previewMode === 'bio' 
+                    ? (profile.bg_color || '#0b0f17') 
+                    : (newLandingPage.bg_color || '#0B0F17'),
+                  ...(previewMode === 'bio' && (profile.inner_bg_image_url || profile.bg_image_url) ? { 
+                    backgroundImage: `url(${profile.inner_bg_image_url || profile.bg_image_url})`, 
+                    backgroundSize: 'cover', 
+                    backgroundPosition: 'center' 
+                  } : {}),
+                  ...(previewMode === 'landing' && newLandingPage.bg_image_url ? { 
+                    backgroundImage: `url(${newLandingPage.bg_image_url})`, 
+                    backgroundSize: 'cover', 
+                    backgroundPosition: 'center' 
+                  } : {})
+                }}
+              >
                 {previewMode === 'landing' ? (
                   <div className="pt-6">
                     <SalesLandingPagePreview
@@ -3455,7 +4565,7 @@ export default function DashboardPage() {
           {[
             { id: 'links', label: 'ลิ้งก์', icon: Link2 },
             { id: 'shop', label: 'ร้านค้า', icon: ShoppingBag },
-            { id: 'landing_pages', label: 'เซลเพจยิงแอด', icon: Rocket, count: landingPages.length, locked: isLandingTabLocked },
+            { id: 'landing_pages', label: 'เซลเพจ', icon: Rocket, locked: !isLandingActive },
             { id: 'appearance', label: 'โปรไฟล์', icon: Palette },
             { id: 'shortener', label: 'ย่อลิงก์', icon: Scissors, locked: !isShortenerActive },
             { id: 'leads', label: 'ลีด', icon: Users },
@@ -3469,11 +4579,7 @@ export default function DashboardPage() {
                 onClick={() => {
                   setActiveTab(tab.id as any)
                   if (tab.id === 'landing_pages') {
-                    if (isLandingPageUnlocked) {
-                      setPreviewMode('landing')
-                    } else {
-                      setPreviewMode('bio')
-                    }
+                    setPreviewMode('landing')
                   } else if (tab.id === 'links' || tab.id === 'shop' || tab.id === 'appearance') {
                     setPreviewMode('bio')
                   }
@@ -3553,7 +4659,22 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 bg-[#0B0F17]">
+          <div 
+            className="flex-1 overflow-y-auto p-4"
+            style={{
+              backgroundColor: previewMode === 'bio' ? (profile.bg_color || '#0B0F17') : (newLandingPage.bg_color || '#0B0F17'),
+              ...(previewMode === 'bio' && (profile.inner_bg_image_url || profile.bg_image_url) ? { 
+                backgroundImage: `url(${profile.inner_bg_image_url || profile.bg_image_url})`, 
+                backgroundSize: 'cover', 
+                backgroundPosition: 'center' 
+              } : {}),
+              ...(previewMode === 'landing' && newLandingPage.bg_image_url ? { 
+                backgroundImage: `url(${newLandingPage.bg_image_url})`, 
+                backgroundSize: 'cover', 
+                backgroundPosition: 'center' 
+              } : {})
+            }}
+          >
             {previewMode === 'landing' || activeTab === 'landing_pages' ? (
               <SalesLandingPagePreview
                 pageData={newLandingPage}
@@ -3905,6 +5026,833 @@ export default function DashboardPage() {
         profile={profile}
         landingPages={landingPages}
       />
+
+      {/* ========================================================================= */}
+      {/* 1. EDIT LINK MODAL */}
+      {/* ========================================================================= */}
+      {isEditLinkOpen && editingLink && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-[#1E1B4B] dark:text-white max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Edit2 className="w-5 h-5 text-purple-600" />
+                <h3 className="font-bold text-base">แก้ไขข้อมูลลิ้งก์</h3>
+              </div>
+              <button onClick={() => { setIsEditLinkOpen(false); setEditingLink(null); }} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateLink} className="space-y-4 text-xs font-bold">
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">ชื่อหัวข้อปุ่ม (Title) *</label>
+                <input
+                  type="text"
+                  required
+                  value={editingLink.title || ''}
+                  onChange={(e) => setEditingLink({ ...editingLink, title: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">คำบรรยายย่อย (Subtitle - ถ้ามี)</label>
+                <input
+                  type="text"
+                  value={editingLink.subtitle || ''}
+                  onChange={(e) => setEditingLink({ ...editingLink, subtitle: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">ปลายทาง URL ลิ้งก์ *</label>
+                <input
+                  type="url"
+                  required
+                  value={editingLink.url || ''}
+                  onChange={(e) => setEditingLink({ ...editingLink, url: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">สีพื้นหลังปุ่ม</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={editingLink.bg_color || '#1E1B4B'}
+                      onChange={(e) => setEditingLink({ ...editingLink, bg_color: e.target.value })}
+                      className="w-8 h-8 rounded-lg border cursor-pointer p-0.5 bg-white"
+                    />
+                    <input
+                      type="text"
+                      value={editingLink.bg_color || '#1E1B4B'}
+                      onChange={(e) => setEditingLink({ ...editingLink, bg_color: e.target.value })}
+                      className="flex-1 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">สีตัวอักษรปุ่ม</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={editingLink.text_color || '#FFFFFF'}
+                      onChange={(e) => setEditingLink({ ...editingLink, text_color: e.target.value })}
+                      className="w-8 h-8 rounded-lg border cursor-pointer p-0.5 bg-white"
+                    />
+                    <input
+                      type="text"
+                      value={editingLink.text_color || '#FFFFFF'}
+                      onChange={(e) => setEditingLink({ ...editingLink, text_color: e.target.value })}
+                      className="flex-1 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+                <span>เปิดแสดงผลปุ่มนี้ในหน้า Bio Link</span>
+                <input
+                  type="checkbox"
+                  checked={editingLink.is_active}
+                  onChange={(e) => setEditingLink({ ...editingLink, is_active: e.target.checked })}
+                  className="w-4 h-4 accent-purple-600 cursor-pointer"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => { setIsEditLinkOpen(false); setEditingLink(null); }}
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 transition"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-xl transition shadow-md shadow-purple-500/20"
+                >
+                  บันทึกการแก้ไข
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 2. EDIT PRODUCT MODAL */}
+      {/* ========================================================================= */}
+      {isEditProductOpen && editingProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-[#1E1B4B] dark:text-white max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5 text-emerald-600" />
+                <h3 className="font-bold text-base">แก้ไขข้อมูลสินค้า</h3>
+              </div>
+              <button onClick={() => { setIsEditProductOpen(false); setEditingProduct(null); }} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateProduct} className="space-y-4 text-xs font-bold">
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">ชื่อสินค้า *</label>
+                <input
+                  type="text"
+                  required
+                  value={editingProduct.title || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, title: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">รายละเอียดสินค้า (ถ้ามี)</label>
+                <textarea
+                  rows={2}
+                  value={editingProduct.description || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl leading-relaxed"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">ราคาขาย (฿) *</label>
+                  <input
+                    type="number"
+                    required
+                    value={editingProduct.price || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, price: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">ป้ายกำกับ (Badge)</label>
+                  <input
+                    type="text"
+                    placeholder="เช่น ขายดี, HOT, SALE"
+                    value={editingProduct.badge || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct, badge: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">ลิ้งก์สั่งซื้อ (Buy URL) *</label>
+                <input
+                  type="url"
+                  required
+                  value={editingProduct.buy_url || ''}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, buy_url: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-xs"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+                <span>เปิดแสดงสินค้าในหน้า Bio Link</span>
+                <input
+                  type="checkbox"
+                  checked={editingProduct.is_active}
+                  onChange={(e) => setEditingProduct({ ...editingProduct, is_active: e.target.checked })}
+                  className="w-4 h-4 accent-emerald-600 cursor-pointer"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => { setIsEditProductOpen(false); setEditingProduct(null); }}
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 transition"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition shadow-md shadow-emerald-500/20"
+                >
+                  บันทึกสินค้า
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 3. EDIT SHORT LINK MODAL */}
+      {/* ========================================================================= */}
+      {isEditShortLinkOpen && editingShortLink && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 text-[#1E1B4B] dark:text-white">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Scissors className="w-5 h-5 text-purple-600" />
+                <h3 className="font-bold text-base">แก้ไขลิงก์ย่อ</h3>
+              </div>
+              <button onClick={() => { setIsEditShortLinkOpen(false); setEditingShortLink(null); }} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateShortLink} className="space-y-4 text-xs font-bold">
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">ชื่อกำกับลิงก์ (Title)</label>
+                <input
+                  type="text"
+                  value={editingShortLink.title || ''}
+                  onChange={(e) => setEditingShortLink({ ...editingShortLink, title: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">ชื่อย่อ Slug (/s/your-slug) *</label>
+                <input
+                  type="text"
+                  required
+                  value={editingShortLink.slug || ''}
+                  onChange={(e) => setEditingShortLink({ ...editingShortLink, slug: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">URL ปลายทางจริง *</label>
+                <input
+                  type="url"
+                  required
+                  value={editingShortLink.original_url || ''}
+                  onChange={(e) => setEditingShortLink({ ...editingShortLink, original_url: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-xs"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+                <span>เปิดใช้งานการเปลี่ยนเส้นทาง</span>
+                <input
+                  type="checkbox"
+                  checked={editingShortLink.is_active}
+                  onChange={(e) => setEditingShortLink({ ...editingShortLink, is_active: e.target.checked })}
+                  className="w-4 h-4 accent-purple-600 cursor-pointer"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => { setIsEditShortLinkOpen(false); setEditingShortLink(null); }}
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 transition"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-xl transition shadow-md shadow-purple-500/20"
+                >
+                  บันทึกการแก้ไข
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 4. SHORT LINK CLICK ANALYTICS MODAL (short_link_analytics) */}
+      {/* ========================================================================= */}
+      {shortLinkAnalyticsModalOpen && selectedShortLinkForAnalytics && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 text-[#1E1B4B] dark:text-white max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-blue-600" />
+                <div>
+                  <h3 className="font-bold text-base">สถิติคลิกย่อลิงก์: /s/{selectedShortLinkForAnalytics.slug}</h3>
+                  <p className="text-[11px] text-slate-500">ยอดคลิกทั้งหมด: {selectedShortLinkForAnalytics.clicks || 0} ครั้ง</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleClearShortLinkAnalytics(selectedShortLinkForAnalytics.id)}
+                  className="px-3 py-1 bg-rose-50 dark:bg-rose-950/40 text-rose-600 border border-rose-200 dark:border-rose-800 rounded-xl text-xs font-bold hover:bg-rose-100 transition"
+                >
+                  ล้างสถิติ
+                </button>
+                <button onClick={() => setShortLinkAnalyticsModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {loadingShortLinkAnalytics ? (
+              <div className="p-8 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin" /> กำลังโหลดข้อมูลสถิติ...
+              </div>
+            ) : shortLinkAnalyticsLogs.length === 0 ? (
+              <div className="p-8 bg-slate-50 dark:bg-slate-950 rounded-2xl text-center text-xs text-slate-400 space-y-1">
+                <BarChart3 className="w-8 h-8 text-slate-400 mx-auto" />
+                <p className="font-bold">ยังไม่มีสถิติคลิกบันทึกไว้สำหรับลิงก์นี้</p>
+                <p className="text-[11px]">เมื่อมีผู้ใช้งานคลิกเปิดลิงก์ย่อ ระบบจะบันทึกแหล่งที่มา (Referrer) และเบราว์เซอร์ลงที่นี่</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <h4 className="font-bold text-xs text-slate-500 uppercase tracking-wider">รายการคลิกล่าสุด ({shortLinkAnalyticsLogs.length})</h4>
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1 text-xs">
+                  {shortLinkAnalyticsLogs.map((log) => (
+                    <div key={log.id} className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 font-mono">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-[#1E1B4B] dark:text-white">🌐 {log.referrer || 'Direct / ไม่ระบุ'}</span>
+                          {log.ip && <span className="text-[10px] text-slate-400">IP: {log.ip}</span>}
+                        </div>
+                        <p className="text-[10px] text-slate-500 truncate max-w-sm">{log.user_agent || 'Unknown Device'}</p>
+                      </div>
+                      <span className="text-[10px] text-slate-400 shrink-0">
+                        {new Date(log.created_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 5. ADD MANUAL LEAD MODAL (leads) */}
+      {/* ========================================================================= */}
+      {isAddLeadModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-[#1E1B4B] dark:text-white max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Plus className="w-5 h-5 text-purple-600" />
+                <h3 className="font-bold text-base">เพิ่มข้อมูลลูกค้า / ลีดด้วยตนเอง</h3>
+              </div>
+              <button onClick={() => setIsAddLeadModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateManualLead} className="space-y-4 text-xs font-bold">
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">ชื่อลูกค้า (Name) *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="เช่น คุณสมชาย ใจดี"
+                  value={newLeadForm.name}
+                  onChange={(e) => setNewLeadForm({ ...newLeadForm, name: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">เบอร์โทรศัพท์ (Phone)</label>
+                  <input
+                    type="tel"
+                    placeholder="0812345678"
+                    value={newLeadForm.phone}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, phone: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">LINE ID</label>
+                  <input
+                    type="text"
+                    placeholder="@lineid"
+                    value={newLeadForm.line_id}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, line_id: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">อีเมล (Email)</label>
+                  <input
+                    type="email"
+                    placeholder="customer@example.com"
+                    value={newLeadForm.email}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, email: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">ยอดเงิน/มูลค่า (฿)</label>
+                  <input
+                    type="number"
+                    placeholder="590"
+                    value={newLeadForm.amount}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, amount: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">ที่อยู่จัดส่ง / ที่อยู่ติดต่อ</label>
+                <textarea
+                  rows={2}
+                  placeholder="บ้านเลขที่ ถนน แขวง/ตำบล เขต/อำเภอ จังหวัด รหัสไปรษณีย์"
+                  value={newLeadForm.address}
+                  onChange={(e) => setNewLeadForm({ ...newLeadForm, address: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl leading-relaxed"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">รหัสออเดอร์ (Order Code)</label>
+                  <input
+                    type="text"
+                    placeholder="เช่น ORD-10293"
+                    value={newLeadForm.order_code}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, order_code: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">สถานะเริ่มต้น</label>
+                  <select
+                    value={newLeadForm.status}
+                    onChange={(e) => setNewLeadForm({ ...newLeadForm, status: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
+                  >
+                    <option value="pending">🟡 รอติดต่อ / รอดำเนินการ</option>
+                    <option value="contacted">🔵 ติดต่อแล้ว</option>
+                    <option value="completed">🟢 สำเร็จ / ปิดการขาย</option>
+                    <option value="cancelled">🔴 ยกเลิก</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">บันทึก/หมายเหตุเพิ่มเติม (Note)</label>
+                <textarea
+                  rows={2}
+                  placeholder="บันทึกความสนใจ รายการสินค้า หรือการนัดหมาย..."
+                  value={newLeadForm.note}
+                  onChange={(e) => setNewLeadForm({ ...newLeadForm, note: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl leading-relaxed"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsAddLeadModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 transition"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-xl transition shadow-md shadow-purple-500/20"
+                >
+                  บันทึกลีดใหม่
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 6. EDIT LEAD MODAL (leads) */}
+      {/* ========================================================================= */}
+      {isEditLeadModalOpen && editingLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-[#1E1B4B] dark:text-white max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Edit2 className="w-5 h-5 text-purple-600" />
+                <h3 className="font-bold text-base">แก้ไขข้อมูลลูกค้า: {editingLead.name}</h3>
+              </div>
+              <button onClick={() => { setIsEditLeadModalOpen(false); setEditingLead(null); }} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateLead} className="space-y-4 text-xs font-bold">
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">ชื่อลูกค้า *</label>
+                <input
+                  type="text"
+                  required
+                  value={editingLead.name || ''}
+                  onChange={(e) => setEditingLead({ ...editingLead, name: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">เบอร์โทรศัพท์</label>
+                  <input
+                    type="tel"
+                    value={editingLead.phone || ''}
+                    onChange={(e) => setEditingLead({ ...editingLead, phone: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">LINE ID</label>
+                  <input
+                    type="text"
+                    value={editingLead.line_id || ''}
+                    onChange={(e) => setEditingLead({ ...editingLead, line_id: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">อีเมล</label>
+                  <input
+                    type="email"
+                    value={editingLead.email || ''}
+                    onChange={(e) => setEditingLead({ ...editingLead, email: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">ยอดเงิน (฿)</label>
+                  <input
+                    type="number"
+                    value={editingLead.amount || ''}
+                    onChange={(e) => setEditingLead({ ...editingLead, amount: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">ที่อยู่จัดส่ง / ติดต่อ</label>
+                <textarea
+                  rows={2}
+                  value={editingLead.address || ''}
+                  onChange={(e) => setEditingLead({ ...editingLead, address: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl leading-relaxed"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">รหัสออเดอร์</label>
+                  <input
+                    type="text"
+                    value={editingLead.order_code || ''}
+                    onChange={(e) => setEditingLead({ ...editingLead, order_code: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">สถานะ</label>
+                  <select
+                    value={editingLead.status || 'pending'}
+                    onChange={(e) => setEditingLead({ ...editingLead, status: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-bold"
+                  >
+                    <option value="pending">🟡 รอติดต่อ / รอดำเนินการ</option>
+                    <option value="contacted">🔵 ติดต่อแล้ว</option>
+                    <option value="completed">🟢 สำเร็จ / ปิดการขาย</option>
+                    <option value="cancelled">🔴 ยกเลิก</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">บันทึก/หมายเหตุ</label>
+                <textarea
+                  rows={2}
+                  value={editingLead.note || ''}
+                  onChange={(e) => setEditingLead({ ...editingLead, note: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl leading-relaxed"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => { setIsEditLeadModalOpen(false); setEditingLead(null); }}
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 transition"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-xl transition shadow-md shadow-purple-500/20"
+                >
+                  บันทึกการแก้ไข
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 7. LEAD DETAILS MODAL (leads) */}
+      {/* ========================================================================= */}
+      {isLeadDetailsModalOpen && selectedLeadDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-[#1E1B4B] dark:text-white max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-purple-600" />
+                <div>
+                  <h3 className="font-bold text-base">รายละเอียดข้อมูลลูกค้า</h3>
+                  <p className="text-[11px] text-slate-500">รหัสอ้างอิง #{selectedLeadDetails.order_code || selectedLeadDetails.id.slice(0,8)}</p>
+                </div>
+              </div>
+              <button onClick={() => { setIsLeadDetailsModalOpen(false); setSelectedLeadDetails(null); }} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-sm text-[#1E1B4B] dark:text-white">{selectedLeadDetails.name}</span>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    selectedLeadDetails.status === 'completed'
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                      : selectedLeadDetails.status === 'contacted'
+                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
+                      : selectedLeadDetails.status === 'cancelled'
+                      ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                  }`}>
+                    {selectedLeadDetails.status || 'pending'}
+                  </span>
+                </div>
+                <p className="text-slate-500 font-mono text-[11px]">
+                  📅 วันที่บันทึก: {new Date(selectedLeadDetails.created_at).toLocaleString('th-TH')}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-500 block">📞 เบอร์โทรศัพท์</span>
+                  <span className="font-mono font-bold">{selectedLeadDetails.phone || '-'}</span>
+                </div>
+                <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-500 block">💬 LINE ID</span>
+                  <span className="font-mono font-bold">{selectedLeadDetails.line_id || '-'}</span>
+                </div>
+                <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-500 block">✉️ อีเมล</span>
+                  <span className="font-mono font-bold truncate block">{selectedLeadDetails.email || '-'}</span>
+                </div>
+                <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-500 block">💰 ยอดเงิน/มูลค่า</span>
+                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                    {selectedLeadDetails.amount ? `฿${parseFloat(selectedLeadDetails.amount).toLocaleString()}` : '-'}
+                  </span>
+                </div>
+              </div>
+
+              {selectedLeadDetails.address && (
+                <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1">
+                  <span className="text-[10px] font-bold text-slate-500 block">📍 ที่อยู่จัดส่ง / ติดต่อ</span>
+                  <p className="text-slate-700 dark:text-slate-300">{selectedLeadDetails.address}</p>
+                </div>
+              )}
+
+              {selectedLeadDetails.note && (
+                <div className="p-3 bg-purple-50/50 dark:bg-purple-950/20 rounded-xl border border-purple-100 dark:border-purple-900/30 space-y-1">
+                  <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 block">💬 บันทึก / รายการสั่งซื้อ</span>
+                  <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{selectedLeadDetails.note}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const target = selectedLeadDetails
+                  setIsLeadDetailsModalOpen(false)
+                  handleEditLead(target)
+                }}
+                className="px-4 py-2 bg-purple-600 text-white rounded-xl font-bold text-xs hover:bg-purple-700 transition"
+              >
+                ✏️ แก้ไขข้อมูลนี้
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIsLeadDetailsModalOpen(false); setSelectedLeadDetails(null); }}
+                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl font-bold text-xs hover:bg-slate-200 transition"
+              >
+                ปิด
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 8. GENERAL EVENT LOGS MODAL (analytics_events) */}
+      {/* ========================================================================= */}
+      {analyticsEventsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 text-[#1E1B4B] dark:text-white max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Activity className="w-5 h-5 text-emerald-600" />
+                <div>
+                  <h3 className="font-bold text-base">บันทึกกิจกรรมและเหตุการณ์สถิติ (Analytics Events)</h3>
+                  <p className="text-[11px] text-slate-500">บันทึกการคลิกลิ้งก์, เข้าชมโปรไฟล์, และ Interaction ทั่วไป</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleClearAnalyticsEvents}
+                  className="px-3 py-1 bg-rose-50 dark:bg-rose-950/40 text-rose-600 border border-rose-200 dark:border-rose-800 rounded-xl text-xs font-bold hover:bg-rose-100 transition"
+                >
+                  ล้างบันทึก
+                </button>
+                <button onClick={() => setAnalyticsEventsModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {loadingAnalyticsEvents ? (
+              <div className="p-8 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin" /> กำลังโหลดบันทึกกิจกรรม...
+              </div>
+            ) : analyticsEventsList.length === 0 ? (
+              <div className="p-8 bg-slate-50 dark:bg-slate-950 rounded-2xl text-center text-xs text-slate-400 space-y-1">
+                <Activity className="w-8 h-8 text-slate-400 mx-auto" />
+                <p className="font-bold">ยังไม่มีบันทึก Event Logs ในระบบ</p>
+                <p className="text-[11px]">เมื่อผู้เยี่ยมชมคลิกลิ้งก์หรือทำกิจกรรมในหน้า Bio Link ข้อมูลจะถูกบันทึกลงตาราง analytics_events อัตโนมัติ</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1 text-xs">
+                {analyticsEventsList.map((ev) => (
+                  <div key={ev.id} className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 font-mono">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold text-[10px]">
+                          {ev.event_type}
+                        </span>
+                        {ev.target_id && <span className="text-[11px] text-slate-600 dark:text-slate-300">Target: {ev.target_id}</span>}
+                      </div>
+                      {ev.referrer && <p className="text-[10px] text-slate-400">Referrer: {ev.referrer}</p>}
+                    </div>
+                    <span className="text-[10px] text-slate-400 shrink-0">
+                      {new Date(ev.created_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Fullscreen Zoom Slip Lightbox */}
+      {zoomSlipUrl && (
+        <div 
+          onClick={() => setZoomSlipUrl(null)}
+          className="fixed inset-0 z-60 flex items-center justify-center bg-black/90 p-4 cursor-pointer animate-in fade-in"
+        >
+          <div className="relative max-w-lg max-h-[85vh] p-2" onClick={(e) => e.stopPropagation()}>
+            <img src={zoomSlipUrl} alt="Slip Zoom" className="max-w-full max-h-[80vh] rounded-2xl shadow-2xl object-contain" />
+            <button
+              onClick={() => setZoomSlipUrl(null)}
+              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-900/80 text-white flex items-center justify-center border border-white/20 hover:bg-slate-800"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

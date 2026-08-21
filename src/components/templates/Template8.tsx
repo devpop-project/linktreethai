@@ -1,9 +1,10 @@
 'use client'
 
 import React, { useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import SocialIcon from '@/components/SocialIcon'
 import SocialDock from '@/components/SocialDock'
-import { ExternalLink, Globe, Sparkles, CheckCircle, ShoppingBag, Store, Layers, MessageSquare, Send, ArrowUpRight } from 'lucide-react'
+import { ExternalLink, Globe, Sparkles, CheckCircle, ShoppingBag, Store, Layers, MessageSquare, Send, ArrowUpRight, Package, CheckCircle2, MessageCircle, Phone, MapPin } from 'lucide-react'
 
 function getYouTubeEmbedUrl(url: string | null): string | null {
   if (!url) return null
@@ -26,39 +27,83 @@ interface TemplateProps {
 
 export default function Template8({ profile, links, products, handleLinkClick, isDashboardPreview }: TemplateProps) {
   const [activeTab, setActiveTab] = useState<'links' | 'shop' | 'lead'>('links')
-  const [leadForm, setLeadForm] = useState({ name: '', phone: '', email: '', note: '' })
+  const [leadForm, setLeadForm] = useState({ name: '', phone: '', line_id: '', address: '', email: '', note: '' })
   const [leadSending, setLeadSending] = useState(false)
   const [leadSentMsg, setLeadSentMsg] = useState('')
 
+  const supabase = createClient()
   const embedUrl = getYouTubeEmbedUrl(profile.youtube_url)
 
   const handleSubmitLead = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!leadForm.name) return
+    const targetUserId = profile?.id || profile?.user_id
+    if (!leadForm.name || !targetUserId) {
+      alert('กรุณากรอกชื่อผู้ติดต่อ')
+      return
+    }
+
     setLeadSending(true)
     try {
-      const res = await fetch('/api/lead', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: profile.id,
-          name: leadForm.name,
-          phone: leadForm.phone,
-          email: leadForm.email,
-          note: leadForm.note
-        })
-      })
-      if (res.ok) {
-        setLeadSentMsg('✅ ส่งข้อความเรียบร้อยแล้ว!')
-        setLeadForm({ name: '', phone: '', email: '', note: '' })
-        setTimeout(() => setLeadSentMsg(''), 4000)
+      const payload = {
+        user_id: targetUserId,
+        name: leadForm.name.trim(),
+        phone: leadForm.phone ? leadForm.phone.trim() : null,
+        line_id: leadForm.line_id ? leadForm.line_id.trim() : null,
+        email: leadForm.email ? leadForm.email.trim() : null,
+        address: leadForm.address ? leadForm.address.trim() : null,
+        note: leadForm.note ? leadForm.note.trim() : null,
+        order_code: 'MSG-' + Date.now().toString().slice(-6),
+        status: 'pending'
       }
-    } catch (e) {}
-    setLeadSending(false)
+
+      let success = false
+
+      // 1. Try API Route
+      try {
+        const res = await fetch('/api/lead', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        const data = await res.json()
+        if (res.ok && data.success) {
+          success = true
+        }
+      } catch (err) {}
+
+      // 2. Direct Supabase Fallback
+      if (!success) {
+        const { error: directErr } = await supabase
+          .from('leads')
+          .insert([payload])
+        if (!directErr) {
+          success = true
+        }
+      }
+
+      if (success) {
+        setLeadSentMsg('✅ ส่งข้อความติดต่อเรียบร้อยแล้ว! ทางเราจะติดต่อกลับโดยเร็วที่สุดครับ')
+        setLeadForm({ name: '', phone: '', line_id: '', address: '', email: '', note: '' })
+        setTimeout(() => setLeadSentMsg(''), 6000)
+      } else {
+        alert('❌ ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง')
+      }
+    } catch (e: any) {
+      alert('❌ ข้อผิดพลาด: ' + (e?.message || ''))
+    } finally {
+      setLeadSending(false)
+    }
   }
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-5 px-4 py-6 text-white font-sans antialiased relative z-10">
+    <div className="w-full max-w-md mx-auto space-y-5 px-4 py-6 text-white font-sans antialiased relative z-10" style={{
+        backgroundColor: profile.bg_color || undefined,
+        ...(profile.inner_bg_image_url ? { 
+          backgroundImage: `url(${profile.inner_bg_image_url})`, 
+          backgroundSize: 'cover', 
+          backgroundPosition: 'center' 
+        } : {})
+      }}>
       
       {/* MASTER TIER: Spatial Glass 3D Header */}
       <div className="bg-white/[0.08] border border-white/20 rounded-[38px] overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] text-center backdrop-blur-2xl relative p-6 space-y-4">
@@ -82,14 +127,14 @@ export default function Template8({ profile, links, products, handleLinkClick, i
         </div>
 
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-white break-words">
+          <h1 className="text-2xl font-black tracking-tight text-white break-words" style={{ color: profile.text_color || undefined }}>
             {profile.full_name || profile.username}
           </h1>
-          <p className="text-xs font-bold text-cyan-300 font-mono mt-0.5">@{profile.username}</p>
+          <p className="text-xs font-bold text-cyan-300 font-mono mt-0.5" style={{ color: profile.text_color || undefined }}>@{profile.username}</p>
         </div>
 
         {profile.bio && (
-          <p className="text-xs sm:text-sm text-slate-200 leading-relaxed max-w-xs mx-auto break-words">
+          <p className="text-xs sm:text-sm text-slate-200 leading-relaxed max-w-xs mx-auto break-words" style={{ color: profile.text_color || undefined }}>
             {profile.bio}
           </p>
         )}
@@ -141,7 +186,7 @@ export default function Template8({ profile, links, products, handleLinkClick, i
               <button
                 key={link.id}
                 onClick={() => handleLinkClick(link.id, link.url)}
-                style={link.bg_color ? { backgroundColor: link.bg_color, color: link.text_color || '#FFFFFF' } : {}}
+                style={{ backgroundColor: link.bg_color || profile?.custom_button_color || undefined, color: link.text_color || (link.bg_color ? '#FFFFFF' : profile?.custom_button_text_color) || undefined }}
                 className={`w-full p-4 rounded-3xl font-bold text-left flex items-center justify-between shadow-lg hover:scale-[1.01] transition-all group backdrop-blur-xl ${
                   !link.bg_color ? 'bg-white/[0.08] hover:bg-white/[0.15] border border-white/20 hover:border-white/40' : 'border border-white/25'
                 }`}
@@ -155,7 +200,7 @@ export default function Template8({ profile, links, products, handleLinkClick, i
                     </div>
                   )}
                   <div className="overflow-hidden">
-                    <p className="text-xs sm:text-sm font-extrabold truncate leading-snug">
+                    <p className="text-xs sm:text-sm font-extrabold truncate leading-snug" style={{ color: profile?.text_secondary_color || undefined }}>
                       {link.title}
                     </p>
                     {link.subtitle && <p className="text-[11px] opacity-75 truncate mt-0.5">{link.subtitle}</p>}
@@ -220,59 +265,103 @@ export default function Template8({ profile, links, products, handleLinkClick, i
 
       {/* TAB 3: Spatial Lead Contact Form */}
       {activeTab === 'lead' && (
-        <div className="bg-white/[0.08] border border-white/20 rounded-3xl p-5 shadow-2xl backdrop-blur-2xl space-y-4">
-          <div className="border-b border-white/15 pb-2">
-            <h4 className="font-extrabold text-sm text-white">ฝากข้อความ / ติดต่อกลับ</h4>
-            <p className="text-xs text-slate-300 mt-0.5">กรอกข้อมูลเพื่อให้เจ้าของโปรไฟล์ติดต่อกลับ</p>
+        <div className="bg-white/[0.08] border border-white/20 rounded-[32px] p-5 sm:p-6 shadow-2xl space-y-4 backdrop-blur-2xl text-white">
+          <div className="text-center pb-2 border-b border-white/15">
+            <h3 className="font-black text-base sm:text-lg text-white flex items-center justify-center gap-2">
+              <MessageSquare className="w-5 h-5 text-cyan-300" />
+              <span>ติดต่อสอบถาม / ฝากข้อความ</span>
+            </h3>
+            <p className="text-xs text-slate-300 mt-1 font-medium">
+              กรอกชื่อ เบอร์โทร และข้อความ เพื่อให้เจ้าของโปรไฟล์ติดต่อกลับหรือรับคำปรึกษา
+            </p>
           </div>
 
           {leadSentMsg ? (
-            <div className="p-3 bg-cyan-500/20 border border-cyan-400 rounded-xl font-bold text-xs text-cyan-300 text-center">
-              {leadSentMsg}
+            <div className="p-6 bg-emerald-500/20 border border-emerald-500/40 rounded-2xl font-bold text-xs text-emerald-300 text-center space-y-2 animate-in zoom-in-95">
+              <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
+              <p className="text-sm font-black text-white">{leadSentMsg}</p>
+              <p className="text-[11px] text-emerald-200/80">ระบบได้ส่งข้อมูลเข้าสู่กล่องข้อความลีดเรียบร้อยแล้ว</p>
             </div>
           ) : (
-            <form onSubmit={handleSubmitLead} className="space-y-3 text-xs">
+            <form onSubmit={handleSubmitLead} className="space-y-3.5 text-xs font-bold">
               <div>
-                <label className="block mb-1 font-bold text-slate-200">ชื่อของคุณ *</label>
+                <label className="block mb-1.5 text-slate-200">
+                  ชื่อ-นามสกุล / ผู้ติดต่อ *
+                </label>
                 <input
                   type="text"
                   required
                   value={leadForm.name}
                   onChange={(e) => setLeadForm({ ...leadForm, name: e.target.value })}
-                  placeholder="เช่น สมชาย ใจดี"
-                  className="w-full px-3.5 py-2.5 bg-black/40 border border-white/20 rounded-xl text-white focus:outline-none focus:border-cyan-400"
+                  placeholder="เช่น คุณสมชาย ใจดี"
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 focus:border-cyan-400 rounded-2xl text-white placeholder:text-slate-400 focus:outline-none transition shadow-inner font-medium text-xs sm:text-sm"
                 />
               </div>
 
               <div>
-                <label className="block mb-1 font-bold text-slate-200">เบอร์โทรศัพท์</label>
+                <label className="block mb-1.5 text-slate-200">
+                  เบอร์โทรศัพท์สำหรับติดต่อ *
+                </label>
                 <input
                   type="tel"
+                  required
                   value={leadForm.phone}
                   onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })}
                   placeholder="081-xxx-xxxx"
-                  className="w-full px-3.5 py-2.5 bg-black/40 border border-white/20 rounded-xl text-white focus:outline-none focus:border-cyan-400 font-mono"
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 focus:border-cyan-400 rounded-2xl text-white placeholder:text-slate-400 focus:outline-none font-mono transition shadow-inner text-xs sm:text-sm"
                 />
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block mb-1.5 text-slate-200 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span>LINE ID (ถ้ามี)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={leadForm.line_id}
+                    onChange={(e) => setLeadForm({ ...leadForm, line_id: e.target.value })}
+                    placeholder="เช่น @yourshop หรือ line_id"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 focus:border-cyan-400 rounded-2xl text-white placeholder:text-slate-400 focus:outline-none font-mono transition shadow-inner text-xs sm:text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block mb-1.5 text-slate-200">
+                    อีเมลสำหรับติดต่อกลับ (ถ้ามี)
+                  </label>
+                  <input
+                    type="email"
+                    value={leadForm.email}
+                    onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })}
+                    placeholder="name@example.com"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 focus:border-cyan-400 rounded-2xl text-white placeholder:text-slate-400 focus:outline-none font-mono transition shadow-inner text-xs sm:text-sm"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block mb-1 font-bold text-slate-200">ข้อความเพิ่มเติม</label>
+                <label className="block mb-1.5 text-slate-200">
+                  ข้อความ / เรื่องที่ต้องการติดต่อ *
+                </label>
                 <textarea
-                  rows={2}
+                  rows={3}
+                  required
                   value={leadForm.note}
                   onChange={(e) => setLeadForm({ ...leadForm, note: e.target.value })}
-                  placeholder="รายละเอียดเรื่องที่ต้องการติดต่อ..."
-                  className="w-full px-3.5 py-2.5 bg-black/40 border border-white/20 rounded-xl text-white focus:outline-none focus:border-cyan-400"
+                  placeholder="พิมพ์ข้อความ เรื่องที่ต้องการสอบถาม หรือปรึกษาเพิ่มเติม..."
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 focus:border-cyan-400 rounded-2xl text-white placeholder:text-slate-400 focus:outline-none transition shadow-inner font-medium text-xs sm:text-sm leading-relaxed"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={leadSending}
-                className="w-full py-3 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black rounded-xl transition flex items-center justify-center gap-1.5 shadow"
+                className="w-full py-3.5 bg-gradient-to-r from-cyan-400 via-teal-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 transition active:scale-95 disabled:opacity-50 cursor-pointer mt-2"
               >
-                <Send className="w-3.5 h-3.5" />
-                <span>{leadSending ? 'กำลังส่ง...' : 'ส่งข้อมูลติดต่อ'}</span>
+                <Send className="w-4 h-4" />
+                <span>{leadSending ? 'กำลังส่งข้อความ...' : '✈️ ส่งข้อความติดต่อกลับ'}</span>
               </button>
             </form>
           )}

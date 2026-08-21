@@ -28,7 +28,14 @@ export default function Template3({ profile, links, products, handleLinkClick, i
   const embedUrl = getYouTubeEmbedUrl(profile.youtube_url)
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-5 px-4 py-6 text-[#2E1065] font-sans antialiased relative z-10">
+    <div className="w-full max-w-md mx-auto space-y-5 px-4 py-6 text-[#2E1065] font-sans antialiased relative z-10" style={{
+        backgroundColor: profile.bg_color || undefined,
+        ...(profile.inner_bg_image_url ? { 
+          backgroundImage: `url(${profile.inner_bg_image_url})`, 
+          backgroundSize: 'cover', 
+          backgroundPosition: 'center' 
+        } : {})
+      }}>
       
       {/* FREE TIER: Floating Open Avatar (No rectangular banner) */}
       <div className="text-center space-y-4 pt-2">
@@ -46,14 +53,14 @@ export default function Template3({ profile, links, products, handleLinkClick, i
         </div>
 
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-[#2E1065] break-words">
+          <h1 className="text-2xl font-black tracking-tight text-[#2E1065] break-words" style={{ color: profile.text_color || undefined }}>
             {profile.full_name || profile.username}
           </h1>
-          <p className="text-xs font-bold text-pink-600 mt-0.5">@{profile.username}</p>
+          <p className="text-xs font-bold text-pink-600 mt-0.5" style={{ color: profile.text_color || undefined }}>@{profile.username}</p>
         </div>
 
         {profile.bio && (
-          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-xs mx-auto break-words bg-white/80 backdrop-blur-md p-3.5 rounded-3xl border border-pink-100 shadow-sm">
+          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-xs mx-auto break-words bg-white/80 backdrop-blur-md p-3.5 rounded-3xl border border-pink-100 shadow-sm" style={{ color: profile.text_color || undefined }}>
             {profile.bio}
           </p>
         )}
@@ -76,7 +83,7 @@ export default function Template3({ profile, links, products, handleLinkClick, i
             <button
               key={link.id}
               onClick={() => handleLinkClick(link.id, link.url)}
-              style={link.bg_color ? { backgroundColor: link.bg_color, color: link.text_color || '#FFFFFF' } : {}}
+              style={{ backgroundColor: link.bg_color || profile?.custom_button_color || undefined, color: link.text_color || (link.bg_color ? '#FFFFFF' : profile?.custom_button_text_color) || undefined }}
               className={`w-full p-4 rounded-full font-extrabold text-left flex items-center justify-between shadow-sm hover:shadow-md hover:scale-102 transition-all ${
                 !link.bg_color ? 'bg-white text-[#2E1065] border border-pink-200/80 hover:border-pink-300' : 'border border-black/10'
               }`}
@@ -90,7 +97,7 @@ export default function Template3({ profile, links, products, handleLinkClick, i
                   </div>
                 )}
                 <div className="overflow-hidden">
-                  <p className="text-xs sm:text-sm font-black truncate leading-snug">
+                  <p className="text-xs sm:text-sm font-black truncate leading-snug" style={{ color: profile?.text_secondary_color || undefined }}>
                     {link.title}
                   </p>
                   {link.subtitle && <p className="text-[10px] opacity-75 truncate mt-0.5">{link.subtitle}</p>}

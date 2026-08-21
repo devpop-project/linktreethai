@@ -30,7 +30,14 @@ export default function Template6({ profile, links, products, handleLinkClick, i
   const otherLinks = links && links.length > 1 ? links.slice(1) : []
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-5 px-4 py-6 text-white font-sans antialiased relative z-10">
+    <div className="w-full max-w-md mx-auto space-y-5 px-4 py-6 text-white font-sans antialiased relative z-10" style={{
+        backgroundColor: profile.bg_color || undefined,
+        ...(profile.inner_bg_image_url ? { 
+          backgroundImage: `url(${profile.inner_bg_image_url})`, 
+          backgroundSize: 'cover', 
+          backgroundPosition: 'center' 
+        } : {})
+      }}>
       
       {/* PRO TIER: Sunset Bento Header Card */}
       <div className="bg-gradient-to-b from-[#3D1427] to-[#1F0A14] border border-orange-400/40 rounded-[36px] p-6 text-center space-y-4 shadow-2xl relative overflow-hidden backdrop-blur-xl">
@@ -55,14 +62,14 @@ export default function Template6({ profile, links, products, handleLinkClick, i
         </div>
 
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-white break-words">
+          <h1 className="text-2xl font-black tracking-tight text-white break-words" style={{ color: profile.text_color || undefined }}>
             {profile.full_name || profile.username}
           </h1>
-          <p className="text-xs font-bold text-orange-400 mt-0.5 font-mono">@{profile.username}</p>
+          <p className="text-xs font-bold text-orange-400 mt-0.5 font-mono" style={{ color: profile.text_color || undefined }}>@{profile.username}</p>
         </div>
 
         {profile.bio && (
-          <p className="text-xs sm:text-sm text-orange-100/80 leading-relaxed max-w-xs mx-auto">
+          <p className="text-xs sm:text-sm text-orange-100/80 leading-relaxed max-w-xs mx-auto" style={{ color: profile.text_color || undefined }}>
             {profile.bio}
           </p>
         )}
@@ -112,7 +119,7 @@ export default function Template6({ profile, links, products, handleLinkClick, i
               <ArrowUpRight className="w-5 h-5 text-white/80 group-hover:translate-x-1 group-hover:-translate-y-1 transition" />
             </div>
             {firstLink.subtitle && (
-              <p className="text-xs opacity-85 leading-relaxed">{firstLink.subtitle}</p>
+              <p className="text-xs opacity-85 leading-relaxed" style={{ color: profile?.text_secondary_color || undefined }}>{firstLink.subtitle}</p>
             )}
           </button>
         )}
@@ -124,7 +131,7 @@ export default function Template6({ profile, links, products, handleLinkClick, i
               <button
                 key={link.id}
                 onClick={() => handleLinkClick(link.id, link.url)}
-                style={link.bg_color ? { backgroundColor: link.bg_color, color: link.text_color || '#FFFFFF' } : {}}
+                style={{ backgroundColor: link.bg_color || profile?.custom_button_color || undefined, color: link.text_color || (link.bg_color ? '#FFFFFF' : profile?.custom_button_text_color) || undefined }}
                 className={`p-4 rounded-3xl font-bold text-left flex flex-col justify-between h-32 shadow-lg hover:scale-[1.03] transition-all group ${
                   !link.bg_color ? 'bg-[#2A0F1D] border border-orange-500/30 hover:border-orange-400 backdrop-blur-xl' : 'border border-white/15'
                 }`}

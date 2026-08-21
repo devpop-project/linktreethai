@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import TrackingPixels, { trackPixelEvent } from '@/components/TrackingPixels'
 import ImageLightboxModal from '@/components/ImageLightboxModal'
 import { 
-  ShoppingBag, Check, Flame, Clock, ShieldCheck, Truck, 
+  ShoppingBag, Check, Flame, Clock, ShieldCheck, Truck, MessageCircle, Globe, 
   Sparkles, ArrowRight, Phone, Send, CheckCircle2, Star, 
   Share2, AlertCircle, AlertTriangle, HelpCircle, ChevronDown, ChevronUp, Lock
 } from 'lucide-react'
@@ -37,7 +37,7 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
   const [lightboxIndex, setLightboxIndex] = useState(0)
 
   // Quick Order Form
-  const [orderForm, setOrderForm] = useState({ name: '', phone: '', address: '', note: '' })
+  const [orderForm, setOrderForm] = useState({ name: '', phone: '', line_id: '', address: '', note: '' })
   const [ordering, setOrdering] = useState(false)
   const [orderSuccess, setOrderSuccess] = useState(false)
 
@@ -88,11 +88,12 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
     setLoading(false)
   }
 
-  const handleCtaClick = async (url: string) => {
+  const handleCtaClick = async (url?: string | null, eventName: 'PageView' | 'ViewContent' | 'InitiateCheckout' | 'Lead' | 'Contact' | 'Purchase' = 'InitiateCheckout') => {
     if (!pageData) return
+    const targetUrl = url || pageData.cta_url || `/${ownerProfile?.username || ''}`
 
     // Track Pixel conversion event
-    trackPixelEvent('InitiateCheckout', {
+    trackPixelEvent(eventName, {
       content_name: pageData.title,
       value: pageData.offer_price || 0,
       currency: 'THB'
@@ -103,7 +104,11 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
       await supabase.rpc('increment_landing_page_clicks', { page_id: pageData.id })
     } catch (e) {}
 
-    window.open(url, '_blank')
+    if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
+      window.open(targetUrl, '_blank')
+    } else {
+      window.location.href = targetUrl
+    }
   }
 
   const handleOrderSubmit = async (e: React.FormEvent) => {
@@ -111,15 +116,19 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
     if (!orderForm.name || !orderForm.phone || !pageData) return
 
     setOrdering(true)
+    const formattedNote = `[🛒 ออเดอร์ COD: ${pageData.title}] ยอด: ฿${pageData.offer_price ? parseFloat(String(pageData.offer_price)).toLocaleString() : '0'}${orderForm.line_id ? ` | LINE: ${orderForm.line_id}` : ''} | ที่อยู่จัดส่ง: ${orderForm.address || '-'} | หมายเหตุ: ${orderForm.note || '-'}`
+
     try {
       const res = await fetch('/api/lead', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: pageData.user_id,
-          name: orderForm.name,
-          phone: orderForm.phone,
-          note: `[สั่งซื้อจากหน้าเซลเพจ: ${pageData.title}] ที่อยู่: ${orderForm.address || '-'} ข้อความ: ${orderForm.note || '-'}`
+          name: orderForm.name.trim(),
+          phone: orderForm.phone.trim(),
+          line_id: orderForm.line_id.trim() || null,
+          email: null,
+          note: formattedNote
         })
       })
 
@@ -132,9 +141,33 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
         }, { userId: pageData.user_id, landingPageId: pageData.id, pixelId: pageData.fb_pixel_id || ownerProfile?.fb_pixel_id || null })
 
         setOrderSuccess(true)
+        setOrderForm({ name: '', phone: '', line_id: '', address: '', note: '' })
+      } else {
+        // Direct Supabase Fallback insert
+        await supabase.from('leads').insert([{
+          user_id: pageData.user_id,
+          name: orderForm.name.trim(),
+          phone: orderForm.phone.trim(),
+          line_id: orderForm.line_id.trim() || null,
+          note: formattedNote
+        }])
+
+        setOrderSuccess(true)
         setOrderForm({ name: '', phone: '', address: '', note: '' })
       }
-    } catch (e) {}
+    } catch (e) {
+      // Fallback insert on error
+      try {
+        await supabase.from('leads').insert([{
+          user_id: pageData.user_id,
+          name: orderForm.name.trim(),
+          phone: orderForm.phone.trim(),
+          note: formattedNote
+        }])
+        setOrderSuccess(true)
+        setOrderForm({ name: '', phone: '', address: '', note: '' })
+      } catch (err) {}
+    }
     setOrdering(false)
   }
 
@@ -323,14 +356,38 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
             </div>
           )}
 
-          {/* Primary CTA Button */}
-          <button
-            onClick={() => handleCtaClick(pageData.cta_url)}
-            style={{ backgroundColor: themeColor }} className="w-full py-4 hover:opacity-90 text-white font-black rounded-2xl text-base sm:text-lg transition shadow-xl flex items-center justify-center gap-2 active:scale-98 animate-pulse"
-          >
-            <span>{pageData.cta_text || 'สั่งซื้อโปรโมชั่นพิเศษนี้ทันที'}</span>
-            <ArrowRight className="w-5 h-5" />
-          </button>
+          {/* 3 Action Buttons in Hero Section */}
+          <div className="space-y-2.5 pt-2">
+            <button
+              onClick={() => handleCtaClick(pageData.sticky_btn1_url || pageData.cta_url, 'InitiateCheckout')}
+              style={{ backgroundColor: themeColor }}
+              className="w-full py-4 hover:opacity-95 text-white font-black rounded-2xl text-base sm:text-lg transition shadow-xl flex items-center justify-center gap-2 active:scale-98 animate-pulse"
+            >
+              <MessageCircle className="w-5 h-5" />
+              <span>{pageData.sticky_btn1_text || pageData.cta_text || 'ติดต่อสั่งซื้อด่วน'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                onClick={() => handleCtaClick(pageData.sticky_btn2_url || pageData.cta_secondary_url || `/${ownerProfile?.username || ''}`, 'Contact')}
+                className={`py-3 px-3.5 font-bold rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 border transition active:scale-95 shadow-sm ${
+                  isLightBg ? 'bg-white text-slate-900 border-slate-300 hover:bg-slate-50' : 'bg-slate-900/90 text-slate-100 border-slate-700 hover:bg-slate-800'
+                }`}
+              >
+                <Globe className="w-4 h-4 text-purple-400" />
+                <span className="truncate">{pageData.sticky_btn2_text || pageData.cta_secondary_text || 'ช่องทางติดต่ออื่นๆ'}</span>
+              </button>
+
+              <button
+                onClick={() => handleCtaClick(pageData.sticky_btn3_url || pageData.cta_shop_url || pageData.cta_url, 'InitiateCheckout')}
+                className="py-3 px-3.5 bg-[#34D399] hover:bg-[#10B981] text-slate-950 font-black rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow transition active:scale-95"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                <span className="truncate">{pageData.sticky_btn3_text || pageData.cta_shop_text || 'สั่งซื้อออนไลน์'}</span>
+              </button>
+            </div>
+          </div>
 
           {/* Trust Badges (Fully Customizable per Shop) */}
           <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-bold pt-1">
@@ -527,14 +584,38 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
             </div>
           )}
 
-          {/* Big Order Button */}
-          <button
-            onClick={() => handleCtaClick(pageData.cta_url)}
-            style={{ backgroundColor: themeColor }} className="w-full py-4 sm:py-5 hover:opacity-90 text-white font-black rounded-2xl text-base sm:text-xl transition shadow-xl flex items-center justify-center gap-2 active:scale-98"
-          >
-            <span>{pageData.cta_text || 'สั่งซื้อโปรโมชั่นพิเศษนี้ทันที'}</span>
-            <ArrowRight className="w-6 h-6" />
-          </button>
+          {/* 3 Order / Contact Action Buttons in Pricing Section */}
+          <div className="space-y-3 pt-2">
+            <button
+              onClick={() => handleCtaClick(pageData.sticky_btn1_url || pageData.cta_url, 'InitiateCheckout')}
+              style={{ backgroundColor: themeColor }}
+              className="w-full py-4 sm:py-5 hover:opacity-95 text-white font-black rounded-2xl text-base sm:text-xl transition shadow-xl flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
+            >
+              <MessageCircle className="w-5 h-5" />
+              <span>{pageData.sticky_btn1_text || pageData.cta_text || 'ติดต่อสั่งซื้อด่วน'}</span>
+              <ArrowRight className="w-5 h-5" />
+            </button>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => handleCtaClick(pageData.sticky_btn2_url || pageData.cta_secondary_url || `/${ownerProfile?.username || ''}`, 'Contact')}
+                className={`py-3 px-3.5 font-bold rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 border transition active:scale-95 shadow-sm ${
+                  isLightBg ? 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200' : 'bg-slate-900 text-slate-100 border-slate-700 hover:bg-slate-800'
+                }`}
+              >
+                <Globe className="w-4 h-4 text-purple-400" />
+                <span className="truncate">{pageData.sticky_btn2_text || pageData.cta_secondary_text || 'ช่องทางติดต่ออื่นๆ'}</span>
+              </button>
+
+              <button
+                onClick={() => handleCtaClick(pageData.sticky_btn3_url || pageData.cta_shop_url || pageData.cta_url, 'InitiateCheckout')}
+                className="py-3 px-3.5 bg-[#34D399] hover:bg-[#10B981] text-slate-950 font-black rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow transition active:scale-95"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                <span className="truncate">{pageData.sticky_btn3_text || pageData.cta_shop_text || 'สั่งซื้อออนไลน์'}</span>
+              </button>
+            </div>
+          </div>
         </section>
 
         {/* Detailed Sales Body Copy */}
@@ -653,6 +734,29 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
               </div>
 
               <div>
+                <label className={`block mb-1.5 font-extrabold text-xs sm:text-sm flex items-center justify-between ${
+                  isLightBg ? 'text-slate-800' : 'text-white'
+                }`}>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#06C755]"></span>
+                    <span>LINE ID สำหรับติดต่อ (ถ้ามี)</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-normal">แอดเพื่อแจ้งสถานะจัดส่ง</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="เช่น @yourshop หรือ line_id"
+                  value={orderForm.line_id}
+                  onChange={(e) => setOrderForm({ ...orderForm, line_id: e.target.value })}
+                  className={`w-full px-4 py-3.5 rounded-2xl text-xs sm:text-sm font-medium transition focus:outline-none border-2 shadow-sm ${
+                    isLightBg 
+                      ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white' 
+                      : 'bg-[#1E293B] border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:bg-[#0F172A]'
+                  }`}
+                />
+              </div>
+
+              <div>
                 <label className={`block mb-1.5 font-extrabold text-xs sm:text-sm ${
                   isLightBg ? 'text-slate-800' : 'text-white'
                 }`}>
@@ -705,24 +809,54 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
 
       </main>
 
-      {/* 4. STICKY BOTTOM MOBILE CONVERSION ACTION BAR */}
-      <aside style={{ backgroundColor: isLightBg ? "#FFFFFFEE" : "#0B0F17EE", borderColor: isLightBg ? "#E2E8F0" : "#1E293B" }} className="fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-2xl p-3 px-4 shadow-2xl">
-        <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
-          <div>
-            <span className="text-[10px] text-slate-400 block leading-none">ราคาโปรโมชั่น</span>
-            <span className="text-lg sm:text-xl font-black text-rose-400 font-mono">
+      {/* 4. STICKY BOTTOM MOBILE 3 CONVERSION ACTION BUTTONS */}
+      <aside 
+        style={{ 
+          backgroundColor: isLightBg ? "#FFFFFFFA" : "#0B0F17FA", 
+          borderColor: isLightBg ? "#E2E8F0" : "#1E293B" 
+        }} 
+        className="fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-2xl p-2 px-3 shadow-2xl"
+      >
+        <div className="max-w-xl mx-auto flex items-center justify-between gap-2">
+          
+          {/* Price Box */}
+          <div className="px-2 py-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-center shrink-0 min-w-[58px]">
+            <span className="text-[8px] text-slate-400 block leading-none">ราคาพิเศษ</span>
+            <span className="text-xs sm:text-sm font-black font-mono" style={{ color: themeColor }}>
               ฿{pageData.offer_price ? parseFloat(pageData.offer_price).toLocaleString() : '990'}
             </span>
           </div>
 
+          {/* Button 1: ติดต่อสั่งซื้อด่วน (Primary Theme Color) */}
           <button
-            onClick={() => handleCtaClick(pageData.cta_url)}
+            onClick={() => handleCtaClick(pageData.sticky_btn1_url || pageData.cta_url, 'InitiateCheckout')}
             style={{ backgroundColor: themeColor }}
-            className="flex-1 py-3 px-5 hover:opacity-90 text-white font-extrabold rounded-2xl text-xs sm:text-sm transition shadow-lg flex items-center justify-center gap-1.5 active:scale-95"
+            className="flex-1 py-2.5 px-2.5 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1 shadow-md transition text-center truncate active:scale-95 cursor-pointer"
           >
-            <ShoppingBag className="w-4 h-4" />
-            <span>สั่งซื้อด่วนทันที</span>
+            <Flame className="w-3.5 h-3.5 text-yellow-300 animate-bounce shrink-0" />
+            <span className="truncate">{pageData.sticky_btn1_text || pageData.cta_text || 'ติดต่อสั่งซื้อด่วน'}</span>
           </button>
+
+          {/* Button 2: ช่องทางติดต่ออื่นๆ (Secondary Dark / Glass) */}
+          <button
+            onClick={() => handleCtaClick(pageData.sticky_btn2_url || pageData.cta_secondary_url || `/${ownerProfile?.username || ''}`, 'Contact')}
+            className={`flex-1 py-2.5 px-2 font-bold rounded-xl text-xs flex items-center justify-center gap-1 border transition text-center truncate active:scale-95 cursor-pointer ${
+              isLightBg ? 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200' : 'bg-slate-900 text-slate-100 border-slate-700 hover:bg-slate-800'
+            }`}
+          >
+            <Send className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+            <span className="truncate">{pageData.sticky_btn2_text || pageData.cta_secondary_text || 'ช่องทางติดต่ออื่นๆ'}</span>
+          </button>
+
+          {/* Button 3: สั่งซื้อออนไลน์ (Green) */}
+          <button
+            onClick={() => handleCtaClick(pageData.sticky_btn3_url || pageData.cta_shop_url || pageData.cta_url, 'InitiateCheckout')}
+            className="flex-1 py-2.5 px-2.5 bg-[#34D399] hover:bg-[#10B981] text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1 shadow transition text-center truncate active:scale-95 cursor-pointer"
+          >
+            <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{pageData.sticky_btn3_text || pageData.cta_shop_text || 'สั่งซื้อออนไลน์'}</span>
+          </button>
+
         </div>
       </aside>
 

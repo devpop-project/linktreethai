@@ -8,10 +8,10 @@ import {
   Edit3, ArrowLeft, Check, AlertCircle, Lock, RefreshCw, Eye, X, 
   Trash2, ExternalLink, Link2, ShoppingBag, Settings, Scissors, 
   Copy, BarChart3, Database, Filter, Download, CheckCircle2, 
-  UserPlus, PackagePlus, Globe, Sparkles
+  UserPlus, PackagePlus, Globe, Sparkles, Activity, Clock, Send, Image as ImageIcon
 } from 'lucide-react'
 
-type AdminTab = 'users' | 'landing_pages' | 'shortlinks' | 'links' | 'products' | 'leads' | 'system'
+type AdminTab = 'users' | 'landing_pages' | 'pixels' | 'payments' | 'shortlinks' | 'links' | 'products' | 'leads' | 'system'
 
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true)
@@ -48,8 +48,12 @@ export default function AdminDashboardPage() {
   const [allLinks, setAllLinks] = useState<any[]>([])
   const [allProducts, setAllProducts] = useState<any[]>([])
   const [allLandingPages, setAllLandingPages] = useState<any[]>([])
+  const [allPixelEvents, setAllPixelEvents] = useState<any[]>([])
   const [allShortLinks, setAllShortLinks] = useState<any[]>([])
   const [allLeads, setAllLeads] = useState<any[]>([])
+  const [allPayments, setAllPayments] = useState<any[]>([])
+  const [paymentFilter, setPaymentFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
+  const [zoomSlipUrl, setZoomSlipUrl] = useState<string | null>(null)
   
   // Landing Page Edit Modal State (Admin)
   const [editingLp, setEditingLp] = useState<any | null>(null)
@@ -125,8 +129,10 @@ export default function AdminDashboardPage() {
   const [editingShortLink, setEditingShortLink] = useState<any>(null)
   const [deleteShortLinkModal, setDeleteShortLinkModal] = useState<any>(null)
 
-  // Lead Delete Modal
+  // Lead Edit & Delete Modals
+  const [editingLead, setEditingLead] = useState<any>(null)
   const [deleteLeadModal, setDeleteLeadModal] = useState<any>(null)
+  const [savingLead, setSavingLead] = useState(false)
 
   const router = useRouter()
   const supabase = createClient()
@@ -200,6 +206,36 @@ export default function AdminDashboardPage() {
       .select('*, profiles(username, full_name)')
       .order('created_at', { ascending: false })
     if (lpData) setAllLandingPages(lpData)
+
+    try {
+      const { data: rawPay, error: payErr } = await supabase
+        .from('payment_transactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (!payErr && rawPay) {
+        const enrichedPayments = rawPay.map((pt: any) => {
+          const userObj = pData?.find((u: any) => u.id === pt.user_id)
+          return {
+            ...pt,
+            profiles: userObj ? {
+              username: userObj.username,
+              full_name: userObj.full_name,
+              email: userObj.email,
+              points: userObj.points
+            } : null
+          }
+        })
+        setAllPayments(enrichedPayments)
+      }
+    } catch (e) {}
+
+    const { data: pxData } = await supabase
+      .from('pixel_events')
+      .select('*, profiles(username, full_name)')
+      .order('created_at', { ascending: false })
+      .limit(150)
+    if (pxData) setAllPixelEvents(pxData)
   }
 
   const showNotification = (msg: string) => {
@@ -224,8 +260,18 @@ export default function AdminDashboardPage() {
         offer_price: parseFloat(editingLp.offer_price) || 0,
         original_price: parseFloat(editingLp.original_price) || null,
         countdown_minutes: parseInt(String(editingLp.countdown_minutes), 10) || 15,
-        cta_text: editingLp.cta_text?.trim() || 'สั่งซื้อโปรโมชั่นพิเศษนี้ทันที',
-        cta_url: editingLp.cta_url?.trim(),
+        cta_text: editingLp.sticky_btn1_text?.trim() || editingLp.cta_text?.trim() || 'ติดต่อสั่งซื้อด่วน',
+        cta_url: editingLp.sticky_btn1_url?.trim() || editingLp.cta_url?.trim(),
+        cta_secondary_text: editingLp.sticky_btn2_text?.trim() || editingLp.cta_secondary_text?.trim() || 'ช่องทางติดต่ออื่นๆ',
+        cta_secondary_url: editingLp.sticky_btn2_url?.trim() || editingLp.cta_secondary_url?.trim() || null,
+        cta_shop_text: editingLp.sticky_btn3_text?.trim() || editingLp.cta_shop_text?.trim() || 'สั่งซื้อออนไลน์',
+        cta_shop_url: editingLp.sticky_btn3_url?.trim() || editingLp.cta_shop_url?.trim() || null,
+        sticky_btn1_text: editingLp.sticky_btn1_text?.trim() || editingLp.cta_text?.trim() || 'ติดต่อสั่งซื้อด่วน',
+        sticky_btn1_url: editingLp.sticky_btn1_url?.trim() || editingLp.cta_url?.trim(),
+        sticky_btn2_text: editingLp.sticky_btn2_text?.trim() || editingLp.cta_secondary_text?.trim() || 'ช่องทางติดต่ออื่นๆ',
+        sticky_btn2_url: editingLp.sticky_btn2_url?.trim() || editingLp.cta_secondary_url?.trim() || null,
+        sticky_btn3_text: editingLp.sticky_btn3_text?.trim() || editingLp.cta_shop_text?.trim() || 'สั่งซื้อออนไลน์',
+        sticky_btn3_url: editingLp.sticky_btn3_url?.trim() || editingLp.cta_shop_url?.trim() || null,
         trust_badge_1: editingLp.trust_badge_1?.trim() || 'ส่งฟรีด่วน',
         trust_badge_2: editingLp.trust_badge_2?.trim() || 'ของแท้ 100%',
         trust_badge_3: editingLp.trust_badge_3?.trim() || 'ชำระเงินปลอดภัย',
@@ -274,6 +320,189 @@ export default function AdminDashboardPage() {
         showNotification(`🗑️ ลบเซลเพจ "${title}" สำเร็จ!`)
       }
     } catch (e) {}
+  }
+
+  // --- ADMIN LEADS MANAGEMENT ---
+  const handleSaveLeadAdmin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingLead) return
+    setSavingLead(true)
+
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .update({
+          name: editingLead.name?.trim(),
+          phone: editingLead.phone?.trim() || null,
+          email: editingLead.email?.trim() || null,
+          status: editingLead.status || 'pending',
+          note: editingLead.note?.trim() || null,
+          address: editingLead.address?.trim() || null,
+          amount: parseFloat(editingLead.amount) || null
+        })
+        .eq('id', editingLead.id)
+        .select('*, profiles(username, full_name)')
+
+      if (!error && data) {
+        setAllLeads(allLeads.map(l => l.id === editingLead.id ? data[0] : l))
+        setEditingLead(null)
+        showNotification('✅ บันทึกการแก้ไขข้อมูลออเดอร์/ลีดสำเร็จ!')
+      } else {
+        alert('❌ เกิดข้อผิดพลาด: ' + (error?.message || ''))
+      }
+    } catch (err: any) {
+      alert('❌ เกิดข้อผิดพลาด: ' + err.message)
+    } finally {
+      setSavingLead(false)
+    }
+  }
+
+  const handleExportAllLeadsAdminCSV = () => {
+    if (allLeads.length === 0) {
+      alert('ยังไม่มีข้อมูลลีดในระบบ')
+      return
+    }
+
+    const headers = [
+      'รหัสออเดอร์',
+      'วันที่/เวลา',
+      'เจ้าของบัญชี (@username)',
+      'ประเภท',
+      'สถานะ',
+      'ชื่อลูกค้า',
+      'เบอร์โทรศัพท์',
+      'LINE ID',
+      'อีเมล',
+      'ชื่อสินค้า/เซลเพจ',
+      'ยอดเงิน (บาท)',
+      'ที่อยู่จัดส่ง',
+      'ข้อความ/หมายเหตุ'
+    ]
+
+    const rows = allLeads.map((l, idx) => {
+      const orderCode = l.order_code || `#AMTH${String(idx + 1).padStart(4, '0')}`
+      const dateTime = new Date(l.created_at).toLocaleString('th-TH')
+      const ownerUsername = l.profiles?.username || 'unknown'
+      const isOrder = l.note?.includes('ออเดอร์') || l.note?.includes('COD') || l.note?.includes('ยอด:')
+      const typeStr = isOrder ? 'ออเดอร์เซลเพจ' : 'ฟอร์มติดต่อ'
+      const statusStr = l.status === 'completed' ? 'สำเร็จ' :
+        l.status === 'shipping' ? 'กำลังจัดส่ง' :
+        l.status === 'cancelled' ? 'ยกเลิก' : 'รอดำเนินการ'
+      
+      const customerName = l.name || '-'
+      const phone = l.phone || '-'
+      
+      let lineId = l.line_id || ''
+      if (!lineId && l.note) {
+        const lineMatch = l.note.match(/LINE:\s*([^\|\n]+)/)
+        if (lineMatch) lineId = lineMatch[1].trim()
+      }
+      if (!lineId) lineId = '-'
+
+      const email = l.email || '-'
+
+      let productTitle = l.product_title || ''
+      if (!productTitle && l.note) {
+        const prodMatch = l.note.match(/\[\s*ออเดอร์\s*COD:\s*([^\]]+)\]/) || l.note.match(/\[\s*สั่งซื้อจากหน้าเซลเพจ:\s*([^\]]+)\]/)
+        if (prodMatch) productTitle = prodMatch[1].trim()
+      }
+      if (!productTitle) productTitle = '-'
+
+      let amount = l.amount || ''
+      if (!amount && l.note) {
+        const amtMatch = l.note.match(/ยอด:\s*(?:฿)?([0-9,]+)/)
+        if (amtMatch) amount = amtMatch[1].replace(/,/g, '')
+      }
+      if (!amount) amount = isOrder ? '990' : '0'
+
+      let address = l.address || ''
+      if (!address && l.note) {
+        const addrMatch = l.note.match(/ที่อยู่จัดส่ง:\s*([^\|\n]+)/) || l.note.match(/ที่อยู่:\s*([^\|\n]+)/)
+        if (addrMatch) address = addrMatch[1].trim()
+      }
+      if (!address) address = '-'
+
+      const note = l.note || '-'
+
+      return [
+        `"${orderCode}"`,
+        `"${dateTime}"`,
+        `"@${ownerUsername}"`,
+        `"${typeStr}"`,
+        `"${statusStr}"`,
+        `"${customerName.replace(/"/g, '""')}"`,
+        `"${phone.replace(/"/g, '""')}"`,
+        `"${lineId.replace(/"/g, '""')}"`,
+        `"${email.replace(/"/g, '""')}"`,
+        `"${productTitle.replace(/"/g, '""')}"`,
+        `"${amount}"`,
+        `"${address.replace(/"/g, '""')}"`,
+        `"${note.replace(/"/g, '""')}"`
+      ]
+    })
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.setAttribute('href', url)
+    link.setAttribute('download', `all_leads_system_admin_${Date.now()}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  // --- ADMIN PAYMENT SLIP HANDLERS ---
+  const handleApproveSlip = async (tx: any) => {
+    if (!adminProfile?.id) return
+    if (!confirm(`ยืนยันการอนุมัติสลิปยอด ฿${tx.amount} บาท และเติม ${tx.points} แต้มให้ @${tx.profiles?.username || 'user'}?`)) return
+
+    try {
+      const { data, error } = await supabase.rpc('approve_payment_slip', {
+        p_transaction_id: tx.id,
+        p_admin_id: adminProfile.id
+      })
+
+      if (!error) {
+        showNotification(`✅ อนุมัติสลิปและเติม ${tx.points} แต้มให้ @${tx.profiles?.username || 'user'} เรียบร้อยแล้ว!`)
+        await loadAllData()
+      } else {
+        // Direct fallback update
+        await supabase.from('payment_transactions').update({
+          status: 'approved',
+          approved_by: adminProfile.id,
+          approved_at: new Date().toISOString()
+        }).eq('id', tx.id)
+
+        const newPts = (tx.profiles?.points || 0) + tx.points
+        await supabase.from('profiles').update({ points: newPts }).eq('id', tx.user_id)
+
+        showNotification(`✅ อนุมัติสลิปและเติม ${tx.points} แต้มเรียบร้อยแล้ว!`)
+        await loadAllData()
+      }
+    } catch (e: any) {
+      alert('❌ เกิดข้อผิดพลาด: ' + e.message)
+    }
+  }
+
+  const handleRejectSlip = async (tx: any) => {
+    if (!adminProfile?.id) return
+    const reason = prompt('กรุณาระบุเหตุผลการปฏิเสธสลิป (เช่น สลิปไม่ถูกต้อง, ยอดเงินไม่ตรง):', 'สลิปไม่ถูกต้อง หรือยอดเงินไม่ตรง')
+    if (reason === null) return
+
+    try {
+      await supabase.from('payment_transactions').update({
+        status: 'rejected',
+        admin_note: reason.trim() || 'สลิปไม่ถูกต้อง',
+        approved_by: adminProfile.id,
+        approved_at: new Date().toISOString()
+      }).eq('id', tx.id)
+
+      showNotification(`❌ ปฏิเสธรายการสลิปของ @${tx.profiles?.username || 'user'} แล้ว`)
+      await loadAllData()
+    } catch (e: any) {
+      alert('❌ เกิดข้อผิดพลาด: ' + e.message)
+    }
   }
 
   // 1. USER ACTIONS
@@ -788,7 +1017,8 @@ export default function AdminDashboardPage() {
 
   const filteredUsers = usersList.filter(u => {
     const matchesSearch = (u.username || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (u.full_name || '').toLowerCase().includes(searchQuery.toLowerCase())
+                          (u.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (u.email || '').toLowerCase().includes(searchQuery.toLowerCase())
     const matchesRole = filterRole === 'all' || u.role === filterRole
     const isPro = u.pro_expires_at && new Date(u.pro_expires_at).getTime() > Date.now()
     const isMaster = u.master_expires_at && new Date(u.master_expires_at).getTime() > Date.now()
@@ -799,6 +1029,44 @@ export default function AdminDashboardPage() {
     if (filterTier === 'free') matchesTier = !isPro && !isMaster
 
     return matchesSearch && matchesRole && matchesTier
+  })
+
+  const filteredPayments = allPayments.filter(pt => {
+    const matchesSearch = (pt.package_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (pt.note || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (pt.admin_note || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (pt.profiles?.username || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (pt.profiles?.email || '').toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesStatus = paymentFilter === 'all' || pt.status === paymentFilter
+    const matchesUser = selectedUserFilter === 'all' || pt.user_id === selectedUserFilter
+    return matchesSearch && matchesStatus && matchesUser
+  })
+
+  const filteredLandingPages = allLandingPages.filter(lp => {
+    const matchesSearch = (lp.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (lp.slug || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (lp.headline || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (lp.profiles?.username || '').toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesUser = selectedUserFilter === 'all' || lp.user_id === selectedUserFilter
+    return matchesSearch && matchesUser
+  })
+
+  const filteredPixelEvents = allPixelEvents.filter(px => {
+    const matchesSearch = (px.event_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (px.url || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (px.pixel_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (px.profiles?.username || '').toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesUser = selectedUserFilter === 'all' || px.user_id === selectedUserFilter
+    return matchesSearch && matchesUser
+  })
+
+  const filteredShortLinks = allShortLinks.filter(sl => {
+    const matchesSearch = (sl.slug || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (sl.original_url || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (sl.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (sl.profiles?.username || '').toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesUser = selectedUserFilter === 'all' || sl.created_by === selectedUserFilter
+    return matchesSearch && matchesUser
   })
 
   const filteredLinks = allLinks.filter(l => {
@@ -815,12 +1083,6 @@ export default function AdminDashboardPage() {
                           (p.profiles?.username || '').toLowerCase().includes(searchQuery.toLowerCase())
     const matchesUser = selectedUserFilter === 'all' || p.user_id === selectedUserFilter
     return matchesSearch && matchesUser
-  })
-
-  const filteredShortLinks = allShortLinks.filter(sl => {
-    return (sl.slug || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-           (sl.original_url || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-           (sl.title || '').toLowerCase().includes(searchQuery.toLowerCase())
   })
 
   const filteredLeads = allLeads.filter(ld => {
@@ -944,15 +1206,42 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {/* Admin Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3">
+        {/* Admin Navigation Tabs (Complete 9 System Tabs) */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
           <button
             onClick={() => { setActiveTab('users'); setSearchQuery(''); }}
             className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition ${
               activeTab === 'users' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
-            <Users className="w-4 h-4" /> จัดการสมาชิก ({usersList.length})
+            <Users className="w-4 h-4" /> <span>จัดการสมาชิก ({usersList.length})</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('landing_pages'); setSearchQuery(''); }}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition ${
+              activeTab === 'landing_pages' ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30' : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <Rocket className="w-4 h-4" /> <span>🚀 เซลเพจยิงแอด ({allLandingPages.length})</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('pixels'); setSearchQuery(''); }}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition ${
+              activeTab === 'pixels' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <Activity className="w-4 h-4" /> <span>🎯 จัดการ Pixels & สถิติ ({allPixelEvents.length})</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('payments'); setSearchQuery(''); }}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition ${
+              activeTab === 'payments' ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30' : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <Coins className="w-4 h-4" /> <span>💳 ตรวจสอบสลิป ({allPayments.length}){allPayments.filter(p => p.status === 'pending').length > 0 ? ` [${allPayments.filter(p => p.status === 'pending').length} รอตรวจ]` : ''}</span>
           </button>
 
           <button
@@ -961,7 +1250,7 @@ export default function AdminDashboardPage() {
               activeTab === 'shortlinks' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
-            <Scissors className="w-4 h-4" /> ระบบย่อลิงก์ ({allShortLinks.length})
+            <Scissors className="w-4 h-4" /> <span>ระบบย่อลิงก์ ({allShortLinks.length})</span>
           </button>
 
           <button
@@ -970,7 +1259,7 @@ export default function AdminDashboardPage() {
               activeTab === 'links' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
-            <Link2 className="w-4 h-4" /> ลิ้งก์ทั้งหมด ({allLinks.length})
+            <Link2 className="w-4 h-4" /> <span>ลิ้งก์ ({allLinks.length})</span>
           </button>
 
           <button
@@ -979,7 +1268,7 @@ export default function AdminDashboardPage() {
               activeTab === 'products' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
-            <ShoppingBag className="w-4 h-4" /> สินค้าทั้งหมด ({allProducts.length})
+            <ShoppingBag className="w-4 h-4" /> <span>สินค้า ({allProducts.length})</span>
           </button>
 
           <button
@@ -988,7 +1277,7 @@ export default function AdminDashboardPage() {
               activeTab === 'leads' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
-            <Users className="w-4 h-4 text-emerald-400" /> ลูกค้า Leads ({allLeads.length})
+            <Users className="w-4 h-4" /> <span>ลีด CRM ({allLeads.length})</span>
           </button>
 
           <button
@@ -997,22 +1286,54 @@ export default function AdminDashboardPage() {
               activeTab === 'system' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
-            <Database className="w-4 h-4" /> ข้อมูลระบบ & SQL
+            <Database className="w-4 h-4" /> <span>ระบบ & SQL</span>
           </button>
         </div>
 
-                {/* TAB 2: LANDING PAGES & PIXELS (ADMIN MANAGEMENT) */}
+                                {/* TAB: SALES LANDING PAGES MANAGEMENT (ADMIN) */}
         {activeTab === 'landing_pages' && (
-          <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-3xl space-y-4 shadow-xl">
+          <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-3xl space-y-4 shadow-xl text-slate-100">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold">
                   <Rocket className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-white">จัดการเซลเพจยิงแอด & Pixel ของทุกคนในระบบ ({allLandingPages.length})</h3>
-                  <p className="text-xs text-slate-400">แอดมินสามารถตรวจสอบ แก้ไขข้อมูล และปรับแต่ง Pixel ของเซลเพจทุกใบได้อย่างอิสระ</p>
+                  <h3 className="font-extrabold text-base text-white">
+                    จัดการหน้าเซลเพจยิงแอดทั้งหมด ({filteredLandingPages.length})
+                  </h3>
+                  <p className="text-xs text-slate-400">ตรวจสอบ แก้ไขเนื้อหา และจัดการ Pixel ของเซลเพจทุกใบของทุกคนในระบบ</p>
                 </div>
+              </div>
+            </div>
+
+            {/* Universal Filter Bar */}
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+              <div className="relative flex-1 w-full">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="ค้นหาชื่อเซลเพจ, Slug URL หรือชื่อเจ้าของ..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-rose-400"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Users className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                <select
+                  value={selectedUserFilter}
+                  onChange={(e) => setSelectedUserFilter(e.target.value)}
+                  className="px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 font-bold focus:outline-none focus:border-rose-400 max-w-[240px] truncate"
+                >
+                  <option value="all">👤 ผู้ใช้ทั้งหมด ({usersList.length} คน)</option>
+                  {usersList.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      @{u.username} - {u.full_name || u.username} ({u.points || 0} แต้ม)
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -1024,39 +1345,41 @@ export default function AdminDashboardPage() {
                     <th className="pb-3 px-2">URL Slug</th>
                     <th className="pb-3 px-2">ราคา Flash Sale</th>
                     <th className="pb-3 px-2">สถิติ (วิว/คลิก)</th>
-                    <th className="pb-3 px-2">Tracking Pixels ที่ฝัง</th>
+                    <th className="pb-3 px-2">Pixel เฉพาะหน้า</th>
                     <th className="pb-3 px-2 text-right">การจัดการ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
-                  {allLandingPages.length === 0 ? (
+                  {filteredLandingPages.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-8 text-center text-slate-500">
-                        ยังไม่มีเซลเพจถูกสร้างในระบบ
+                        ไม่มีเซลเพจที่ตรงกับตัวกรองนี้
                       </td>
                     </tr>
                   ) : (
-                    allLandingPages.map((lp) => (
+                    filteredLandingPages.map((lp) => (
                       <tr key={lp.id} className="hover:bg-slate-800/40 transition">
                         <td className="py-3 px-2">
-                          <p className="font-bold text-white">{lp.title}</p>
-                          <p className="text-[11px] text-purple-400">@{lp.profiles?.username || 'unknown'}</p>
+                          <p className="font-bold text-white text-sm">{lp.title}</p>
+                          <p className="text-[11px] text-purple-400 font-mono">@{lp.profiles?.username || 'unknown'}</p>
                         </td>
                         <td className="py-3 px-2 font-mono font-bold text-rose-400">
                           /p/{lp.slug}
                         </td>
-                        <td className="py-3 px-2 font-mono font-bold text-emerald-400">
+                        <td className="py-3 px-2 font-mono font-bold text-emerald-400 text-sm">
                           ฿{lp.offer_price ? parseFloat(lp.offer_price).toLocaleString() : '0'}
                         </td>
-                        <td className="py-3 px-2 text-slate-300">
-                          👁️ {lp.views || 0} | 👆 {lp.clicks || 0}
+                        <td className="py-3 px-2 text-slate-300 font-mono">
+                          👁️ {lp.views || 0} | 🛒 {lp.clicks || 0}
                         </td>
                         <td className="py-3 px-2">
-                          <span className="text-[10px] bg-purple-950/80 text-purple-300 border border-purple-800 px-2 py-0.5 rounded font-mono">
-                            {lp.fb_pixel_id ? `FB: ${lp.fb_pixel_id}` : 'Global Pixel'}
-                          </span>
+                          <div className="space-y-0.5 font-mono text-[10px]">
+                            {lp.fb_pixel_id && <p className="text-blue-400">FB: {lp.fb_pixel_id}</p>}
+                            {lp.tiktok_pixel_id && <p className="text-pink-400">TT: {lp.tiktok_pixel_id}</p>}
+                            {!lp.fb_pixel_id && !lp.tiktok_pixel_id && <span className="text-slate-500">ใช้ค่าหลักโปรไฟล์</span>}
+                          </div>
                         </td>
-                        <td className="py-3 px-2 text-right space-x-2">
+                        <td className="py-3 px-2 text-right space-x-1.5">
                           <button
                             type="button"
                             onClick={() => setEditingLp({ ...lp })}
@@ -1075,13 +1398,303 @@ export default function AdminDashboardPage() {
                           <button
                             type="button"
                             onClick={() => handleDeleteLandingPageAdmin(lp.id, lp.title)}
-                            className="px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-400 rounded-xl text-xs font-bold transition"
+                            className="px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 rounded-xl text-xs font-bold transition"
                           >
                             ลบ
                           </button>
                         </td>
                       </tr>
                     ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: TRACKING PIXELS & REAL-TIME EVENTS (ADMIN) */}
+        {activeTab === 'pixels' && (
+          <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-3xl space-y-6 shadow-xl text-slate-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                  <Activity className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-white">
+                    ศูนย์ควบคุม Tracking Pixels & สถิติยิงแอดทั้งระบบ ({allPixelEvents.length} Events)
+                  </h3>
+                  <p className="text-xs text-slate-400">ตรวจสอบ Pixel ID ของผู้ใช้ทุกคน และประวัติการยิง Conversion Event สด</p>
+                </div>
+              </div>
+            </div>
+
+            {/* User Pixels Configuration Table */}
+            <div className="space-y-3">
+              <h4 className="font-extrabold text-xs text-slate-300 uppercase tracking-wider">
+                1. การตั้งค่า Pixel ID ของผู้ใช้งานในระบบ ({usersList.length} บัญชี)
+              </h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-800 text-slate-400 font-bold">
+                      <th className="pb-3 px-2">ผู้ใช้งาน</th>
+                      <th className="pb-3 px-2">Facebook Pixel</th>
+                      <th className="pb-3 px-2">TikTok Pixel</th>
+                      <th className="pb-3 px-2">Google Tag</th>
+                      <th className="pb-3 px-2">LINE Tag</th>
+                      <th className="pb-3 px-2">สถานะสิทธิ์</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {usersList.map((u) => {
+                      const hasPixels = Boolean(u.fb_pixel_id || u.tiktok_pixel_id || u.google_pixel_id || u.line_tag_id)
+                      const isUnlocked = u.role === 'admin' || (u.master_expires_at && new Date(u.master_expires_at).getTime() > Date.now()) || (u.pixel_expires_at && new Date(u.pixel_expires_at).getTime() > Date.now())
+                      return (
+                        <tr key={u.id} className="hover:bg-slate-800/40 transition">
+                          <td className="py-3 px-2">
+                            <p className="font-bold text-white">@{u.username}</p>
+                            <p className="text-[11px] text-slate-400">{u.full_name}</p>
+                          </td>
+                          <td className="py-3 px-2 font-mono text-[11px]">
+                            {u.fb_pixel_id ? <span className="text-blue-400 font-bold">{u.fb_pixel_id}</span> : <span className="text-slate-600">-</span>}
+                          </td>
+                          <td className="py-3 px-2 font-mono text-[11px]">
+                            {u.tiktok_pixel_id ? <span className="text-pink-400 font-bold">{u.tiktok_pixel_id}</span> : <span className="text-slate-600">-</span>}
+                          </td>
+                          <td className="py-3 px-2 font-mono text-[11px]">
+                            {u.google_pixel_id ? <span className="text-amber-400 font-bold">{u.google_pixel_id}</span> : <span className="text-slate-600">-</span>}
+                          </td>
+                          <td className="py-3 px-2 font-mono text-[11px]">
+                            {u.line_tag_id ? <span className="text-emerald-400 font-bold">{u.line_tag_id}</span> : <span className="text-slate-600">-</span>}
+                          </td>
+                          <td className="py-3 px-2">
+                            {isUnlocked ? (
+                              <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full font-bold text-[10px]">
+                                ● ปลดล็อกแล้ว
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 bg-slate-800 text-slate-400 rounded-full text-[10px]">
+                                🔒 ยังไม่ปลดล็อก
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Live Real-time Pixel Events Activity Stream */}
+            <div className="space-y-3 pt-4 border-t border-slate-800">
+              <h4 className="font-extrabold text-xs text-slate-300 uppercase tracking-wider">
+                2. บันทึกสัญญาณ Conversion Events ล่าสุดทั้งระบบ ({allPixelEvents.length})
+              </h4>
+              <div className="divide-y divide-slate-800 bg-slate-950 rounded-2xl border border-slate-800 max-h-72 overflow-y-auto text-xs">
+                {allPixelEvents.length === 0 ? (
+                  <div className="p-8 text-center text-slate-500">
+                    ยังไม่มีข้อมูล Pixel Event บันทึกเข้ามา
+                  </div>
+                ) : (
+                  allPixelEvents.map((ev) => (
+                    <div key={ev.id} className="p-3 flex items-center justify-between hover:bg-slate-900/60 transition">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-mono font-bold px-2 py-0.5 rounded text-[10px] ${
+                            ev.event_name === 'Purchase' ? 'bg-emerald-500 text-slate-950' :
+                            ev.event_name === 'InitiateCheckout' ? 'bg-amber-500 text-slate-950' :
+                            ev.event_name === 'PageView' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'
+                          }`}>
+                            {ev.event_name}
+                          </span>
+                          <span className="text-white font-bold">{ev.url || '/'}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 font-mono">
+                          เจ้าของ: @{ev.profiles?.username || 'unknown'} {ev.event_data?.value ? `| ยอด: ฿${ev.event_data.value}` : ''}
+                        </p>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        {new Date(ev.created_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: PAYMENT TRANSACTIONS & SLIP APPROVAL (ADMIN) */}
+        {activeTab === 'payments' && (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl space-y-4 shadow-sm text-slate-100">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+                  <Coins className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-[#1E1B4B] dark:text-white">
+                    ระบบตรวจสอบสลิป & อนุมัติการชำระเงิน ({filteredPayments.length})
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">ตรวจสอบหลักฐานการโอนเงิน PromptPay และกดอนุมัติเพื่อเติมแต้มให้ผู้ใช้ทันที</p>
+                </div>
+              </div>
+
+              {/* Status Filter Chips */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[
+                  { id: 'all', label: 'ทั้งหมด', count: allPayments.length },
+                  { id: 'pending', label: '🟡 รอตรวจสอบ', count: allPayments.filter(p => p.status === 'pending').length },
+                  { id: 'approved', label: '🟢 อนุมัติแล้ว', count: allPayments.filter(p => p.status === 'approved').length },
+                  { id: 'rejected', label: '🔴 ปฏิเสธ', count: allPayments.filter(p => p.status === 'rejected').length }
+                ].map(f => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setPaymentFilter(f.id as any)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 ${
+                      paymentFilter === f.id
+                        ? 'bg-amber-500 text-slate-950 font-black shadow'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <span>{f.label}</span>
+                    <span className="text-[10px] opacity-75 font-mono">({f.count})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Universal Filter Bar (Search + User Filter Dropdown) */}
+            <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
+              <div className="relative flex-1 w-full">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="ค้นหาชื่อผู้ใช้, แพ็กเกจ, หรือหมายเหตุสลิป..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Users className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                <select
+                  value={selectedUserFilter}
+                  onChange={(e) => setSelectedUserFilter(e.target.value)}
+                  className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-700 dark:text-slate-200 font-bold focus:outline-none focus:border-amber-400 max-w-[240px] truncate"
+                >
+                  <option value="all">👤 ผู้ใช้ทั้งหมด ({usersList.length} คน)</option>
+                  {usersList.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      @{u.username} - {u.full_name || u.username} ({u.points || 0} แต้ม)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold">
+                    <th className="pb-3 px-2">สลิปการโอน</th>
+                    <th className="pb-3 px-2">ผู้ใช้งาน</th>
+                    <th className="pb-3 px-2">ยอดเงิน / แต้มที่ขอเติม</th>
+                    <th className="pb-3 px-2">วันที่แจ้งโอน</th>
+                    <th className="pb-3 px-2">สถานะ</th>
+                    <th className="pb-3 px-2 text-right">การอนุมัติ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {filteredPayments.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-500">
+                        ไม่มีรายการชำระเงินในหมวดหมู่นี้
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredPayments.map((tx) => (
+                        <tr key={tx.id} className="hover:bg-slate-800/40 transition">
+                          <td className="py-3 px-2">
+                            {tx.slip_url ? (
+                              <img
+                                src={tx.slip_url}
+                                alt="Slip"
+                                onClick={() => setZoomSlipUrl(tx.slip_url)}
+                                className="w-14 h-14 rounded-xl object-cover border border-slate-700 shadow cursor-pointer hover:scale-105 transition"
+                                title="คลิกเพื่อดูสลิปขนาดเต็ม"
+                              />
+                            ) : (
+                              <span className="text-slate-500">ไม่มีรูปสลิป</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-2">
+                            <p className="font-bold text-white">@{tx.profiles?.username || 'unknown'}</p>
+                            <p className="text-[11px] text-slate-400">{tx.profiles?.email || '-'}</p>
+                            <p className="text-[10px] text-amber-400 font-mono">แต้มปัจจุบัน: {tx.profiles?.points || 0} แต้ม</p>
+                          </td>
+                          <td className="py-3 px-2">
+                            <p className="font-black text-sm text-emerald-400 font-mono">
+                              ฿{parseFloat(tx.amount).toLocaleString()} บาท
+                            </p>
+                            <p className="font-bold text-amber-400 font-mono text-xs">
+                              (+{tx.points} แต้ม)
+                            </p>
+                            {tx.note && (
+                              <p className="text-[10px] text-slate-400 italic truncate max-w-xs">"{tx.note}"</p>
+                            )}
+                          </td>
+                          <td className="py-3 px-2 text-slate-400 font-mono text-[11px]">
+                            {new Date(tx.created_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}
+                          </td>
+                          <td className="py-3 px-2">
+                            {tx.status === 'approved' ? (
+                              <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full font-bold text-[10px] inline-flex items-center gap-1">
+                                <Check className="w-3 h-3" /> อนุมัติแล้ว
+                              </span>
+                            ) : tx.status === 'rejected' ? (
+                              <div>
+                                <span className="px-2.5 py-1 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-full font-bold text-[10px] inline-flex items-center gap-1">
+                                  <X className="w-3 h-3" /> ปฏิเสธ
+                                </span>
+                                {tx.admin_note && <p className="text-[9px] text-rose-400 mt-0.5">{tx.admin_note}</p>}
+                              </div>
+                            ) : (
+                              <span className="px-2.5 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full font-bold text-[10px] inline-flex items-center gap-1 animate-pulse">
+                                <Clock className="w-3 h-3" /> รอตรวจสอบ
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-2 text-right space-x-1.5">
+                            {tx.status === 'pending' ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleApproveSlip(tx)}
+                                  className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition shadow active:scale-95"
+                                >
+                                  ✅ อนุมัติ (+{tx.points} แต้ม)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRejectSlip(tx)}
+                                  className="px-3 py-1.5 bg-rose-950/80 hover:bg-rose-900 text-rose-300 rounded-xl text-xs font-bold transition"
+                                >
+                                  ปฏิเสธ
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-[11px] text-slate-500">
+                                ดำเนินการแล้ว
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
                   )}
                 </tbody>
               </table>
@@ -1805,11 +2418,12 @@ export default function AdminDashboardPage() {
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-slate-800 text-slate-400 font-bold bg-slate-950/60">
+                    <th className="p-3">รหัส ID</th>
                     <th className="p-3">ชื่อผู้ติดต่อ</th>
                     <th className="p-3">เบอร์โทรศัพท์</th>
-                    <th className="p-3">อีเมล</th>
-                    <th className="p-3">ข้อความ / Note</th>
-                    <th className="p-3">เจ้าของหน้า Bio</th>
+                    <th className="p-3">LINE ID</th>
+                    <th className="p-3">ข้อความ / ที่อยู่จัดส่ง</th>
+                    <th className="p-3">เจ้าของหน้า</th>
                     <th className="p-3">วันที่ส่งข้อมูล</th>
                     <th className="p-3 text-right">จัดการ</th>
                   </tr>
@@ -1817,34 +2431,45 @@ export default function AdminDashboardPage() {
                 <tbody className="divide-y divide-slate-800/60">
                   {filteredLeads.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="p-8 text-center text-slate-500 italic">
+                      <td colSpan={8} className="p-8 text-center text-slate-500 italic">
                         ยังไม่มีข้อมูล Leads
                       </td>
                     </tr>
                   ) : (
-                    filteredLeads.map((ld) => (
-                      <tr key={ld.id} className="hover:bg-slate-800/40 transition">
-                        <td className="p-3 font-bold text-white">{ld.name}</td>
-                        <td className="p-3 font-mono text-emerald-400">{ld.phone || '-'}</td>
-                        <td className="p-3 text-slate-300">{ld.email || '-'}</td>
-                        <td className="p-3 max-w-xs text-slate-400 truncate">{ld.note || '-'}</td>
-                        <td className="p-3">
-                          <span className="font-bold text-purple-400">@{ld.profiles?.username || 'user'}</span>
-                        </td>
-                        <td className="p-3 text-slate-400 text-[11px]">
-                          {new Date(ld.created_at).toLocaleString('th-TH')}
-                        </td>
-                        <td className="p-3 text-right">
-                          <button
-                            onClick={() => setDeleteLeadModal(ld)}
-                            className="p-1.5 bg-slate-800 hover:bg-red-950 text-red-400 rounded-lg transition"
-                            title="ลบข้อมูล Lead"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                    filteredLeads.map((ld, idx) => {
+                      const prefix = (ld.profiles?.username || 'AMTH').slice(0, 4).toUpperCase()
+                      const formattedId = `#${prefix}${String(allLeads.length - idx).padStart(4, '0')}`
+                      return (
+                        <tr key={ld.id} className="hover:bg-slate-800/40 transition">
+                          <td className="p-3 font-mono font-bold text-amber-300">{formattedId}</td>
+                          <td className="p-3 font-bold text-white">{ld.name}</td>
+                          <td className="p-3 font-mono text-emerald-400">{ld.phone || '-'}</td>
+                          <td className="p-3 font-bold text-[#06C755]">
+                            {ld.line_id ? (
+                              <a href={`https://line.me/ti/p/~${ld.line_id.replace('@', '')}`} target="_blank" rel="noreferrer" className="hover:underline">
+                                {ld.line_id}
+                              </a>
+                            ) : '-'}
+                          </td>
+                          <td className="p-3 max-w-xs text-slate-300 truncate" title={ld.note}>{ld.note || '-'}</td>
+                          <td className="p-3">
+                            <span className="font-bold text-purple-400">@{ld.profiles?.username || 'user'}</span>
+                          </td>
+                          <td className="p-3 text-slate-400 text-[11px]">
+                            {new Date(ld.created_at).toLocaleString('th-TH')}
+                          </td>
+                          <td className="p-3 text-right">
+                            <button
+                              onClick={() => setDeleteLeadModal(ld)}
+                              className="p-1.5 bg-slate-800 hover:bg-red-950 text-red-400 rounded-lg transition"
+                              title="ลบข้อมูล Lead"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })
                   )}
                 </tbody>
               </table>
@@ -2999,6 +3624,116 @@ WHERE username = 'YOUR_USERNAME';`}
       )}
 
       
+      {/* ADMIN EDIT LEAD MODAL */}
+      {editingLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 text-slate-100">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-white text-base">แก้ไขสถานะ & ข้อมูลออเดอร์/ลีด</h3>
+                  <p className="text-xs text-slate-400">เจ้าของบัญชี: @{editingLead.profiles?.username || 'unknown'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingLead(null)}
+                className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveLeadAdmin} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold mb-1 text-slate-300">สถานะออเดอร์/การติดต่อ</label>
+                <select
+                  value={editingLead.status || 'pending'}
+                  onChange={(e) => setEditingLead({ ...editingLead, status: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-bold"
+                >
+                  <option value="pending">🟡 รอดำเนินการ (Pending)</option>
+                  <option value="shipping">🚚 กำลังจัดส่ง (Shipping)</option>
+                  <option value="completed">✅ สำเร็จ / จัดส่งแล้ว (Completed)</option>
+                  <option value="cancelled">❌ ยกเลิก (Cancelled)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-300">ชื่อลูกค้า</label>
+                <input
+                  type="text"
+                  required
+                  value={editingLead.name || ''}
+                  onChange={(e) => setEditingLead({ ...editingLead, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold mb-1 text-slate-300">เบอร์โทรศัพท์</label>
+                  <input
+                    type="text"
+                    value={editingLead.phone || ''}
+                    onChange={(e) => setEditingLead({ ...editingLead, phone: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold mb-1 text-slate-300">อีเมล</label>
+                  <input
+                    type="email"
+                    value={editingLead.email || ''}
+                    onChange={(e) => setEditingLead({ ...editingLead, email: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-300">ที่อยู่จัดส่ง / ข้อมูลจัดส่ง</label>
+                <textarea
+                  rows={2}
+                  value={editingLead.address || ''}
+                  onChange={(e) => setEditingLead({ ...editingLead, address: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-300">ข้อความ / หมายเหตุออเดอร์</label>
+                <textarea
+                  rows={3}
+                  value={editingLead.note || ''}
+                  onChange={(e) => setEditingLead({ ...editingLead, note: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="submit"
+                  disabled={savingLead}
+                  className="flex-1 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold rounded-xl shadow transition"
+                >
+                  {savingLead ? 'กำลังบันทึก...' : '💾 บันทึกการแก้ไข'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingLead(null)}
+                  className="px-4 py-2.5 bg-slate-800 text-slate-300 rounded-xl font-bold hover:bg-slate-700"
+                >
+                  ยกเลิก
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* ADMIN EDIT LANDING PAGE MODAL */}
       {editingLp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -3109,24 +3844,55 @@ WHERE username = 'YOUR_USERNAME';`}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold mb-1 text-slate-300">ข้อความบนปุ่มสั่งซื้อ</label>
+              {/* 3 Action Buttons (Admin Edit) */}
+              <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
+                <label className="block font-bold text-slate-300">ปุ่มดำเนินการ 3 ปุ่ม (3 Action Buttons)</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input
                     type="text"
+                    placeholder="1. ข้อความปุ่มสั่งซื้อด่วน"
                     value={editingLp.cta_text || ''}
                     onChange={(e) => setEditingLp({ ...editingLp, cta_text: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white"
+                    className="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white text-xs"
                   />
-                </div>
-                <div>
-                  <label className="block font-bold mb-1 text-slate-300">ลิงก์สั่งซื้อ (CTA URL)</label>
                   <input
                     type="text"
-                    required
+                    placeholder="ลิงก์สั่งซื้อด่วน (LINE OA)"
                     value={editingLp.cta_url || ''}
                     onChange={(e) => setEditingLp({ ...editingLp, cta_url: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl font-mono text-white"
+                    className="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white font-mono text-xs"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="2. ข้อความช่องทางติดต่ออื่นๆ"
+                    value={editingLp.cta_secondary_text || ''}
+                    onChange={(e) => setEditingLp({ ...editingLp, cta_secondary_text: e.target.value })}
+                    className="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white text-xs"
+                  />
+                  <input
+                    type="text"
+                    placeholder="ลิงก์ติดต่ออื่นๆ (Facebook/IG)"
+                    value={editingLp.cta_secondary_url || ''}
+                    onChange={(e) => setEditingLp({ ...editingLp, cta_secondary_url: e.target.value })}
+                    className="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white font-mono text-xs"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="3. ข้อความสั่งซื้อออนไลน์"
+                    value={editingLp.cta_shop_text || ''}
+                    onChange={(e) => setEditingLp({ ...editingLp, cta_shop_text: e.target.value })}
+                    className="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white text-xs"
+                  />
+                  <input
+                    type="text"
+                    placeholder="ลิงก์ร้านค้าออนไลน์ (Shopee/Lazada)"
+                    value={editingLp.cta_shop_url || ''}
+                    onChange={(e) => setEditingLp({ ...editingLp, cta_shop_url: e.target.value })}
+                    className="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-white font-mono text-xs"
                   />
                 </div>
               </div>
@@ -3221,6 +3987,23 @@ WHERE username = 'YOUR_USERNAME';`}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Admin Zoom Slip Modal */}
+      {zoomSlipUrl && (
+        <div 
+          onClick={() => setZoomSlipUrl(null)}
+          className="fixed inset-0 z-60 flex items-center justify-center bg-black/90 p-4 cursor-pointer"
+        >
+          <div className="relative max-w-lg max-h-[85vh] p-2" onClick={(e) => e.stopPropagation()}>
+            <img src={zoomSlipUrl} alt="Slip Zoom" className="max-w-full max-h-[80vh] rounded-2xl shadow-2xl object-contain" />
+            <button
+              onClick={() => setZoomSlipUrl(null)}
+              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-900/80 text-white flex items-center justify-center border border-white/20"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
         </div>
       )}
