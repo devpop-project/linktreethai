@@ -12,7 +12,22 @@ export async function POST(request: Request) {
     })
 
     const body = await request.json()
-    const { user_id, name, phone, email, line_id, note, amount, address, order_code, status } = body
+    const { 
+      user_id, 
+      name, 
+      phone, 
+      email, 
+      line_id, 
+      note, 
+      amount, 
+      address, 
+      order_code, 
+      status,
+      line_channel_access_token,
+      line_user_id,
+      line_webhook_url,
+      line_notify_token
+    } = body
 
     if (!user_id || !name) {
       return NextResponse.json({ error: 'Missing required fields (user_id, name)' }, { status: 400 })
@@ -54,20 +69,27 @@ export async function POST(request: Request) {
       }])
     } catch (e) {}
 
-    // REAL-TIME NOTIFICATION (MASTER VIP & ADMIN EXCLUSIVE)
+    // REAL-TIME LINE NOTIFICATION (BULLETPROOF HYBRID: DB + CLIENT PAYLOAD FALLBACK)
     try {
-      const { data: owner } = await supabase
-        .from('profiles')
-        .select('id, username, full_name, role, master_expires_at, line_channel_access_token, line_user_id, line_notify_token, line_webhook_url')
-        .eq('id', user_id)
-        .single()
+      let owner: any = null
+      try {
+        const { data: dbOwner } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user_id)
+          .single()
+        owner = dbOwner
+      } catch (dbErr) {
+        console.error('Notice: profiles query error:', dbErr)
+      }
 
-      const isMaster = owner?.role === 'admin' || Boolean(
-        owner?.master_expires_at && new Date(owner.master_expires_at).getTime() > Date.now()
-      )
+      const channelToken = (line_channel_access_token || owner?.line_channel_access_token || '').trim()
+      const targetUserId = (line_user_id || owner?.line_user_id || '').trim()
+      const webhookUrl = (line_webhook_url || owner?.line_webhook_url || '').trim()
+      const notifyToken = (line_notify_token || owner?.line_notify_token || '').trim()
 
-      if (isMaster && (owner?.line_channel_access_token || owner?.line_webhook_url || owner?.line_notify_token)) {
-        const isOrder = Boolean(address || (note && note.includes('COD')) || amount)
+      if ((channelToken && targetUserId) || webhookUrl || notifyToken) {
+        const isOrder = Boolean(address || (note && (note.includes('COD') || note.includes('สั่งซื้อ'))) || amount)
         const headerTitle = isOrder ? '🛒 มีออเดอร์สั่งซื้อ (COD) ใหม่!' : '💬 มีข้อความติดต่อ/ลีดใหม่!'
         
         const linePushMessage = `${headerTitle}\n` +
@@ -84,16 +106,16 @@ export async function POST(request: Request) {
           `🔗 เข้าดูในแดชบอร์ด: https://linktreethai.com/dashboard`
 
         // 1. OFFICIAL LINE MESSAGING API (Push Message to LINE OA)
-        if (owner?.line_channel_access_token && owner?.line_user_id) {
+        if (channelToken && targetUserId) {
           try {
-            await fetch('https://api.line.me/v2/bot/message/push', {
+            const lineRes = await fetch('https://api.line.me/v2/bot/message/push', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${owner.line_channel_access_token.trim()}`
+                'Authorization': `Bearer ${channelToken}`
               },
               body: JSON.stringify({
-                to: owner.line_user_id.trim(),
+                to: targetUserId,
                 messages: [
                   {
                     type: 'text',
@@ -102,21 +124,28 @@ export async function POST(request: Request) {
                 ]
               })
             })
+
+            if (!lineRes.ok) {
+              const errBody = await lineRes.text()
+              console.error('LINE Messaging API error response:', lineRes.status, errBody)
+            } else {
+              console.log('LINE Messaging API push notification sent successfully!')
+            }
           } catch (lineApiErr) {
             console.error('Error sending LINE Messaging API push:', lineApiErr)
           }
         }
 
         // 2. LINE OA Webhook / Custom Webhook (Make, Zapier, N8N, Custom endpoint)
-        if (owner?.line_webhook_url) {
+        if (webhookUrl) {
           try {
-            await fetch(owner.line_webhook_url.trim(), {
+            await fetch(webhookUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 event: 'lead_submission',
                 timestamp: new Date().toISOString(),
-                owner_username: owner.username,
+                owner_username: owner?.username,
                 is_order: isOrder,
                 lead: insertPayload
               })
@@ -127,12 +156,12 @@ export async function POST(request: Request) {
         }
 
         // 3. Legacy LINE Notify (Fallback)
-        if (owner?.line_notify_token && !owner?.line_channel_access_token) {
+        if (notifyToken && (!channelToken || !targetUserId)) {
           try {
             await fetch('https://notify-api.line.me/api/notify', {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${owner.line_notify_token.trim()}`,
+                'Authorization': `Bearer ${notifyToken}`,
                 'Content-Type': 'application/x-www-form-urlencoded'
               },
               body: new URLSearchParams({ message: `\n${linePushMessage}` }).toString()
@@ -143,7 +172,7 @@ export async function POST(request: Request) {
         }
       }
     } catch (notifErr) {
-      console.error('Error processing LINE notification:', notifErr)
+      console.error('Error processing LINE notification in /api/lead:', notifErr)
     }
 
     return NextResponse.json({ success: true, lead: data[0] })

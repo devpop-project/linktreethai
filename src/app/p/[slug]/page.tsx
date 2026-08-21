@@ -130,7 +130,11 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
           address: orderForm.address ? orderForm.address.trim() : null,
           amount: pageData.offer_price || null,
           order_code: 'COD-' + Date.now().toString().slice(-6),
-          note: formattedNote
+          note: formattedNote,
+          line_channel_access_token: ownerProfile?.line_channel_access_token || pageData.profiles?.line_channel_access_token || null,
+          line_user_id: ownerProfile?.line_user_id || pageData.profiles?.line_user_id || null,
+          line_webhook_url: ownerProfile?.line_webhook_url || pageData.profiles?.line_webhook_url || null,
+          line_notify_token: ownerProfile?.line_notify_token || pageData.profiles?.line_notify_token || null
         })
       })
 

@@ -53,7 +53,11 @@ export default function Template9({ profile, links, products, handleLinkClick, i
         address: leadForm.address ? leadForm.address.trim() : null,
         note: leadForm.note ? leadForm.note.trim() : null,
         order_code: 'MSG-' + Date.now().toString().slice(-6),
-        status: 'pending'
+        status: 'pending',
+        line_channel_access_token: profile.line_channel_access_token || null,
+        line_user_id: profile.line_user_id || null,
+        line_webhook_url: profile.line_webhook_url || null,
+        line_notify_token: profile.line_notify_token || null
       }
 
       let success = false

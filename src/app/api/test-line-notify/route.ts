@@ -17,12 +17,19 @@ export async function POST(request: Request) {
       }, { status: 400 })
     }
 
+    // Friendly pre-validation: If user accidentally inputs Channel Secret (32 hex characters)
+    if (channel_access_token && channel_access_token.trim().length <= 40 && /^[a-f0-9]+$/i.test(channel_access_token.trim())) {
+      return NextResponse.json({
+        error: '⚠️ ค่าที่ใส่ในช่อง 1 คือ Channel Secret (32 ตัวอักษร) ไม่ใช่ Channel Access Token ครับ\n👉 วิธีแก้ไข: ไปที่แท็บ "Messaging API" ใน LINE Developers เลื่อนลงล่างสุด แล้วกดปุ่ม "Issue" ที่หัวข้อ Channel access token แล้วคัดลอก Token ตัวยาว (160+ ตัวอักษร) มาใส่แทนครับ'
+      }, { status: 400 })
+    }
+
     let success = false
     let errorMsg = ''
 
     // 1. Official LINE Messaging API (LINE OA / Developers)
     if (channel_access_token && user_id) {
-      const testMsg = `🔔 ทดสอบการเชื่อมต่อ LINE Messaging API สำเร็จ! 🎉\n━━━━━━━━━━━━━━━━━\nระบบ LinkTreeThai เชื่อมต่อกับ LINE OA ของคุณเรียบร้อยแล้ว\nเมื่อมีลูกค้าสั่งซื้อ COD หรือกรอกแบบฟอร์ม ข้อความจะแจ้งเตือนเข้าห้องแชตนี้ทันทีแบบ Real-time ครับ!`
+      const testMsg = `🔔 ทดสอบการเชื่อมต่อ LINE Messaging API สำเร็จ! 🎉\n━━━━━━━━━━━━━━━━━\nระบบ LinkTreeThai เชื่อมต่อกับ LINE ของคุณเรียบร้อยแล้ว\nเมื่อมีลูกค้าสั่งซื้อ COD หรือกรอกแบบฟอร์ม ข้อความจะแจ้งเตือนเข้าห้องแชตนี้ทันทีแบบ Real-time ครับ!`
 
       try {
         const res = await fetch('https://api.line.me/v2/bot/message/push', {
@@ -46,7 +53,11 @@ export async function POST(request: Request) {
           success = true
         } else {
           const errData = await res.json()
-          errorMsg = `LINE API Error (${res.status}): ${errData.message || 'Token หรือ User ID ไม่ถูกต้อง'}`
+          if (res.status === 401) {
+            errorMsg = `LINE API Error (401): Token ไม่ถูกต้อง กรุณาไปที่แท็บ "Messaging API" ใน LINE Developers เลื่อนลงล่างสุดแล้วกด Issue เพื่อคัดลอก Channel Access Token (Long-lived) ตัวยาวมาใส่ครับ`
+          } else {
+            errorMsg = `LINE API Error (${res.status}): ${errData.message || 'Token หรือ User ID ไม่ถูกต้อง'}`
+          }
         }
       } catch (lineErr: any) {
         errorMsg = `LINE API Error: ${lineErr.message}`
