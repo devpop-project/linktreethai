@@ -85,6 +85,8 @@ export default function AdminDashboardPage() {
   const [grantTierSelect, setGrantTierSelect] = useState<'free' | 'pro' | 'master' | 'shortener' | 'pixels'>('free')
   const [grantDaysInput, setGrantDaysInput] = useState<string>('30')
   const [deleteUserModal, setDeleteUserModal] = useState<any>(null)
+  const [lpExpiryModal, setLpExpiryModal] = useState<any>(null)
+  const [lpCustomExpiryInput, setLpCustomExpiryInput] = useState<string>('')
 
   // Modals for LINKS
   const [createLinkModalOpen, setCreateLinkModalOpen] = useState(false)
@@ -643,6 +645,40 @@ export default function AdminDashboardPage() {
       setPointsModalUser(null)
       await loadAllData()
     } catch (e) {}
+  }
+
+    // --- ADMIN COMPREHENSIVE USER EXPIRATIONS & TIER HANDLER ---
+  const handleSaveUserAllExpirations = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!grantModalUser) return
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          master_expires_at: grantModalUser.master_expires_at || null,
+          pro_expires_at: grantModalUser.pro_expires_at || null,
+          shortener_expires_at: grantModalUser.shortener_expires_at || null,
+          pixel_expires_at: grantModalUser.pixel_expires_at || null,
+          extra_landing_page_slots: parseInt(grantModalUser.extra_landing_page_slots || '0', 10),
+          points: parseInt(grantModalUser.points || '0', 10),
+          role: grantModalUser.role || 'user',
+          line_notify_token: grantModalUser.line_notify_token?.trim() || null,
+          line_webhook_url: grantModalUser.line_webhook_url?.trim() || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', grantModalUser.id)
+
+      if (!error) {
+        showNotification(`✅ อัปเดตแพ็กเกจ & วันหมดอายุทุกฟังก์ชันของ @${grantModalUser.username} สำเร็จ!`)
+        setGrantModalUser(null)
+        await loadAllData()
+      } else {
+        alert('❌ ไม่สามารถอัปเดตได้: ' + error.message)
+      }
+    } catch (err: any) {
+      alert('❌ ข้อผิดพลาด: ' + err.message)
+    }
   }
 
   const handleApplyGrantSubscription = async () => {
@@ -1382,8 +1418,19 @@ export default function AdminDashboardPage() {
                         <td className="py-3 px-2 text-right space-x-1.5">
                           <button
                             type="button"
+                            onClick={() => {
+                              setLpExpiryModal(lp)
+                              setLpCustomExpiryInput(lp.expires_at ? lp.expires_at.split('T')[0] : '')
+                            }}
+                            className="px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 rounded-xl text-xs font-extrabold transition shadow cursor-pointer"
+                            title="จัดการวันหมดอายุของเซลเพจนี้"
+                          >
+                            ⏳ วันหมดอายุ
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => setEditingLp({ ...lp })}
-                            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black transition shadow"
+                            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black transition shadow cursor-pointer"
                           >
                             ✏️ แก้ไข (Admin)
                           </button>
@@ -3990,6 +4037,114 @@ WHERE username = 'YOUR_USERNAME';`}
           </div>
         </div>
       )}
+      
+      {/* ADMIN LANDING PAGE EXPIRATION MODAL */}
+      {lpExpiryModal && (
+        <div 
+          onClick={() => setLpExpiryModal(null)}
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer animate-in fade-in"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-slate-900 border-2 border-rose-500/50 p-6 rounded-[32px] max-w-md w-full space-y-4 shadow-2xl relative text-white cursor-default"
+          >
+            <button 
+              onClick={() => setLpExpiryModal(null)} 
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800 transition cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-3 pb-2 border-b border-slate-800">
+              <div className="p-3 bg-rose-500/20 text-rose-400 rounded-2xl border border-rose-500/40">
+                <Rocket className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base text-white">จัดการวันหมดอายุหน้าเซลเพจ (Admin)</h3>
+                <p className="text-xs text-slate-400">เซลเพจ: <strong className="text-rose-400">{lpExpiryModal.title}</strong> (/p/{lpExpiryModal.slug})</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-2xl text-xs space-y-1.5 font-bold">
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-normal">เจ้าของบัญชี:</span>
+                <span className="font-mono text-purple-400">@{lpExpiryModal.profiles?.username || 'unknown'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400 font-normal">สถานะวันหมดอายุปัจจุบัน:</span>
+                <span className="font-mono text-amber-400">
+                  {lpExpiryModal.expires_at ? new Date(lpExpiryModal.expires_at).toLocaleString('th-TH') : '30 วันเริ่มต้น'}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-1 text-xs font-bold">
+              <label className="block text-slate-300">เลือกต่ออายุแบบด่วน:</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleUpdateLpExpiry(30)}
+                  className="py-2.5 px-3 bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/40 rounded-xl transition font-extrabold cursor-pointer"
+                >
+                  +30 วัน (1 เดือน)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleUpdateLpExpiry(90)}
+                  className="py-2.5 px-3 bg-purple-600/30 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/40 rounded-xl transition font-extrabold cursor-pointer"
+                >
+                  +90 วัน (3 เดือน)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleUpdateLpExpiry(365)}
+                  className="py-2.5 px-3 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 rounded-xl transition font-extrabold cursor-pointer"
+                >
+                  +365 วัน (1 ปี)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleUpdateLpExpiry(null)}
+                  className="py-2.5 px-3 bg-amber-500/30 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 rounded-xl transition font-extrabold cursor-pointer"
+                >
+                  👑 ตั้งถาวร (ตลอดชีพ)
+                </button>
+              </div>
+
+              <div className="pt-2">
+                <label className="block text-slate-300 mb-1">หรือกำหนดวันหมดอายุเอง:</label>
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    value={lpCustomExpiryInput}
+                    onChange={(e) => setLpCustomExpiryInput(e.target.value)}
+                    className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-xs focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={!lpCustomExpiryInput}
+                    onClick={() => handleUpdateLpExpiry(0, lpCustomExpiryInput + 'T23:59:59')}
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs transition disabled:opacity-40 cursor-pointer"
+                  >
+                    บันทึกวันที่
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => handleUpdateLpExpiry(0)}
+                  className="w-full py-2 bg-rose-950/40 hover:bg-rose-900 border border-rose-800 text-rose-300 font-bold rounded-xl text-xs transition cursor-pointer"
+                >
+                  🔒 ล็อคหน้าเซลเพจทันที (ตั้งเป็นหมดอายุ)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Admin Zoom Slip Modal */}
       {zoomSlipUrl && (
         <div 

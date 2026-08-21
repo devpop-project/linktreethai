@@ -667,3 +667,25 @@ BEGIN
     RETURN jsonb_build_object('success', true, 'message', 'อนุมัติรายการและเติม ' || tx.points || ' แต้มเรียบร้อยแล้ว');
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+-- ============================================================================
+-- 11. LINE NOTIFICATION & LANDING PAGE 30-DAYS EXPIRATION SAFE MIGRATION
+-- ============================================================================
+DO $$ 
+BEGIN
+    -- 1. Add line_notify_token to profiles
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'line_notify_token') THEN
+        ALTER TABLE public.profiles ADD COLUMN line_notify_token TEXT;
+    END IF;
+
+    -- 2. Add line_webhook_url to profiles
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'line_webhook_url') THEN
+        ALTER TABLE public.profiles ADD COLUMN line_webhook_url TEXT;
+    END IF;
+
+    -- 3. Add expires_at to landing_pages (Default 30 days from creation)
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'landing_pages' AND column_name = 'expires_at') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '30 days');
+    END IF;
+END $$;

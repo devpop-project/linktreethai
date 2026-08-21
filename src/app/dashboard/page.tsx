@@ -167,6 +167,8 @@ export default function DashboardPage() {
     tiktok_pixel_id: '',
     google_pixel_id: '',
     line_tag_id: '',
+    line_notify_token: '',
+    line_webhook_url: '',
     extra_landing_page_slots: 0,
   })
   
@@ -187,6 +189,8 @@ export default function DashboardPage() {
   const [accountModalOpen, setAccountModalOpen] = useState(false)
   // --- ACCOUNT & PROFILE EDITING & PASSWORD STATES ---
     // --- Confirmation Modal for Spending Points ---
+  const [testingLineNotify, setTestingLineNotify] = useState(false)
+  const [lpExpiryDetailModal, setLpExpiryDetailModal] = useState<any>(null)
   const [confirmRedeemModal, setConfirmRedeemModal] = useState<{
     isOpen: boolean
     title: string
@@ -853,6 +857,66 @@ export default function DashboardPage() {
     }
   }
 
+    // --- Real-time LINE Notification Test & Landing Page Renewal Handlers ---
+  const handleTestLineNotify = async () => {
+    if (!profile.line_notify_token && !profile.line_webhook_url) {
+      showToast('❌ กรุณากรอก LINE Notify Token หรือ Webhook URL ก่อนกดทดสอบ')
+      return
+    }
+    setTestingLineNotify(true)
+    try {
+      const res = await fetch('/api/test-line-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: profile.line_notify_token,
+          webhook_url: profile.line_webhook_url
+        })
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        showToast('🔔 ' + data.message)
+      } else {
+        showToast('❌ ' + (data.error || 'ส่งข้อความไม่สำเร็จ'))
+      }
+    } catch (e: any) {
+      showToast('❌ เกิดข้อผิดพลาด: ' + e.message)
+    } finally {
+      setTestingLineNotify(false)
+    }
+  }
+
+  const handleRenewLandingPage = async (lpId: string, currentExp: string | null, title: string) => {
+    if (!user) return
+    if ((profile.points || 0) < 350) {
+      showToast('❌ แต้มไม่เพียงพอ ต้องการ 350 แต้มเพื่อต่ออายุเซลเพจ 30 วัน')
+      setTopUpModalOpen(true)
+      return
+    }
+    try {
+      const baseTime = (currentExp && new Date(currentExp).getTime() > Date.now()) ? new Date(currentExp).getTime() : Date.now()
+      const newExp = new Date(baseTime + 30 * 24 * 60 * 60 * 1000).toISOString()
+      const newPts = (profile.points || 0) - 350
+
+      const { error } = await supabase
+        .from('landing_pages')
+        .update({ expires_at: newExp, updated_at: new Date().toISOString() })
+        .eq('id', lpId)
+        .eq('user_id', user.id)
+
+      if (!error) {
+        await supabase.from('profiles').update({ points: newPts }).eq('id', user.id)
+        setProfile({ ...profile, points: newPts })
+        setLandingPages(landingPages.map(p => p.id === lpId ? { ...p, expires_at: newExp } : p))
+        showToast(`✅ ต่ออายุหน้าเซลเพจ "${title}" อีก 30 วัน เรียบร้อยแล้ว`)
+      } else {
+        showToast('❌ ไม่สามารถต่ออายุได้: ' + error.message)
+      }
+    } catch (err: any) {
+      showToast('❌ ข้อผิดพลาด: ' + err.message)
+    }
+  }
+
   const handleSaveAccountInfo = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
@@ -912,6 +976,8 @@ export default function DashboardPage() {
         tiktok_pixel_id: profile.tiktok_pixel_id,
         google_pixel_id: profile.google_pixel_id,
         line_tag_id: profile.line_tag_id,
+        line_notify_token: profile.line_notify_token || null,
+        line_webhook_url: profile.line_webhook_url || null,
         updated_at: new Date().toISOString()
       })
       .eq('id', user.id)
@@ -2916,7 +2982,7 @@ export default function DashboardPage() {
                         className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition active:scale-95 cursor-pointer"
                       >
                         <Crown className="w-4 h-4" />
-                        <span>👑 แลก MASTER VIP 30 วัน (250 แต้ม)</span>
+                        <span>👑 แลก MASTER VIP 30 วัน (599 แต้ม)</span>
                       </button>
 
                       <div className="flex items-center gap-2">
@@ -4169,63 +4235,139 @@ export default function DashboardPage() {
                   ) : (
                     landingPages.map((lp) => {
                       const fullLandingUrl = `${originUrl}/p/${lp.slug}`
+                      
+                      // Accurate expiration calculation: Math.floor for precise remaining days and hours
+                      const createdTime = lp.created_at ? new Date(lp.created_at).getTime() : Date.now()
+                      const expiryTime = lp.expires_at ? new Date(lp.expires_at).getTime() : (createdTime + 30 * 24 * 60 * 60 * 1000)
+                      const diffMs = expiryTime - Date.now()
+                      const isExpired = diffMs <= 0
+                      const diffTotalSec = Math.max(0, Math.floor(diffMs / 1000))
+                      const daysLeft = Math.floor(diffTotalSec / (24 * 3600))
+                      const hoursLeft = Math.floor((diffTotalSec % (24 * 3600)) / 3600)
+                      const expiryDateStr = new Date(expiryTime).toLocaleDateString('th-TH')
+                      const remainingStr = isExpired
+                        ? 'หมดอายุแล้ว (หน้าเว็บจริงถูกล็อค)'
+                        : daysLeft > 0
+                          ? `เหลือเวลาอีก ${daysLeft} วัน${hoursLeft > 0 ? ` ${hoursLeft} ชม.` : ''}`
+                          : `เหลือเวลาอีก ${hoursLeft} ชั่วโมง`
+
                       return (
                         <div
                           key={lp.id}
-                          className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm hover:shadow-md transition"
+                          className={`bg-white dark:bg-slate-900 border rounded-3xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition ${
+                            isExpired ? 'border-amber-400 dark:border-amber-600/70 bg-amber-50/10' : 'border-slate-200/90 dark:border-slate-800'
+                          }`}
                         >
-                          <div className="min-w-0 flex-1 space-y-1.5">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="font-extrabold text-[#1E1B4B] dark:text-white text-sm truncate">{lp.title}</h4>
-                              <span className="text-[10px] bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 px-2.5 py-0.5 rounded-full border border-rose-200 dark:border-rose-900 font-bold">
-                                👁️ {lp.views || 0} วิว
-                              </span>
-                              <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-900 font-bold">
-                                👆 {lp.clicks || 0} คลิก
-                              </span>
-                              <span className="text-[10px] bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full border border-purple-200 dark:border-purple-900 font-mono font-bold">
-                                {lp.fb_pixel_id ? `🎯 FB Pixel: ${lp.fb_pixel_id}` : (profile.fb_pixel_id ? `🌐 ใช้ Pixel หลัก (${profile.fb_pixel_id})` : '⚪ ยังไม่ตั้ง Pixel')}
-                              </span>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="font-extrabold text-[#1E1B4B] dark:text-white text-base truncate">{lp.title}</h4>
+                                <span className="text-[10px] bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 px-2.5 py-0.5 rounded-full border border-rose-200 dark:border-rose-900 font-bold">
+                                  👁️ {lp.views || 0} วิว
+                                </span>
+                                <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-900 font-bold">
+                                  👆 {lp.clicks || 0} คลิก
+                                </span>
+                                <span className="text-[10px] bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full border border-purple-200 dark:border-purple-900 font-mono font-bold">
+                                  {lp.fb_pixel_id ? `🎯 FB Pixel: ${lp.fb_pixel_id}` : (profile.fb_pixel_id ? `🌐 ใช้ Pixel หลัก (${profile.fb_pixel_id})` : '⚪ ยังไม่ตั้ง Pixel')}
+                                </span>
+                              </div>
+
+                              <p className="text-xs text-rose-600 dark:text-rose-400 font-mono font-bold">{fullLandingUrl}</p>
+                              <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-1">{lp.headline}</p>
                             </div>
 
-                            <p className="text-xs text-rose-600 dark:text-rose-400 font-mono font-bold">{fullLandingUrl}</p>
-                            <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-1">{lp.headline}</p>
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap">
+                              <button
+                                type="button"
+                                onClick={() => setLpExpiryDetailModal(lp)}
+                                className="px-3 py-2 bg-amber-100 dark:bg-amber-950/60 hover:bg-amber-200 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-black flex items-center gap-1 transition active:scale-95 shadow-sm cursor-pointer"
+                                title="คลิกเพื่อดูวันหมดอายุและรายละเอียด"
+                              >
+                                <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                                <span>ดูวันหมดอายุ</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setConfirmRedeemModal({
+                                    isOpen: true,
+                                    title: `ต่ออายุเซลเพจ "${lp.title}" 30 วัน`,
+                                    desc: `ใช้ 350 แต้ม เพื่อต่ออายุหน้าเซลเพจนี้ให้แสดงผลบนเว็บจริงอีก 30 วัน`,
+                                    cost: 350,
+                                    onConfirm: () => handleRenewLandingPage(lp.id, lp.expires_at, lp.title)
+                                  })
+                                }}
+                                className={`px-3 py-2 rounded-xl text-xs font-extrabold flex items-center gap-1 transition active:scale-95 shadow-sm cursor-pointer ${
+                                  isExpired 
+                                    ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 hover:from-amber-400 animate-pulse' 
+                                    : 'bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                                }`}
+                                title="ต่ออายุ 30 วัน (350 แต้ม)"
+                              >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                                <span>ต่ออายุ 30 วัน</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setQrTargetUrl(fullLandingUrl)
+                                  setQrModalOpen(true)
+                                }}
+                                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition cursor-pointer"
+                                title="QR Code & แชร์เซลเพจ"
+                              >
+                                <QrCode className="w-4 h-4" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditLandingPage(lp)}
+                                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition cursor-pointer"
+                                title="แก้ไขข้อมูลเซลเพจ"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteLandingPage(lp.id)}
+                                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer"
+                                title="ลบเซลเพจ"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
 
-                          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
-                            <button
-                              type="button"
-                              onClick={() => handleStartEditLandingPage(lp)}
-                              className="px-3.5 py-2 bg-purple-50 dark:bg-purple-950/60 hover:bg-purple-100 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-xl text-xs font-black flex items-center gap-1 transition active:scale-95 shadow-sm"
-                            >
-                              <span>✏️ แก้ไขเซลเพจ</span>
-                            </button>
+                          {/* Expiration Timeline & Public Status Bar */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 rounded-2xl text-xs">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-slate-500 font-bold">สถานะอายุการใช้งาน:</span>
+                              {isExpired ? (
+                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-700 flex items-center gap-1">
+                                  <Lock className="w-3.5 h-3.5" /> หมดอายุแล้ว (หน้าเว็บจริงถูกล็อค)
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 flex items-center gap-1">
+                                  <Clock className="w-3.5 h-3.5" /> {remainingStr} (หมดอายุวันที่ {expiryDateStr})
+                                </span>
+                              )}
+                            </div>
 
-                            <a
-                              href={fullLandingUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold flex items-center gap-1 transition"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                              <span>ดูหน้าเว็บ</span>
-                            </a>
-
-                            <button
-                              onClick={() => handleCopyLink(fullLandingUrl, lp.id)}
-                              className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold flex items-center gap-1 transition"
-                            >
-                              {copiedLink === lp.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                              <span>{copiedLink === lp.id ? 'คัดลอกแล้ว' : 'คัดลอก'}</span>
-                            </button>
-
-                            <button
-                              onClick={() => handleDeleteLandingPage(lp.id)}
-                              className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition"
-                              title="ลบเซลเพจ"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={fullLandingUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-4 py-1.5 bg-[#34D399] hover:bg-[#10B981] text-slate-950 font-black rounded-xl text-xs flex items-center gap-1 transition shadow-sm"
+                              >
+                                <span>เปิดดูหน้าจริง</span> <ArrowUpRight className="w-3.5 h-3.5" />
+                              </a>
+                            </div>
                           </div>
                         </div>
                       )
@@ -4285,7 +4427,7 @@ export default function DashboardPage() {
                       <button
                         type="button"
                         onClick={handleRefreshLeads}
-                        className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                        className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                         title="รีเฟรชข้อมูลลีดล่าสุด"
                       >
                         <RefreshCw className={`w-3.5 h-3.5 ${loadingLeads ? 'animate-spin' : ''}`} />
@@ -4304,13 +4446,135 @@ export default function DashboardPage() {
                         <button
                           type="button"
                           onClick={handleExportLeadsCSV}
-                          className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition"
+                          className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
                           title="ดาวน์โหลดไฟล์ Excel/CSV"
                         >
                           <Download className="w-3.5 h-3.5" /> CSV
                         </button>
                       )}
                     </div>
+                  </div>
+
+                  {/* PROMINENT LINE NOTIFY & WEBHOOK REAL-TIME NOTIFICATION BOX (MASTER VIP) */}
+                  <div className="p-5 rounded-3xl bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-purple-500/10 border-2 border-emerald-500/30 dark:border-emerald-500/20 space-y-3.5 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-emerald-500/20">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black shadow-md shadow-emerald-500/20">
+                          <MessageCircle className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-extrabold text-sm sm:text-base text-[#1E1B4B] dark:text-white">
+                              ระบบแจ้งเตือนเข้า LINE อัตโนมัติ (Real-time)
+                            </h4>
+                            <span className="text-[10px] bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 px-2.5 py-0.5 rounded-full font-black shadow-xs">
+                              👑 MASTER VIP ONLY
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            แจ้งเตือนทันทีเมื่อมีลูกค้าสั่งซื้อ COD หรือกรอกฟอร์มติดต่อในหน้า Bio Link
+                          </p>
+                        </div>
+                      </div>
+
+                      {profile.role === 'admin' || tier.tier === 'master' ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-3 py-1 bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40 rounded-full text-xs font-black flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> สิทธิ์ใช้งานพร้อมใช้งาน
+                          </span>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setConfirmRedeemModal({
+                              isOpen: true,
+                              title: 'อัปเกรดเป็น MASTER VIP (599 แต้ม)',
+                              desc: 'ปลดล็อกระบบแจ้งเตือนเข้า LINE Real-time, 9 เทมเพลต, เซลเพจยิงแอด, และ Tracking Pixels',
+                              cost: 599,
+                              onConfirm: () => handleRedeemTierWithPoints('master')
+                            })
+                          }}
+                          className="px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 text-slate-950 font-black rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20 active:scale-95 transition cursor-pointer"
+                        >
+                          <Crown className="w-4 h-4" /> อัปเกรด MASTER VIP เพื่อใช้งาน
+                        </button>
+                      )}
+                    </div>
+
+                    {profile.role !== 'admin' && tier.tier !== 'master' ? (
+                      <div className="p-3 bg-white/60 dark:bg-slate-950/60 border border-amber-300/40 rounded-2xl text-xs text-amber-900 dark:text-amber-200 flex items-center gap-2">
+                        <Lock className="w-4 h-4 text-amber-500 shrink-0" />
+                        <span>ฟังก์ชันแจ้งเตือนเข้า LINE สงวนสิทธิ์เฉพาะระดับ MASTER VIP ช่วยให้คุณไม่พลาดทุกออเดอร์และปิดการขายได้เร็วที่สุด</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 pt-1 text-xs font-bold">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-[#06C755]"></span>
+                                <span>LINE Notify Access Token *</span>
+                              </label>
+                              <a
+                                href="https://notify-bot.line.me/my/"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-0.5 font-normal"
+                              >
+                                <span>วิธีขอ Token LINE</span> <ExternalLink className="w-2.5 h-2.5" />
+                              </a>
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="วาง LINE Notify Access Token ที่นี่..."
+                              value={profile.line_notify_token || ''}
+                              onChange={(e) => setProfile({ ...profile, line_notify_token: e.target.value })}
+                              className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white placeholder-slate-400 font-mono focus:outline-none focus:border-emerald-500 shadow-inner"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block mb-1 text-slate-700 dark:text-slate-200">
+                              LINE OA Webhook URL / Custom Webhook (ถ้ามี)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="https://your-webhook-endpoint.com/..."
+                              value={profile.line_webhook_url || ''}
+                              onChange={(e) => setProfile({ ...profile, line_webhook_url: e.target.value })}
+                              className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white placeholder-slate-400 font-mono focus:outline-none focus:border-emerald-500 shadow-inner"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-1">
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-normal">
+                            💡 เมื่อมีลูกค้ากดสั่งซื้อหรือส่งข้อความ ข้อมูลจะถูกส่งเข้า LINE ของคุณทันทีแบบ Real-time
+                          </p>
+
+                          <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <button
+                              type="button"
+                              disabled={testingLineNotify || (!profile.line_notify_token && !profile.line_webhook_url)}
+                              onClick={handleTestLineNotify}
+                              className="flex-1 sm:flex-initial px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-800 dark:text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition disabled:opacity-40 cursor-pointer"
+                            >
+                              <Send className="w-3.5 h-3.5" />
+                              <span>{testingLineNotify ? 'กำลังส่งทดสอบ...' : '🔔 ทดสอบส่ง LINE'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={handleSaveProfile}
+                              className="flex-1 sm:flex-initial px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95 transition cursor-pointer"
+                            >
+                              <Save className="w-3.5 h-3.5" /> บันทึกการตั้งค่า LINE
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Filter & Search Bar */}
@@ -5173,7 +5437,8 @@ export default function DashboardPage() {
             {/* TAB 3: POINTS & SUBSCRIPTION STATUS */}
             {accountActiveTab === 'points' && (
               <div className="space-y-4 text-xs font-bold">
-                {/* Profile & Role Summary Card */}
+                
+                {/* Profile & Role Summary Header */}
                 <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between">
                   <div className="space-y-1">
                     <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">ตำแหน่ง / บทบาท</span>
@@ -5206,15 +5471,15 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                {/* Points Balance Highlight */}
-                <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-2xl flex items-center justify-between">
+                {/* Points Balance Highlight Banner */}
+                <div className="p-4 bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-amber-600/15 border-2 border-amber-500/40 rounded-2xl flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-200 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 flex items-center justify-center font-bold">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-md shadow-amber-500/20">
                       <Coins className="w-6 h-6 animate-pulse" />
                     </div>
                     <div>
-                      <span className="text-xs text-amber-900/80 dark:text-amber-200 font-bold">แต้มคงเหลือปัจจุบัน</span>
-                      <p className="text-2xl font-black text-amber-800 dark:text-amber-300 font-mono leading-none mt-0.5">
+                      <span className="text-xs text-amber-900 dark:text-amber-200 font-bold">แต้มสะสมคงเหลือ</span>
+                      <p className="text-2xl font-black text-amber-700 dark:text-amber-400 font-mono leading-none mt-0.5">
                         {profile.points || 0} <span className="text-xs font-normal text-amber-700 dark:text-amber-400">แต้ม</span>
                       </p>
                     </div>
@@ -5225,47 +5490,218 @@ export default function DashboardPage() {
                       handleCloseAccountModal()
                       setTopUpModalOpen(true)
                     }}
-                    className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs transition shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer"
+                    className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs transition shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer"
                   >
-                    + เติมแต้ม
+                    + เติมแต้มสะสม
                   </button>
                 </div>
 
-                {/* Expiration Dates & Remaining Days */}
-                <div className="space-y-2.5">
-                  <h4 className="text-xs font-bold text-[#1E1B4B] dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" /> วันหมดอายุและระยะเวลาที่เหลือ
+                {/* ALL PACKAGES & LOCKED FEATURES LIST WITH DIRECT BUY BUTTONS */}
+                <div className="space-y-3 pt-1">
+                  <h4 className="text-xs font-extrabold text-[#1E1B4B] dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" /> แพ็กเกจ & ฟังก์ชันพิเศษ (สิทธิ์การใช้งาน)
                   </h4>
 
-                  <div className="space-y-2 text-xs">
-                    <div className="p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-between">
-                      <span className="text-slate-500 dark:text-slate-400 font-medium">สถานะ VIP สมาชิก:</span>
-                      <span className="font-bold text-[#1E1B4B] dark:text-white">
+                  {/* 1. MASTER VIP */}
+                  <div className={`p-4 rounded-2xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                    tier.tier === 'master' || profile.role === 'admin'
+                      ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700'
+                      : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800'
+                  }`}>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-sm text-[#1E1B4B] dark:text-white flex items-center gap-1">
+                          👑 MASTER VIP Plan
+                        </span>
                         {profile.role === 'admin' ? (
-                          <span className="text-purple-700 dark:text-purple-400 font-bold">🛡️ สิทธิ์ถาวร (Admin)</span>
-                        ) : tier.tier === 'master' && profile.master_expires_at ? (
-                          <span className="text-amber-800 dark:text-amber-300 font-mono">
-                            ถึง {new Date(profile.master_expires_at).toLocaleDateString('th-TH')} ({Math.max(0, Math.ceil((new Date(profile.master_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} วัน)
-                          </span>
-                        ) : tier.tier === 'pro' && profile.pro_expires_at ? (
-                          <span className="text-purple-800 dark:text-purple-300 font-mono">
-                            ถึง {new Date(profile.pro_expires_at).toLocaleDateString('th-TH')} ({Math.max(0, Math.ceil((new Date(profile.pro_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} วัน)
+                          <span className="text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full font-bold">Admin (ถาวร)</span>
+                        ) : profile.master_expires_at && new Date(profile.master_expires_at).getTime() > Date.now() ? (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
+                            🟢 เหลือ {Math.max(0, Math.ceil((new Date(profile.master_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} วัน (ถึง {new Date(profile.master_expires_at).toLocaleDateString('th-TH')})
                           </span>
                         ) : (
-                          <span className="text-slate-500">Free Plan (ตลอดชีพ)</span>
+                          <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full font-bold">🔒 ยังไม่เปิดใช้งาน</span>
                         )}
-                      </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        ครบทั้ง 9 เทมเพลต, เซลเพจยิงแอดฟรี 1 URL, ย่อลิงก์ไม่จำกัด, Tracking Pixels, ซ่อนแบรนด์, แจ้งเตือนเข้า LINE
+                      </p>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConfirmRedeemModal({
+                          isOpen: true,
+                          title: 'ยืนยันการแลกสิทธิ์ MASTER VIP (30 วัน)',
+                          desc: 'ปลดล็อกครบทุกฟังก์ชันสูงสุด: 9 เทมเพลต, เซลเพจยิงแอด COD, ย่อลิงก์, Tracking Pixels, และแจ้งเตือน LINE',
+                          cost: 599,
+                          onConfirm: () => handleRedeemTierWithPoints('master')
+                        })
+                      }}
+                      disabled={redeemingTier === 'master' || (profile.points || 0) < 599}
+                      className="px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 text-slate-950 font-black rounded-xl text-xs transition shadow-md shadow-amber-500/20 active:scale-95 disabled:opacity-40 cursor-pointer shrink-0"
+                    >
+                      {redeemingTier === 'master' ? 'กำลังแลก...' : '👑 แลก 599 แต้ม (30 วัน)'}
+                    </button>
+                  </div>
+
+                  {/* 2. PRO VIP */}
+                  <div className={`p-4 rounded-2xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                    tier.tier === 'pro'
+                      ? 'bg-purple-50/50 dark:bg-purple-950/20 border-purple-300 dark:border-purple-700'
+                      : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800'
+                  }`}>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-sm text-[#1E1B4B] dark:text-white flex items-center gap-1">
+                          💎 PRO VIP Plan
+                        </span>
+                        {profile.pro_expires_at && new Date(profile.pro_expires_at).getTime() > Date.now() ? (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
+                            🟢 เหลือ {Math.max(0, Math.ceil((new Date(profile.pro_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} วัน (ถึง {new Date(profile.pro_expires_at).toLocaleDateString('th-TH')})
+                          </span>
+                        ) : (
+                          <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full font-bold">🔒 ยังไม่เปิดใช้งาน</span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        6 เทมเพลตยอดนิยม, เพิ่ม 10 สินค้าในร้านค้า, และซ่อนลายน้ำแบรนด์ LinkTreeThai
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConfirmRedeemModal({
+                          isOpen: true,
+                          title: 'ยืนยันการแลกสิทธิ์ PRO VIP (30 วัน)',
+                          desc: 'ปลดล็อก 6 เทมเพลตยอดนิยม, เพิ่ม 10 สินค้า, และซ่อนลายน้ำแบรนด์',
+                          cost: 299,
+                          onConfirm: () => handleRedeemTierWithPoints('pro')
+                        })
+                      }}
+                      disabled={redeemingTier === 'pro' || (profile.points || 0) < 299}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-xl text-xs transition shadow-md shadow-purple-500/20 active:scale-95 disabled:opacity-40 cursor-pointer shrink-0"
+                    >
+                      {redeemingTier === 'pro' ? 'กำลังแลก...' : '💎 แลก 299 แต้ม (30 วัน)'}
+                    </button>
+                  </div>
+
+                  {/* 3. URL SHORTENER PASS */}
+                  <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-sm text-[#1E1B4B] dark:text-white flex items-center gap-1">
+                          ✂️ ระบบย่อลิงก์สั้น (Shortener Pass)
+                        </span>
+                        {isShortenerActive ? (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">🟢 ปลดล็อกแล้ว</span>
+                        ) : (
+                          <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full font-bold">🔒 ล็อคอยู่</span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        สร้างลิงก์ย่อสั้นไม่จำกัด กำหนด Slug เองได้ พร้อมสถิติจำนวนคนคลิกแบบ Real-time
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConfirmRedeemModal({
+                          isOpen: true,
+                          title: 'ปลดล็อกระบบย่อลิงก์สั้น (30 วัน)',
+                          desc: 'ใช้ 100 แต้ม เพื่อปลดล็อกระบบย่อลิงก์ 30 วัน',
+                          cost: 100,
+                          onConfirm: handleUnlockShortener
+                        })
+                      }}
+                      disabled={(profile.points || 0) < 100}
+                      className="px-4 py-2 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white font-extrabold rounded-xl text-xs transition active:scale-95 disabled:opacity-40 cursor-pointer shrink-0"
+                    >
+                      ✂️ แลก 100 แต้ม (30 วัน)
+                    </button>
+                  </div>
+
+                  {/* 4. TRACKING PIXELS */}
+                  <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-sm text-[#1E1B4B] dark:text-white flex items-center gap-1">
+                          ⚡ ระบบ Tracking Pixels Pass
+                        </span>
+                        {tier.canAutoPixel ? (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">🟢 ปลดล็อกแล้ว</span>
+                        ) : (
+                          <span className="text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full font-bold">🔒 ล็อคอยู่</span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        ฝัง Facebook, TikTok, Google, LINE Tracking Tag เพื่อวัดผล Conversion ยิงแอด
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConfirmRedeemModal({
+                          isOpen: true,
+                          title: 'ปลดล็อกระบบ Tracking Pixels (30 วัน)',
+                          desc: 'ใช้ 100 แต้ม เพื่อปลดล็อกระบบฝัง Pixel ยิงแอด 30 วัน',
+                          cost: 100,
+                          onConfirm: handleUnlockPixels
+                        })
+                      }}
+                      disabled={(profile.points || 0) < 100}
+                      className="px-4 py-2 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white font-extrabold rounded-xl text-xs transition active:scale-95 disabled:opacity-40 cursor-pointer shrink-0"
+                    >
+                      ⚡ แลก 100 แต้ม (30 วัน)
+                    </button>
+                  </div>
+
+                  {/* 5. EXTRA LANDING PAGE SLOTS */}
+                  <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-extrabold text-sm text-[#1E1B4B] dark:text-white flex items-center gap-1">
+                          🚀 โควตาหน้าเซลเพจยิงแอดเพิ่ม (+1 URL อายุ 30 วัน)
+                        </span>
+                        <span className="text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full font-bold font-mono">
+                          โควตาเพิ่ม: +{profile.extra_landing_page_slots || 0} ช่อง
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        ปลดล็อกเพิ่มจำนวนหน้าเซลเพจสำหรับยิงแอดแยกตามสินค้าได้หลายหน้าพร้อมกัน (ใช้แต้ม 350 แต้ม)
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConfirmRedeemModal({
+                          isOpen: true,
+                          title: 'ปลดล็อกช่องเซลเพจยิงแอดเพิ่ม (+1 URL อายุ 30 วัน)',
+                          desc: 'ใช้ 350 แต้ม เพื่อเพิ่มโควตาสร้างหน้าเซลเพจเพิ่มอีก 1 URL',
+                          cost: 350,
+                          onConfirm: handleUnlockLandingPageSlot
+                        })
+                      }}
+                      disabled={(profile.points || 0) < 350}
+                      className="px-4 py-2 bg-[#34D399] hover:bg-[#10B981] text-slate-950 font-black rounded-xl text-xs transition active:scale-95 disabled:opacity-40 cursor-pointer shrink-0"
+                    >
+                      🚀 ปลดล็อก 350 แต้ม (+1 URL)
+                    </button>
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
                   <button
                     type="button"
                     onClick={handleCloseAccountModal}
-                    className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs hover:bg-slate-200 transition font-bold"
+                    className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded-xl text-xs transition font-bold cursor-pointer"
                   >
-                    ปิด
+                    ปิดหน้าต่าง
                   </button>
                 </div>
               </div>
@@ -5330,6 +5766,135 @@ export default function DashboardPage() {
       />
 
       
+      
+      {/* USER LANDING PAGE EXPIRATION DETAILS MODAL */}
+      {lpExpiryDetailModal && (() => {
+        const createdTime = lpExpiryDetailModal.created_at ? new Date(lpExpiryDetailModal.created_at).getTime() : Date.now()
+        const expiryTime = lpExpiryDetailModal.expires_at ? new Date(lpExpiryDetailModal.expires_at).getTime() : (createdTime + 30 * 24 * 60 * 60 * 1000)
+        const diffMs = expiryTime - Date.now()
+        const isExpired = diffMs <= 0
+        const daysLeft = isExpired ? 0 : Math.floor(diffMs / (1000 * 60 * 60 * 24))
+        const hoursLeft = isExpired ? 0 : Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+        const expiryDateStr = new Date(expiryTime).toLocaleDateString('th-TH')
+        const createdDateStr = new Date(createdTime).toLocaleDateString('th-TH')
+        const fullUrl = `${originUrl}/p/${lpExpiryDetailModal.slug}`
+
+        const remainingStr = isExpired
+          ? '🔴 หมดอายุแล้ว (หน้าเว็บถูกล็อค)'
+          : daysLeft > 0
+            ? `🟢 เหลืออีก ${daysLeft} วัน${hoursLeft > 0 ? ` ${hoursLeft} ชั่วโมง` : ''}`
+            : `🟢 เหลืออีก ${hoursLeft} ชั่วโมง`
+
+        return (
+          <div 
+            onClick={() => setLpExpiryDetailModal(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 cursor-pointer animate-in fade-in"
+          >
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-slate-900 border-2 border-purple-500/50 rounded-[32px] p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 my-8 max-h-[90vh] overflow-y-auto no-scrollbar relative text-[#1E1B4B] dark:text-white cursor-default"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black shadow-sm">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-base">ข้อมูลวันหมดอายุเซลเพจ</h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[220px]">
+                      {lpExpiryDetailModal.title}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLpExpiryDetailModal(null)}
+                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Expiration Details Card */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2.5 text-xs font-bold">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 dark:text-slate-400 font-normal">ลิงก์ URL เซลเพจ:</span>
+                  <span className="font-mono text-purple-600 dark:text-purple-400">/p/{lpExpiryDetailModal.slug}</span>
+                </div>
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 dark:text-slate-400 font-normal">วันที่สร้างหน้า:</span>
+                  <span className="font-mono">{createdDateStr}</span>
+                </div>
+
+                <div className="flex justify-between items-center border-t border-slate-200 dark:border-slate-800 pt-2">
+                  <span className="text-slate-500 dark:text-slate-400 font-normal">วันหมดอายุ (30 วัน):</span>
+                  <span className="font-mono text-amber-600 dark:text-amber-400 text-sm">
+                    {expiryDateStr}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 dark:text-slate-400 font-normal">ระยะเวลาคงเหลือ:</span>
+                  <span className="font-black">
+                    {remainingStr}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-2xl text-[11px] text-purple-900 dark:text-purple-200 leading-relaxed font-medium">
+                💡 หน้าเซลเพจมีอายุการแสดงผล 30 วันนับจากวันที่สร้าง หากหมดอายุ หน้าเว็บจริงจะถูกล็อคชั่วคราว คุณสามารถใช้ <strong>350 แต้ม</strong> เพื่อต่ออายุการแสดงผลอีก 30 วันได้ทันที
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex flex-col gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetLp = lpExpiryDetailModal
+                    setLpExpiryDetailModal(null)
+                    setConfirmRedeemModal({
+                      isOpen: true,
+                      title: `ต่ออายุเซลเพจ "${targetLp.title}" 30 วัน`,
+                      desc: `ใช้ 350 แต้ม เพื่อต่ออายุหน้าเซลเพจนี้ให้แสดงผลบนเว็บจริงอีก 30 วัน`,
+                      cost: 350,
+                      onConfirm: () => handleRenewLandingPage(targetLp.id, targetLp.expires_at, targetLp.title)
+                    })
+                  }}
+                  className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 text-slate-950 font-black rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition cursor-pointer"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>ต่ออายุ 30 วันทันที (ใช้ 350 แต้ม)</span>
+                </button>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadQrCode(fullUrl, `qrcode_salepage_${lpExpiryDetailModal.slug}.png`)}
+                    className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-emerald-600 dark:text-emerald-400 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>ดาวน์โหลด QR</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLpExpiryDetailModal(null)
+                      setTopUpModalOpen(true)
+                    }}
+                    className="flex-1 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Coins className="w-4 h-4 text-amber-500" />
+                    <span>+ เติมแต้มสะสม</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* CONFIRMATION POPUP MODAL FOR SPENDING POINTS & PURCHASING VIP */}
       {confirmRedeemModal && confirmRedeemModal.isOpen && (
         <div 

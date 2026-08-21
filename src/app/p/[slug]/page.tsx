@@ -127,7 +127,9 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
           name: orderForm.name.trim(),
           phone: orderForm.phone.trim(),
           line_id: orderForm.line_id.trim() || null,
-          email: null,
+          address: orderForm.address ? orderForm.address.trim() : null,
+          amount: pageData.offer_price || null,
+          order_code: 'COD-' + Date.now().toString().slice(-6),
           note: formattedNote
         })
       })
@@ -201,6 +203,36 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
         <a href="/" className="mt-6 px-5 py-2.5 bg-emerald-500 text-slate-950 font-bold rounded-2xl text-xs">
           กลับหน้าหลัก
         </a>
+      </div>
+    )
+  }
+
+  // 1-Month Expiration Enforcement (หน้าเซลเพจหมดอายุ 30 วันจะถูกล็อคการแสดงผล)
+  const createdTime = pageData?.created_at ? new Date(pageData.created_at).getTime() : Date.now()
+  const expiryTime = pageData?.expires_at ? new Date(pageData.expires_at).getTime() : (createdTime + 30 * 24 * 60 * 60 * 1000)
+  const isPageExpired = expiryTime <= Date.now()
+
+  if (isPageExpired) {
+    return (
+      <div className="min-h-screen bg-[#0B0F17] flex flex-col items-center justify-center p-6 text-center text-slate-400 font-sans">
+        <div className="w-20 h-20 rounded-3xl bg-amber-500/10 border-2 border-amber-500/30 flex items-center justify-center text-amber-400 mb-5 shadow-[0_0_40px_rgba(245,158,11,0.2)]">
+          <Lock className="w-10 h-10" />
+        </div>
+        <div className="inline-block px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-full text-[11px] font-mono font-bold uppercase tracking-wider mb-3">
+          LANDING PAGE EXPIRED (30 DAYS)
+        </div>
+        <h2 className="text-2xl font-black text-white mb-2">หน้าเซลเพจนี้หมดอายุการใช้งานชั่วคราว</h2>
+        <p className="text-xs sm:text-sm text-slate-400 max-w-md leading-relaxed mb-6">
+          หน้าเซลเพจนี้ครบกำหนดระยะเวลาการแสดงผล 30 วันแล้ว เจ้าของร้านสามารถเข้าสู่ระบบ Dashboard เพื่อใช้ 350 แต้มต่ออายุการแสดงผลได้ทันทีครับ
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <a href={`/${ownerProfile?.username || ''}`} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs transition">
+            ดูหน้า Bio Link ร้านค้า
+          </a>
+          <a href="/login" className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-bold rounded-2xl text-xs transition shadow-lg shadow-purple-600/25">
+            เข้าสู่ระบบเพื่อต่ออายุ (Dashboard)
+          </a>
+        </div>
       </div>
     )
   }
