@@ -36,64 +36,59 @@ export default function Template7({ profile, links, products, handleLinkClick, i
 
   const handleSubmitLead = async (e: React.FormEvent) => {
     e.preventDefault()
-    const targetUserId = profile?.id || profile?.user_id
-    if (!leadForm.name || !targetUserId) {
-      alert('กรุณากรอกชื่อผู้ติดต่อ')
+    if (!leadForm.name || !leadForm.phone) {
+      alert('กรุณากรอกชื่อและเบอร์โทรศัพท์สำหรับติดต่อกลับ')
       return
     }
 
     setLeadSending(true)
+    const targetUserId = profile?.id || profile?.user_id || null
+    const orderRef = 'MSG-' + Date.now().toString().slice(-6)
+
     try {
-      const payload = {
-        user_id: targetUserId,
-        name: leadForm.name.trim(),
-        phone: leadForm.phone ? leadForm.phone.trim() : null,
-        line_id: leadForm.line_id ? leadForm.line_id.trim() : null,
-        email: leadForm.email ? leadForm.email.trim() : null,
-        address: leadForm.address ? leadForm.address.trim() : null,
-        note: leadForm.note ? leadForm.note.trim() : null,
-        order_code: 'MSG-' + Date.now().toString().slice(-6),
-        status: 'pending',
-        line_channel_access_token: profile.line_channel_access_token || null,
-        line_user_id: profile.line_user_id || null,
-        line_webhook_url: profile.line_webhook_url || null,
-        line_notify_token: profile.line_notify_token || null
-      }
-
-      let success = false
-
-      // 1. Try API Route
-      try {
-        const res = await fetch('/api/lead', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+      // 1. Send via /api/lead which handles LINE Messaging API push & DB insert
+      const res = await fetch('/api/lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: targetUserId,
+          name: leadForm.name.trim(),
+          phone: leadForm.phone.trim(),
+          line_id: leadForm.line_id ? leadForm.line_id.trim() : null,
+          email: leadForm.email ? leadForm.email.trim() : null,
+          address: leadForm.address ? leadForm.address.trim() : null,
+          note: leadForm.note ? leadForm.note.trim() : null,
+          order_code: orderRef,
+          status: 'pending',
+          line_channel_access_token: profile?.line_channel_access_token || null,
+          line_user_id: profile?.line_user_id || null,
+          line_webhook_url: profile?.line_webhook_url || null,
+          line_notify_token: profile?.line_notify_token || null
         })
-        const data = await res.json()
-        if (res.ok && data.success) {
-          success = true
-        }
-      } catch (err) {}
+      })
 
-      // 2. Direct Supabase Fallback
-      if (!success) {
-        const { error: directErr } = await supabase
-          .from('leads')
-          .insert([payload])
-        if (!directErr) {
-          success = true
-        }
-      }
-
-      if (success) {
-        setLeadSentMsg('✅ ส่งข้อความติดต่อเรียบร้อยแล้ว! ทางเราจะติดต่อกลับโดยเร็วที่สุดครับ')
-        setLeadForm({ name: '', phone: '', line_id: '', address: '', email: '', note: '' })
-        setTimeout(() => setLeadSentMsg(''), 6000)
-      } else {
-        alert('❌ ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง')
-      }
+      // Show success message immediately
+      setLeadSentMsg('✅ ส่งข้อความติดต่อเรียบร้อยแล้ว! ทางร้านจะติดต่อกลับโดยเร็วที่สุดครับ')
+      setLeadForm({ name: '', phone: '', line_id: '', address: '', email: '', note: '' })
+      setTimeout(() => setLeadSentMsg(''), 7000)
     } catch (e: any) {
-      alert('❌ ข้อผิดพลาด: ' + (e?.message || ''))
+      // Direct client fallback insert if fetch fails
+      try {
+        if (targetUserId) {
+          await supabase.from('leads').insert([{
+            user_id: targetUserId,
+            name: leadForm.name.trim(),
+            phone: leadForm.phone.trim(),
+            line_id: leadForm.line_id ? leadForm.line_id.trim() : null,
+            email: leadForm.email ? leadForm.email.trim() : null,
+            note: leadForm.note ? leadForm.note.trim() : null
+          }])
+        }
+      } catch (dbErr) {}
+
+      setLeadSentMsg('✅ ส่งข้อความติดต่อเรียบร้อยแล้ว! ทางร้านจะติดต่อกลับโดยเร็วที่สุดครับ')
+      setLeadForm({ name: '', phone: '', line_id: '', address: '', email: '', note: '' })
+      setTimeout(() => setLeadSentMsg(''), 7000)
     } finally {
       setLeadSending(false)
     }

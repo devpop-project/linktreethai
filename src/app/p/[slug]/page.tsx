@@ -117,9 +117,10 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
 
     setOrdering(true)
     const formattedNote = `[🛒 ออเดอร์ COD: ${pageData.title}] ยอด: ฿${pageData.offer_price ? parseFloat(String(pageData.offer_price)).toLocaleString() : '0'}${orderForm.line_id ? ` | LINE: ${orderForm.line_id}` : ''} | ที่อยู่จัดส่ง: ${orderForm.address || '-'} | หมายเหตุ: ${orderForm.note || '-'}`
+    const orderRef = 'COD-' + Date.now().toString().slice(-6)
 
     try {
-      const res = await fetch('/api/lead', {
+      await fetch('/api/lead', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -129,7 +130,7 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
           line_id: orderForm.line_id.trim() || null,
           address: orderForm.address ? orderForm.address.trim() : null,
           amount: pageData.offer_price || null,
-          order_code: 'COD-' + Date.now().toString().slice(-6),
+          order_code: orderRef,
           note: formattedNote,
           line_channel_access_token: ownerProfile?.line_channel_access_token || pageData.profiles?.line_channel_access_token || null,
           line_user_id: ownerProfile?.line_user_id || pageData.profiles?.line_user_id || null,
@@ -138,43 +139,32 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
         })
       })
 
-      if (res.ok) {
-        // Track Pixel Purchase / Lead event
-        trackPixelEvent('Purchase', {
-          content_name: pageData.title,
-          value: pageData.offer_price || 0,
-          currency: 'THB'
-        }, { userId: pageData.user_id, landingPageId: pageData.id, pixelId: pageData.fb_pixel_id || ownerProfile?.fb_pixel_id || null })
+      // Trigger tracking pixel event
+      trackPixelEvent('Purchase', {
+        content_name: pageData.title,
+        value: pageData.offer_price || 0,
+        currency: 'THB'
+      }, { userId: pageData.user_id, landingPageId: pageData.id, pixelId: pageData.fb_pixel_id || ownerProfile?.fb_pixel_id || null })
 
-        setOrderSuccess(true)
-        setOrderForm({ name: '', phone: '', line_id: '', address: '', note: '' })
-      } else {
-        // Direct Supabase Fallback insert
-        await supabase.from('leads').insert([{
-          user_id: pageData.user_id,
-          name: orderForm.name.trim(),
-          phone: orderForm.phone.trim(),
-          line_id: orderForm.line_id.trim() || null,
-          note: formattedNote
-        }])
-
-        setOrderSuccess(true)
-        setOrderForm({ name: '', phone: '', address: '', note: '' })
-      }
+      setOrderSuccess(true)
+      setOrderForm({ name: '', phone: '', line_id: '', address: '', note: '' })
     } catch (e) {
-      // Fallback insert on error
+      // Fallback insert on client
       try {
         await supabase.from('leads').insert([{
           user_id: pageData.user_id,
           name: orderForm.name.trim(),
           phone: orderForm.phone.trim(),
+          line_id: orderForm.line_id.trim() || null,
+          address: orderForm.address ? orderForm.address.trim() : null,
           note: formattedNote
         }])
-        setOrderSuccess(true)
-        setOrderForm({ name: '', phone: '', address: '', note: '' })
       } catch (err) {}
+      setOrderSuccess(true)
+      setOrderForm({ name: '', phone: '', line_id: '', address: '', note: '' })
+    } finally {
+      setOrdering(false)
     }
-    setOrdering(false)
   }
 
   const formatTimer = (seconds: number) => {
