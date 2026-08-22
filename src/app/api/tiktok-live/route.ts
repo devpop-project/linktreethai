@@ -58,7 +58,19 @@ async function connectToTikTokLive(username: string) {
   }
 
   try {
-    const { WebcastPushConnection } = require('tiktok-live-connector')
+    // Safe dynamic loader to prevent Webpack build-time bundling issues with .proto files
+    let WebcastPushConnection = null
+    try {
+      // @ts-ignore
+      const tiktokModule = typeof __non_webpack_require__ !== 'undefined' ? __non_webpack_require__('tiktok-live-connector') : eval('require')('tiktok-live-connector')
+      WebcastPushConnection = tiktokModule?.WebcastPushConnection || tiktokModule
+    } catch (e) {
+      console.warn('[TikTok Live] Connector dynamic load warning:', e)
+    }
+
+    if (!WebcastPushConnection) {
+      throw new Error('tiktok-live-connector module could not be loaded at runtime')
+    }
     const tiktokLiveConnection = new WebcastPushConnection(username, {
       processInitialData: false,
       enableExtendedGiftInfo: true,
