@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getUserTier } from '@/lib/tier'
@@ -305,8 +305,7 @@ export default function DashboardPage() {
     starts_at: '',
     ends_at: ''
   })
-  
-  
+
   // TikTok Live TTS State
   const [tiktokUsername, setTiktokUsername] = useState('@amth')
   const [tiktokSpeed, setTiktokSpeed] = useState(1.0)
@@ -316,6 +315,14 @@ export default function DashboardPage() {
   const [tiktokFilterProfanity, setTiktokFilterProfanity] = useState(true)
   const [tiktokReadGifts, setTiktokReadGifts] = useState(true)
   const [tiktokConnected, setTiktokConnected] = useState(false)
+  const [tiktokLiveInfo, setTiktokLiveInfo] = useState<{ isLive: boolean; roomId: string | null; title: string | null; viewerCount: number; likeCount: number; statusText: string }>({
+    isLive: false,
+    roomId: null,
+    title: null,
+    viewerCount: 0,
+    likeCount: 0,
+    statusText: 'ยังไม่ได้เชื่อมต่อ'
+  })
   const [tiktokTestText, setTiktokTestText] = useState('ยินดีต้อนรับทุกคนเข้าสู่ไลฟ์สดครับ สอบถามสินค้าได้เลยนะ')
   const [unlockingTikTokTTS, setUnlockingTikTokTTS] = useState(false)
   const [tiktokRecentLogs, setTiktokRecentLogs] = useState<any[]>([
@@ -323,27 +330,68 @@ export default function DashboardPage() {
     { id: 2, user: 'บอส ธนากร', text: 'ส่งของวันนี้ทันมั้ยครับ', time: '3 นาทีที่แล้ว' }
   ])
   const [isSpeakingTest, setIsSpeakingTest] = useState(false)
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null)
 
-  const handleSpeakTTS = (textToSpeak: string) => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) {
-      showToast('⚠️ เบราว์เซอร์ไม่รองรับ Web Speech API')
-      return
-    }
-    window.speechSynthesis.cancel()
+  const handleSpeakTTS = (textToSpeak: string, onDone?: () => void) => {
+    if (typeof window === 'undefined') return
     setIsSpeakingTest(true)
-    const utterance = new SpeechSynthesisUtterance(textToSpeak)
-    utterance.lang = 'th-TH'
-    utterance.rate = tiktokSpeed
-    utterance.pitch = tiktokPitch
-    utterance.volume = tiktokVolume
 
-    const voices = window.speechSynthesis.getVoices()
-    const thaiVoice = voices.find(v => v.lang.includes('th') || v.lang.includes('TH'))
-    if (thaiVoice) utterance.voice = thaiVoice
+    // Method 1: Web Speech API (with Thai Voice Detection)
+    if (window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel()
+        const utterance = new SpeechSynthesisUtterance(textToSpeak)
+        utterance.lang = 'th-TH'
+        utterance.rate = Math.max(0.6, Math.min(1.8, tiktokSpeed))
+        utterance.pitch = Math.max(0.6, Math.min(1.4, tiktokPitch))
+        utterance.volume = Math.max(0.2, Math.min(1.0, tiktokVolume))
 
-    utterance.onend = () => setIsSpeakingTest(false)
-    utterance.onerror = () => setIsSpeakingTest(false)
-    window.speechSynthesis.speak(utterance)
+        const voices = window.speechSynthesis.getVoices()
+        const thaiVoice = voices.find(v => v.lang.includes('th') || v.lang.includes('TH') || v.name.includes('Thai') || v.name.includes('Narisa') || v.name.includes('Premwadee'))
+        if (thaiVoice) utterance.voice = thaiVoice
+
+        utterance.onend = () => {
+          setIsSpeakingTest(false)
+          if (onDone) onDone()
+        }
+        utterance.onerror = () => {
+          playGoogleThaiTTS(textToSpeak, onDone)
+        }
+
+        window.speechSynthesis.speak(utterance)
+        return
+      } catch (e) {
+        playGoogleThaiTTS(textToSpeak, onDone)
+      }
+    } else {
+      playGoogleThaiTTS(textToSpeak, onDone)
+    }
+  }
+
+  const playGoogleThaiTTS = (text: string, onDone?: () => void) => {
+    try {
+      const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=th&client=tw-ob&q=${encodeURIComponent(text)}`
+      if (!ttsAudioRef.current) {
+        ttsAudioRef.current = new Audio()
+      }
+      ttsAudioRef.current.src = audioUrl
+      ttsAudioRef.current.volume = tiktokVolume
+      ttsAudioRef.current.onended = () => {
+        setIsSpeakingTest(false)
+        if (onDone) onDone()
+      }
+      ttsAudioRef.current.onerror = () => {
+        setIsSpeakingTest(false)
+        if (onDone) onDone()
+      }
+      ttsAudioRef.current.play().catch(() => {
+        setIsSpeakingTest(false)
+        if (onDone) onDone()
+      })
+    } catch (e) {
+      setIsSpeakingTest(false)
+      if (onDone) onDone()
+    }
   }
 
   const handleRedeemTikTokTTSWithPoints = async () => {
@@ -367,6 +415,49 @@ export default function DashboardPage() {
       setUnlockingTikTokTTS(false)
     }
   }
+
+  // Real-time Polling for TikTok Live Comments in Dashboard
+  useEffect(() => {
+    if (!tiktokConnected || !tiktokUsername) return
+
+    const interval = setInterval(async () => {
+      try {
+        const u = tiktokUsername.replace('@', '').trim()
+        if (!u) return
+        const res = await fetch(`/api/tiktok-live?username=${encodeURIComponent(u)}`)
+        const data = await res.json()
+        if (data && data.success) {
+          if (data.room) {
+            setTiktokLiveInfo({
+              isLive: Boolean(data.isLive),
+              roomId: data.room.roomId,
+              title: data.room.title,
+              viewerCount: data.room.viewerCount,
+              likeCount: data.room.likeCount,
+              statusText: data.room.statusText
+            })
+          }
+        }
+        if (data && data.success && data.events && data.events.length > 0) {
+          data.events.forEach((ev: any) => {
+            const speechText = ev.type === 'gift' 
+              ? `ขอบคุณคุณ ${ev.nickname} สำหรับ ${ev.giftName || 'ของขวัญ'} ${ev.count || 1} ชิ้นครับ`
+              : `${ev.nickname} พูดว่า ${ev.comment}`
+
+            setTiktokRecentLogs((prev: any) => [
+              { id: ev.id || Date.now(), user: ev.nickname, text: ev.comment, time: 'สด' },
+              ...prev.slice(0, 9)
+            ])
+
+            handleSpeakTTS(speechText)
+          })
+        }
+      } catch (e) {}
+    }, 1500)
+
+    return () => clearInterval(interval)
+  }, [tiktokConnected, tiktokUsername, tiktokSpeed, tiktokPitch, tiktokVolume])
+
 
   const [newProduct, setNewProduct] = useState({ 
     title: '', 
@@ -5166,6 +5257,69 @@ export default function DashboardPage() {
                         </span>
                       </div>
 
+                      {/* Live Stream Real-Time Status Monitor Badge */}
+                      {tiktokConnected && (
+                        <div>
+                          {tiktokLiveInfo.isLive ? (
+                            <div className="p-4 bg-emerald-500/10 border-2 border-emerald-500 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-in fade-in">
+                              <div className="flex items-center gap-3">
+                                <span className="relative flex h-3.5 w-3.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-500"></span>
+                                </span>
+                                <div>
+                                  <div className="font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                                    <span>🔴 ตรวจพบกำลังถ่ายทอดสดบน TikTok (LIVE NOW)</span>
+                                    {tiktokLiveInfo.roomId && (
+                                      <span className="font-mono text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded">
+                                        Room ID: {tiktokLiveInfo.roomId}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                                    {tiktokLiveInfo.title ? `"${tiktokLiveInfo.title}" • ` : ''}
+                                    คนดู: <strong className="text-purple-600 dark:text-purple-400 font-mono font-bold">{tiktokLiveInfo.viewerCount || 1} คน</strong> • ถูกใจ: <strong className="text-pink-600 dark:text-pink-400 font-mono font-bold">{tiktokLiveInfo.likeCount || 0}</strong> • ระบบกำลังอ่านเสียงคอมเมนต์ภาษาไทย
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-4 bg-amber-50/70 dark:bg-slate-950 border border-amber-300 dark:border-amber-700/60 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                              <div className="flex items-start sm:items-center gap-2.5">
+                                <span className="w-3 h-3 rounded-full bg-amber-400 shrink-0 mt-0.5 sm:mt-0 animate-pulse"></span>
+                                <div>
+                                  <div className="font-bold text-amber-900 dark:text-amber-300 flex items-center gap-2">
+                                    <span>สถานะห้องไลฟ์: ⚪ ออฟไลน์ (ยังไม่ได้เปิดไลฟ์สด)</span>
+                                  </div>
+                                  <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                                    ระบบเชื่อมต่อพร้อมแล้ว! เมื่อคุณกด <strong>"เริ่มถ่ายทอดสด"</strong> ในแอป TikTok ระบบจะตรวจพบสัญญาณและเริ่มอ่านคอมเมนต์ภาษาไทยทันที
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    const u = tiktokUsername.replace('@', '').trim()
+                                    const res = await fetch(`/api/tiktok-live?username=${encodeURIComponent(u)}`)
+                                    const data = await res.json()
+                                    if (data.isLive) {
+                                      showToast('🎉 ตรวจพบห้องไลฟ์สดกำลังทำงาน!')
+                                      handleSpeakTTS('ตรวจพบห้องไลฟ์สดกำลังถ่ายทอดสดอยู่ค่ะ')
+                                    } else {
+                                      showToast('⚪ บัญชียังไม่ได้เริ่มไลฟ์สดในขณะนี้')
+                                    }
+                                  } catch (e) {}
+                                }}
+                                className="px-3 py-1.5 bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-bold hover:bg-amber-200 transition shrink-0 cursor-pointer"
+                              >
+                                🔄 ตรวจสอบสถานะอีกครั้ง
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                         <div className="sm:col-span-8">
                           <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
@@ -5183,14 +5337,20 @@ export default function DashboardPage() {
                         <div className="sm:col-span-4 flex items-end">
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={async () => {
                               if (!tiktokConnected) {
                                 setTiktokConnected(true)
-                                showToast('🟢 เชื่อมต่อห้องไลฟ์ TikTok สำเร็จ! กำลังดักฟังคอมเมนต์สด...')
-                                handleSpeakTTS('เชื่อมต่อระบบเสียงอ่านคอมเมนต์ TikTok Live เรียบร้อยแล้วค่ะ')
+                                showToast('🟢 กำลังเชื่อมต่อห้องไลฟ์ TikTok @' + tiktokUsername.replace('@', '') + '...')
+                                handleSpeakTTS('เชื่อมต่อระบบเสียงอ่านคอมเมนต์ภาษาไทยเรียบร้อยแล้วค่ะ')
+                                try {
+                                  await fetch(`/api/tiktok-live?username=${encodeURIComponent(tiktokUsername.replace('@', ''))}&action=connect`)
+                                } catch (e) {}
                               } else {
                                 setTiktokConnected(false)
                                 showToast('⚪ หยุดการเชื่อมต่อไลฟ์สดแล้ว')
+                                try {
+                                  await fetch(`/api/tiktok-live?username=${encodeURIComponent(tiktokUsername.replace('@', ''))}&action=disconnect`)
+                                } catch (e) {}
                               }
                             }}
                             className={`w-full py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 shadow ${
