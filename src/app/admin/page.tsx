@@ -5,17 +5,29 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { 
   ShieldCheck, Users, Rocket, Sun, Moon, Coins, Crown, Zap, Search, Plus, 
-  Edit3, ArrowLeft, Check, AlertCircle, Lock, RefreshCw, Eye, X, 
+  Edit3, Edit2, ArrowLeft, Check, AlertCircle, Lock, RefreshCw, Eye, X, 
   Trash2, ExternalLink, Link2, ShoppingBag, Settings, Scissors, 
   Copy, BarChart3, Database, Filter, Download, CheckCircle2, 
-  UserPlus, PackagePlus, Globe, Sparkles, Activity, Clock, Send, Image as ImageIcon
+  UserPlus, PackagePlus, Globe, Sparkles, Activity, Clock, Send, CreditCard, MessageCircle, Image as ImageIcon
 } from 'lucide-react'
 
-type AdminTab = 'users' | 'landing_pages' | 'pixels' | 'payments' | 'shortlinks' | 'links' | 'products' | 'leads' | 'system'
+type AdminTab = 'users' | 'landing_pages' | 'pixels' | 'payments' | 'payment_settings' | 'shortlinks' | 'links' | 'products' | 'leads' | 'system'
 
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<AdminTab>('users')
+  // Admin Managed Payment Settings State
+  const [paymentSettings, setPaymentSettings] = useState({
+    promptpay_phone: '0909964514',
+    promptpay_bank: 'ธนาคารกสิกรไทย (KBANK)',
+    promptpay_account_name: 'วันชนะ ขวัญแก้ว',
+    promptpay_account_number: '',
+    contact_line_id: '@amth',
+    contact_line_url: 'https://line.me/ti/p/@amth',
+    payment_instructions: 'สแกน QR Code พร้อมเพย์ด้วยแอปธนาคาร แล้วแนบรูปสลิปเพื่อแจ้งชำระเงิน'
+  })
+  const [savingPaymentSettings, setSavingPaymentSettings] = useState(false)
+
   const [isDarkMode, setIsDarkMode] = useState(false)
 
   useEffect(() => {
@@ -163,13 +175,48 @@ export default function AdminDashboardPage() {
 
     if (!prof || prof.role !== 'admin') {
       setAdminProfile(prof)
+      await loadPaymentSettingsAdmin()
       setLoading(false)
       return
     }
 
     setAdminProfile(prof)
     await loadAllData()
-    setLoading(false)
+    await loadPaymentSettingsAdmin()
+      setLoading(false)
+  }
+
+    // --- ADMIN PAYMENT SETTINGS HANDLERS ---
+  const loadPaymentSettingsAdmin = async () => {
+    try {
+      const res = await fetch('/api/settings/payment')
+      const data = await res.json()
+      if (data?.settings) {
+        setPaymentSettings(prev => ({ ...prev, ...data.settings }))
+      }
+    } catch (e) {}
+  }
+
+  const handleSavePaymentSettings = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingPaymentSettings(true)
+    try {
+      const res = await fetch('/api/settings/payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: paymentSettings })
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        showNotification('✅ บันทึกการตั้งค่าบัญชีรับเงินและพร้อมเพย์เรียบร้อยแล้ว!')
+      } else {
+        alert('❌ เกิดข้อผิดพลาด: ' + (data.error || 'บันทึกไม่สำเร็จ'))
+      }
+    } catch (err: any) {
+      alert('❌ ข้อผิดพลาด: ' + err.message)
+    } finally {
+      setSavingPaymentSettings(false)
+    }
   }
 
   const loadAllData = async () => {
@@ -1162,9 +1209,11 @@ export default function AdminDashboardPage() {
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4 text-slate-700" />}
             </button>
             <button
-              onClick={() => {
+              onClick={async () => {
                 setLoading(true)
-                loadAllData().then(() => setLoading(false))
+                await loadAllData()
+                await loadPaymentSettingsAdmin()
+                setLoading(false)
               }}
               className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 rounded-xl transition shadow-sm"
               title="รีเฟรชข้อมูล"
@@ -1280,6 +1329,15 @@ export default function AdminDashboardPage() {
             }`}
           >
             <Coins className="w-4 h-4" /> <span>💳 ตรวจสอบสลิป ({allPayments.length}){allPayments.filter(p => p.status === 'pending').length > 0 ? ` [${allPayments.filter(p => p.status === 'pending').length} รอตรวจ]` : ''}</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('payment_settings'); setSearchQuery(''); }}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition ${
+              activeTab === 'payment_settings' ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-black shadow-lg shadow-amber-500/30' : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <CreditCard className="w-4 h-4" /> <span>⚙️ ตั้งค่าบัญชีเติมเงิน</span>
           </button>
 
           <button
@@ -1748,6 +1806,232 @@ export default function AdminDashboardPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        
+        {/* TAB 5: PAYMENT SETTINGS (PROMPTPAY & PACKAGES) */}
+        {activeTab === 'payment_settings' && (
+          <div className="space-y-6">
+            
+            {/* Header */}
+            <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-3xl space-y-4 text-white shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-500 text-slate-950 flex items-center justify-center font-bold shadow-md shadow-amber-500/20">
+                    <CreditCard className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-base sm:text-lg text-white">
+                      ตั้งค่าบัญชีรับเงินพร้อมเพย์ & การชำระเงิน (Payment Settings)
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      กำหนดเบอร์พร้อมเพย์และชื่อบัญชีที่ใช้สร้าง QR Code อัตโนมัติเมื่อสมาชิกกดเติมแต้ม
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('payments')}
+                    className="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Coins className="w-4 h-4 text-amber-400" />
+                    <span>ไปที่หน้าตรวจสอบสลิป ({allPayments.filter(p => p.status === 'pending').length} รอตรวจ)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Grid: Left Form Settings, Right Live QR Preview */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
+                
+                {/* Left Form (7 cols) */}
+                <form onSubmit={handleSavePaymentSettings} className="lg:col-span-7 space-y-4 text-xs font-bold">
+                  <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3">
+                    <h4 className="font-extrabold text-sm text-amber-400 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4" /> ข้อมูลบัญชีรับเงิน PromptPay (หลัก)
+                    </h4>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-slate-300 mb-1">หมายเลขพร้อมเพย์ (เบอร์โทร / เลขบัตร) *</label>
+                        <input
+                          type="text"
+                          required
+                          value={paymentSettings.promptpay_phone}
+                          onChange={(e) => setPaymentSettings({ ...paymentSettings, promptpay_phone: e.target.value })}
+                          placeholder="เช่น 0909964514"
+                          className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-300 mb-1">ธนาคารที่ผูกพร้อมเพย์ *</label>
+                        <input
+                          type="text"
+                          required
+                          value={paymentSettings.promptpay_bank}
+                          onChange={(e) => setPaymentSettings({ ...paymentSettings, promptpay_bank: e.target.value })}
+                          placeholder="เช่น ธนาคารกสิกรไทย (KBANK)"
+                          className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-slate-300 mb-1">ชื่อบัญชีผู้รับเงิน (Account Name) *</label>
+                        <input
+                          type="text"
+                          required
+                          value={paymentSettings.promptpay_account_name}
+                          onChange={(e) => setPaymentSettings({ ...paymentSettings, promptpay_account_name: e.target.value })}
+                          placeholder="เช่น วันชนะ ขวัญแก้ว"
+                          className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-300 mb-1">เลขที่บัญชีธนาคาร (สำรอง/ถ้ามี)</label>
+                        <input
+                          type="text"
+                          value={paymentSettings.promptpay_account_number || ''}
+                          onChange={(e) => setPaymentSettings({ ...paymentSettings, promptpay_account_number: e.target.value })}
+                          placeholder="เช่น 012-3-45678-9"
+                          className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* LINE OA Support Contact Info */}
+                  <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3">
+                    <h4 className="font-extrabold text-sm text-emerald-400 flex items-center gap-1.5">
+                      <MessageCircle className="w-4 h-4" /> ช่องทางติดต่อ & ส่งสลิปสำรอง (LINE OA)
+                    </h4>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-slate-300 mb-1">LINE Official ID (แอดมิน)</label>
+                        <input
+                          type="text"
+                          value={paymentSettings.contact_line_id}
+                          onChange={(e) => setPaymentSettings({ ...paymentSettings, contact_line_id: e.target.value })}
+                          placeholder="เช่น @amth"
+                          className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-400"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-300 mb-1">ลิงก์ LINE OA URL</label>
+                        <input
+                          type="text"
+                          value={paymentSettings.contact_line_url}
+                          onChange={(e) => setPaymentSettings({ ...paymentSettings, contact_line_url: e.target.value })}
+                          placeholder="https://line.me/ti/p/@amth"
+                          className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-emerald-400"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 mb-1">คำแนะนำการชำระเงินที่แสดงให้ผู้ใช้เห็น</label>
+                      <textarea
+                        rows={2}
+                        value={paymentSettings.payment_instructions}
+                        onChange={(e) => setPaymentSettings({ ...paymentSettings, payment_instructions: e.target.value })}
+                        className="w-full px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:border-amber-400 leading-relaxed font-normal"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="submit"
+                      disabled={savingPaymentSettings}
+                      className="px-6 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 text-slate-950 font-black rounded-xl text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-amber-500/25 active:scale-95 transition cursor-pointer disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{savingPaymentSettings ? 'กำลังบันทึก...' : '💾 บันทึกการตั้งค่าบัญชีรับเงิน'}</span>
+                    </button>
+                  </div>
+                </form>
+
+                {/* Right Preview (5 cols) */}
+                <div className="lg:col-span-5 space-y-4">
+                  <div className="p-5 bg-slate-950 border-2 border-amber-500/30 rounded-3xl text-center space-y-3.5">
+                    <div className="flex items-center justify-center gap-1.5 text-xs font-black text-amber-300">
+                      <CreditCard className="w-4 h-4" />
+                      <span>ตัวอย่างหน้าสแกนจ่าย PromptPay QR จริง</span>
+                    </div>
+
+                    {/* QR Code Image Preview */}
+                    <div className="w-48 h-48 bg-white p-2.5 rounded-2xl border-2 border-slate-300 shadow-inner mx-auto flex items-center justify-center">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=10&data=${encodeURIComponent(paymentSettings.promptpay_phone || '0909964514')}`}
+                        alt="PromptPay QR Preview"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+
+                    <div className="space-y-1 text-xs">
+                      <p className="text-slate-400 text-[11px]">เบอร์พร้อมเพย์รับเงิน:</p>
+                      <p className="font-mono text-base font-black text-amber-400">{paymentSettings.promptpay_phone}</p>
+                      <p className="text-white font-bold">{paymentSettings.promptpay_account_name}</p>
+                      <p className="text-slate-400 text-[11px]">{paymentSettings.promptpay_bank}</p>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-900 rounded-xl border border-slate-800 text-[11px] text-slate-300 text-left space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">สถานะระบบเติมแต้ม:</span>
+                        <span className="text-emerald-400 font-bold">🟢 พร้อมใช้งาน</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">สลิปที่รอตรวจ:</span>
+                        <span className="text-amber-400 font-bold font-mono">{allPayments.filter(p => p.status === 'pending').length} รายการ</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Top-up Packages & Price Overview Cards */}
+            <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-3xl space-y-4 text-white">
+              <h4 className="font-extrabold text-sm text-slate-200 flex items-center gap-2">
+                <Coins className="w-4 h-4 text-amber-400" />
+                <span>โครงสร้างแพ็กเกจเติมแต้มสะสมทั้งหมดในระบบ (Top-Up Packages)</span>
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+                {[
+                  { points: 100, price: 100, name: 'Starter Pack', desc: 'ปลดล็อกย่อลิงก์ หรือ Pixels 30 วัน', tag: 'STARTER' },
+                  { points: 300, price: 299, name: 'PRO VIP (30 วัน)', desc: 'แลก PRO VIP 30 วัน (10 สินค้า)', tag: 'PRO' },
+                  { points: 600, price: 599, name: 'MASTER VIP (30 วัน)', desc: 'แลก MASTER VIP 30 วัน + ฟรีเซลเพจ', tag: 'HOT' },
+                  { points: 1800, price: 1599, name: 'MASTER (3 เดือน)', desc: 'ประหยัด 200 บาท (เดือนละ 533 บ.)', tag: 'คุ้มค่า' },
+                  { points: 7200, price: 5990, name: 'MASTER (รายปี 12 ด.)', desc: 'คุ้มค่าที่สุด (ประหยัดกว่า 1,198 บ.)', tag: 'BEST VALUE' }
+                ].map((pkg) => (
+                  <div key={pkg.points} className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-2 flex flex-col justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-black text-amber-400 font-mono">🪙 {pkg.points} แต้ม</span>
+                        <span className="text-[9px] font-black bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">
+                          {pkg.tag}
+                        </span>
+                      </div>
+                      <h5 className="font-bold text-white text-xs">{pkg.name}</h5>
+                      <p className="text-[11px] text-slate-400 leading-tight">{pkg.desc}</p>
+                    </div>
+                    <div className="pt-2 border-t border-slate-800/80 text-right">
+                      <span className="text-base font-black font-mono text-emerald-400">฿{pkg.price}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
         )}
 

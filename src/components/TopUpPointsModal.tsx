@@ -7,7 +7,7 @@ import {
   CreditCard, ShieldCheck, MessageCircle, ExternalLink, Flame, 
   Upload, Clock, CheckCircle2, AlertCircle, RefreshCw, Eye, Image as ImageIcon, Send, AlertTriangle
 } from 'lucide-react'
-import { generatePromptPayPayload, PROMPTPAY_PHONE, PROMPTPAY_BANK, PROMPTPAY_ACCOUNT_NAME } from '@/lib/promptpay'
+import { generatePromptPayPayload, PROMPTPAY_PHONE, PROMPTPAY_BANK, PROMPTPAY_ACCOUNT_NAME, PROMPTPAY_LINE_ID, PROMPTPAY_LINE_URL } from '@/lib/promptpay'
 
 interface TopUpPointsModalProps {
   isOpen: boolean
@@ -31,6 +31,17 @@ export default function TopUpPointsModal({
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [isConfirmPayModalOpen, setIsConfirmPayModalOpen] = useState(false)
 
+  // Dynamic Payment Settings Configured by Admin
+  const [paymentConfig, setPaymentConfig] = useState({
+    promptpay_phone: PROMPTPAY_PHONE,
+    promptpay_bank: PROMPTPAY_BANK,
+    promptpay_account_name: PROMPTPAY_ACCOUNT_NAME,
+    promptpay_account_number: '',
+    contact_line_id: PROMPTPAY_LINE_ID,
+    contact_line_url: PROMPTPAY_LINE_URL,
+    payment_instructions: 'สแกน QR Code พร้อมเพย์ด้วยแอปธนาคาร แล้วแนบรูปสลิปเพื่อแจ้งชำระเงิน'
+  })
+
   // Transaction History
   const [myTransactions, setMyTransactions] = useState<any[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
@@ -48,15 +59,40 @@ export default function TopUpPointsModal({
 
   const currentPkg = packages.find(p => p.points === selectedPkg) || packages[2]
 
-  // Generate Real EMVCo PromptPay QR Code Payload for 0909964514 with exact THB amount!
-  const promptpayPayload = generatePromptPayPayload(PROMPTPAY_PHONE, currentPkg.price)
+  // Generate Real EMVCo PromptPay QR Code Payload based on Admin Configured Phone/ID
+  const promptpayPayload = generatePromptPayPayload(paymentConfig.promptpay_phone || PROMPTPAY_PHONE, currentPkg.price)
   const qrCodeImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(promptpayPayload)}`
 
   useEffect(() => {
-    if (isOpen && profile?.id) {
-      loadMyTransactions()
+    if (isOpen) {
+      loadPaymentSettings()
+      if (profile?.id) {
+        loadMyTransactions()
+      }
     }
   }, [isOpen, profile?.id])
+
+  const loadPaymentSettings = async () => {
+    try {
+      const res = await fetch('/api/settings/payment')
+      const data = await res.json()
+      if (data?.settings) {
+        setPaymentConfig(prev => ({ ...prev, ...data.settings }))
+      }
+    } catch (e) {
+      // Fallback to Supabase direct query
+      try {
+        const { data } = await supabase.from('system_settings').select('key, value')
+        if (data && data.length > 0) {
+          const cfg: any = {}
+          data.forEach((row: any) => {
+            if (row.key && row.value) cfg[row.key] = row.value
+          })
+          setPaymentConfig(prev => ({ ...prev, ...cfg }))
+        }
+      } catch (err) {}
+    }
+  }
 
   const loadMyTransactions = async () => {
     if (!profile?.id) return
@@ -215,7 +251,8 @@ export default function TopUpPointsModal({
         {/* TAB 1: PAY & UPLOAD SLIP FORM */}
         {activeTab === 'pay' && (
           <div className="space-y-5">
-            {submitSuccess ? (              <div className="p-6 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-3xl text-center space-y-4 animate-in zoom-in-95">
+            {submitSuccess ? (
+              <div className="p-6 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-3xl text-center space-y-4 animate-in zoom-in-95">
                 <div className="w-16 h-16 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/30">
                   <CheckCircle2 className="w-10 h-10" />
                 </div>
@@ -287,7 +324,7 @@ export default function TopUpPointsModal({
                   </div>
                 </div>
 
-                {/* 2. Real Thai EMVCo PromptPay QR Code Display */}
+                {/* 2. Real Thai EMVCo PromptPay QR Code Display (Dynamic by Admin) */}
                 <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl space-y-3 text-center">
                   <div className="flex items-center justify-center gap-1.5 text-xs font-black text-[#1E1B4B] dark:text-white">
                     <QrCode className="w-4 h-4 text-emerald-500" />
@@ -298,7 +335,7 @@ export default function TopUpPointsModal({
                   <div className="w-52 h-52 bg-white p-2.5 rounded-2xl border-2 border-slate-200 shadow-inner mx-auto flex items-center justify-center">
                     <img
                       src={qrCodeImageUrl}
-                      alt="PromptPay QR Code 0909964514"
+                      alt={`PromptPay QR Code ${paymentConfig.promptpay_phone}`}
                       className="w-full h-full object-contain"
                     />
                   </div>
@@ -307,16 +344,25 @@ export default function TopUpPointsModal({
                     <p className="font-extrabold text-[#1E1B4B] dark:text-white">
                       ยอดชำระ: <span className="text-amber-600 dark:text-amber-400 font-mono text-lg font-black">฿{currentPkg.price}.00 บาท</span>
                     </p>
-                    <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] space-y-0.5 font-medium">
-                      <p className="text-emerald-600 dark:text-emerald-400 font-bold">
-                        📱 เบอร์พร้อมเพย์: <span className="font-mono text-xs">{PROMPTPAY_PHONE}</span>
-                      </p>
-                      <p className="text-slate-600 dark:text-slate-300">
-                        🏦 ธนาคาร: <strong>{PROMPTPAY_BANK}</strong>
-                      </p>
-                      <p className="text-slate-500">
-                        👤 ชื่อบัญชี: <strong>{PROMPTPAY_ACCOUNT_NAME}</strong>
-                      </p>
+                    <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-[11px] space-y-1 text-left font-medium">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">📱 พร้อมเพย์ (PromptPay):</span>
+                        <span className="font-mono text-emerald-600 dark:text-emerald-400 font-black text-xs">{paymentConfig.promptpay_phone}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">🏦 ธนาคาร:</span>
+                        <strong className="text-slate-800 dark:text-slate-200">{paymentConfig.promptpay_bank}</strong>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">👤 ชื่อบัญชี:</span>
+                        <strong className="text-slate-800 dark:text-slate-200">{paymentConfig.promptpay_account_name}</strong>
+                      </div>
+                      {paymentConfig.promptpay_account_number && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-500">💳 เลขที่บัญชี:</span>
+                          <strong className="font-mono text-purple-600 dark:text-purple-400">{paymentConfig.promptpay_account_number}</strong>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -382,13 +428,13 @@ export default function TopUpPointsModal({
                 {/* LINE OA Alternative Contact */}
                 <div className="pt-1 text-center">
                   <a
-                    href="https://line.me/ti/p/@amth"
+                    href={paymentConfig.contact_line_url || "https://line.me/ti/p/@amth"}
                     target="_blank"
                     rel="noreferrer"
                     className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 font-bold"
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
-                    <span>หรือส่งสลิปผ่านทาง LINE OA (@amth) กับแอดมินโดยตรง</span>
+                    <span>หรือติดต่อ/ส่งสลิปผ่านทาง LINE ({paymentConfig.contact_line_id || '@amth'}) กับแอดมินโดยตรง</span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
@@ -436,8 +482,7 @@ export default function TopUpPointsModal({
                           className="w-12 h-12 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer hover:opacity-80 transition shrink-0"
                           title="คลิกเพื่อดูสลิปขนาดใหญ่"
                         />
-                      ) : (
-                        <div className="w-12 h-12 rounded-xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400 shrink-0">
+                      ) : (                        <div className="w-12 h-12 rounded-xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400 shrink-0">
                           <ImageIcon className="w-5 h-5" />
                         </div>
                       )}

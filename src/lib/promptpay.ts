@@ -1,11 +1,14 @@
 /**
  * Real Thai EMVCo PromptPay QR Code Payload Generator
- * Generates standard PromptPay QR string compatible with all Thai mobile banking apps (K PLUS, SCB Easy, Krungthai NEXT, etc.)
+ * Supports Mobile Phone (10 digits), National ID / Tax ID (13 digits), and e-Wallet (15 digits)
+ * Fully compatible with all Thai mobile banking apps (K PLUS, SCB Easy, Krungthai NEXT, etc.)
  */
 
 export const PROMPTPAY_PHONE = '0909964514'
 export const PROMPTPAY_BANK = 'ธนาคารกสิกรไทย (KBANK)'
 export const PROMPTPAY_ACCOUNT_NAME = 'วันชนะ ขวัญแก้ว'
+export const PROMPTPAY_LINE_ID = '@amth'
+export const PROMPTPAY_LINE_URL = 'https://line.me/ti/p/@amth'
 
 function crc16(data: string): string {
   let crc = 0xffff
@@ -23,15 +26,25 @@ function crc16(data: string): string {
   return crc.toString(16).toUpperCase().padStart(4, '0')
 }
 
-export function generatePromptPayPayload(phoneNumber: string = PROMPTPAY_PHONE, amount?: number): string {
-  // Clean phone number: 0909964514 -> 0066909964514
-  let cleaned = phoneNumber.replace(/[^0-9]/g, '')
-  if (cleaned.startsWith('0')) {
-    cleaned = '0066' + cleaned.substring(1)
+export function generatePromptPayPayload(target: string = PROMPTPAY_PHONE, amount?: number): string {
+  const cleaned = (target || PROMPTPAY_PHONE).replace(/[^0-9]/g, '')
+  
+  let targetTag = ''
+  if (cleaned.length >= 13) {
+    // 13-digit National ID / Tax ID
+    targetTag = `02${cleaned.length.toString().padStart(2, '0')}${cleaned}`
+  } else {
+    // Mobile Phone Number (formatted with Thailand country code 0066)
+    let phoneFormatted = cleaned
+    if (phoneFormatted.startsWith('0')) {
+      phoneFormatted = '0066' + phoneFormatted.substring(1)
+    } else if (!phoneFormatted.startsWith('0066')) {
+      phoneFormatted = '0066' + phoneFormatted
+    }
+    targetTag = `01${phoneFormatted.length.toString().padStart(2, '0')}${phoneFormatted}`
   }
 
   // Tag 29: Merchant Account Info (PromptPay)
-  const targetTag = `01${cleaned.length.toString().padStart(2, '0')}${cleaned}`
   const aidTag = '0016A000000677010111'
   const tag29Content = aidTag + targetTag
   const tag29 = `29${tag29Content.length.toString().padStart(2, '0')}${tag29Content}`

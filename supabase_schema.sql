@@ -698,3 +698,41 @@ BEGIN
     END IF;
 
 END $$;
+
+
+-- ============================================================================
+-- 12. SYSTEM SETTINGS & PAYMENT CONFIGURATION (ADMIN MANAGED)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.system_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    description TEXT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
+
+-- Allow public read access to system settings
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'system_settings' AND policyname = 'Allow public read system_settings') THEN
+        CREATE POLICY "Allow public read system_settings" ON public.system_settings FOR SELECT USING (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'system_settings' AND policyname = 'Allow admin manage system_settings') THEN
+        CREATE POLICY "Allow admin manage system_settings" ON public.system_settings FOR ALL USING (
+            EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+        );
+    END IF;
+END $$;
+
+-- Insert default payment settings
+INSERT INTO public.system_settings (key, value, description) VALUES
+('promptpay_phone', '0909964514', 'เบอร์พร้อมเพย์รับชำระเงิน'),
+('promptpay_bank', 'ธนาคารกสิกรไทย (KBANK)', 'ชื่อธนาคาร'),
+('promptpay_account_name', 'วันชนะ ขวัญแก้ว', 'ชื่อบัญชีผู้รับเงิน'),
+('promptpay_account_number', '', 'เลขบัญชีธนาคาร (ทางเลือก)'),
+('contact_line_id', '@amth', 'LINE ID สำหรับติดต่อแอดมิน/ส่งสลิป'),
+('contact_line_url', 'https://line.me/ti/p/@amth', 'ลิงก์ LINE Official สำหรับติดต่อ'),
+('payment_instructions', 'สแกน QR Code พร้อมเพย์ด้วยแอปธนาคาร แล้วแนบรูปสลิปเพื่อแจ้งชำระเงิน', 'คำแนะนำการชำระเงิน')
+ON CONFLICT (key) DO NOTHING;
