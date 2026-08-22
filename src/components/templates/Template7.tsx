@@ -105,7 +105,7 @@ export default function Template7({ profile, links, products, handleLinkClick, i
       }}>
       
       {/* MASTER TIER: Neo-Brutalist Pop Header */}
-      <div className="bg-[#FDE047] border-[3px] border-black rounded-2xl p-6 text-center flex flex-col items-center space-y-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative">
+      <div className="border-[3px] border-black rounded-2xl p-6 text-center flex flex-col items-center space-y-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative" style={{ backgroundColor: profile.card_bg_color || "#FDE047" }}>
         <div className="w-full flex justify-center">
           <span className="inline-block px-3 py-1 bg-black text-white text-[10px] font-black uppercase rounded font-mono shadow">
             ★ MASTER CREATIVE HUB ★
@@ -163,8 +163,9 @@ export default function Template7({ profile, links, products, handleLinkClick, i
         </button>
         <button
           onClick={() => setActiveTab('shop')}
+          style={{ backgroundColor: activeTab === 'shop' ? (profile.card_bg_color || "#FDE047") : undefined }}
           className={`flex-1 py-2 rounded-xl font-black flex items-center justify-center gap-1 transition ${
-            activeTab === 'shop' ? 'bg-[#FDE047] text-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'text-black'
+            activeTab === 'shop' ? 'text-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'text-black'
           }`}
         >
           <Store className="w-3.5 h-3.5" /> สินค้า ({products?.length || 0})
@@ -224,7 +225,7 @@ export default function Template7({ profile, links, products, handleLinkClick, i
               {products.map((prod) => (
                 <div key={prod.id} className="bg-white border-[3px] border-black rounded-2xl p-4 flex flex-col justify-between space-y-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                   <div className="space-y-2">
-                    <div className="w-full h-32 rounded-xl bg-[#FDE047] overflow-hidden relative border-2 border-black">
+                    <div className="w-full h-32 rounded-xl overflow-hidden relative border-2 border-black" style={{ backgroundColor: profile.card_bg_color || "#FDE047" }}>
                       {prod.image_url ? (
                         <img src={prod.image_url} alt={prod.title} className="w-full h-full object-cover" />
                       ) : (

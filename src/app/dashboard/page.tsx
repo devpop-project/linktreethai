@@ -2537,10 +2537,61 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
-                    {/* 2. Text Color (Name, Bio, Subtitles) */}
+                    {/* 2. Profile Card & Header Background Color */}
+                    <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
+                          2. สีการ์ดโปรไฟล์ / กล่องหัวข้อด้านบน (Profile Card & Header Color)
+                        </label>
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">เปลี่ยนสีกรอบเหลือง / การ์ดหัวข้อ</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {[
+                          { color: '#FDE047', label: 'เหลือง Retro Pop' },
+                          { color: '#FFFFFF', label: 'ขาวสว่าง Clean' },
+                          { color: '#1E1B4B', label: 'ดำน้ำเงินเข้ม' },
+                          { color: '#34D399', label: 'เขียวมินต์' },
+                          { color: '#F472B6', label: 'ชมพูพาสเทล' },
+                          { color: '#C084FC', label: 'ม่วงนีออน' },
+                          { color: '#FB923C', label: 'ส้ม Sunset' }
+                        ].map((preset) => (
+                          <button
+                            key={preset.color}
+                            type="button"
+                            onClick={() => setProfile({ ...profile, card_bg_color: preset.color })}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
+                              profile.card_bg_color === preset.color
+                                ? 'border-purple-600 ring-2 ring-purple-500/30 bg-white dark:bg-slate-900 shadow-sm'
+                                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300'
+                            }`}
+                          >
+                            <span className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shadow-inner" style={{ backgroundColor: preset.color }}></span>
+                            <span>{preset.label}</span>
+                          </button>
+                        ))}
+
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          <input
+                            type="color"
+                            value={profile.card_bg_color || '#FDE047'}
+                            onChange={(e) => setProfile({ ...profile, card_bg_color: e.target.value })}
+                            className="w-7 h-7 rounded-lg border border-slate-300 dark:border-slate-700 cursor-pointer p-0.5 bg-white"
+                          />
+                          <input
+                            type="text"
+                            placeholder="#FDE047"
+                            value={profile.card_bg_color || '#FDE047'}
+                            onChange={(e) => setProfile({ ...profile, card_bg_color: e.target.value })}
+                            className="w-24 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono font-bold text-[#1E1B4B] dark:text-white focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 3. Text Color (Name, Bio, Subtitles) */}
                     <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-slate-800">
                       <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
-                        2. สีตัวหนังสือ (Text & Title Color)
+                        3. สีตัวหนังสือ (Text & Title Color)
                       </label>
                       <div className="flex flex-wrap items-center gap-2">
                         {[
@@ -2585,7 +2636,7 @@ export default function DashboardPage() {
                     {/* 3. Button Background & Button Text Color */}
                     <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-slate-800">
                       <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
-                        3. สีปุ่มลิงก์รวม & สีตัวอักษรบนปุ่ม (Buttons Style)
+                        4. สีปุ่มลิงก์รวม & สีตัวอักษรบนปุ่ม (Buttons Style)
                       </label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1.5">
@@ -2630,7 +2681,7 @@ export default function DashboardPage() {
                     <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-slate-800">
                       <div className="flex items-center justify-between">
                         <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
-                          4. ภาพวอลเปเปอร์เฉพาะในกรอบเล็ก (Inner Card Wallpaper Image)
+                          5. ภาพวอลเปเปอร์เฉพาะในกรอบเล็ก (Inner Card Wallpaper Image)
                         </label>
                         <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">แสดงภายในกรอบสมาร์ตโฟน / กรอบเล็ก</span>
                       </div>
@@ -2670,7 +2721,7 @@ export default function DashboardPage() {
                     <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-slate-800">
                       <div className="flex items-center justify-between">
                         <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
-                          5. ภาพวอลเปเปอร์พื้นหลังใหญ่สุดด้านหลัง (Outer Full-Screen Wallpaper)
+                          6. ภาพวอลเปเปอร์พื้นหลังใหญ่สุดด้านหลัง (Outer Full-Screen Wallpaper)
                         </label>
                         <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">แสดงเต็มจอคอมพิวเตอร์ / พื้นหลังหลัก</span>
                       </div>
