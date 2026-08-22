@@ -23,6 +23,20 @@ export default function TikTokLiveTTSOverlay() {
   const pitch = parseFloat(searchParams.get('pitch') || '1.0')
   const volume = parseFloat(searchParams.get('volume') || '1.0')
   const thaiOnly = searchParams.get('thai_only') !== 'false'
+
+  const formatDisplayHandle = (input: string) => {
+    let cleaned = input.trim()
+    if (cleaned.includes('tiktok.com')) {
+      const m = cleaned.match(/@([a-zA-Z0-9_.-]+)/)
+      if (m) return m[1].toLowerCase()
+      const mRoom = cleaned.match(/room_id=(\d+)/) || cleaned.match(/\/live\/(\d+)/)
+      if (mRoom) return `Room ${mRoom[1].substring(0, 8)}...`
+      return 'TikTok Live'
+    }
+    return cleaned.replace('@', '').trim()
+  }
+
+  const displayHandle = formatDisplayHandle(username)
   const filterProfanity = searchParams.get('filter') !== 'false'
 
   const [connected, setConnected] = useState(false)
@@ -184,40 +198,66 @@ export default function TikTokLiveTTSOverlay() {
     }
   }, [])
 
-  // 6. Connect and Poll Real-time Live Comments from /api/tiktok-live
+  // 6. Connect Real-time Live Stream via Server-Sent Events (SSE)
   useEffect(() => {
     if (!username) return
     setConnected(true)
 
-    // Polling Live Event Stream API every 1.5 seconds for real-time responsiveness
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/tiktok-live?username=${encodeURIComponent(username)}`)
-        const data = await res.json()
-        if (data && data.success) {
-          setIsLive(Boolean(data.isLive))
-          if (data.room && data.room.viewerCount) {
-            setViewerCount(data.room.viewerCount)
-          }
-        }
-        if (data && data.success && data.events && data.events.length > 0) {
-          data.events.forEach((ev: any) => {
-            handleIncomingEvent({
-              id: ev.id || 'live_' + Date.now() + Math.random(),
-              uniqueId: ev.uniqueId || 'viewer',
-              nickname: ev.nickname || 'คนดูในไลฟ์',
-              comment: ev.comment || '',
-              type: ev.type || 'comment',
-              giftName: ev.giftName,
-              count: ev.count,
-              timestamp: ev.timestamp || Date.now()
-            })
-          })
-        }
-      } catch (e) {}
-    }, 1500)
+    let sse: EventSource | null = null
+    try {
+      sse = new EventSource(`/api/tiktok-live/sse?username=${encodeURIComponent(username)}`)
 
-    return () => clearInterval(interval)
+      sse.addEventListener('status', (e: any) => {
+        try {
+          const data = JSON.parse(e.data)
+          setIsLive(Boolean(data.isLive || data.status === 'LIVE'))
+          if (data.viewerCount) setViewerCount(data.viewerCount)
+        } catch (err) {}
+      })
+
+      sse.addEventListener('chat', (e: any) => {
+        try {
+          const data = JSON.parse(e.data)
+          handleIncomingEvent({
+            id: data.id || 'live_' + Date.now(),
+            uniqueId: data.uniqueId || 'viewer',
+            nickname: data.nickname || 'คนดูในไลฟ์',
+            comment: data.comment || '',
+            type: 'comment',
+            timestamp: Date.now()
+          })
+        } catch (err) {}
+      })
+
+      sse.addEventListener('gift', (e: any) => {
+        try {
+          const data = JSON.parse(e.data)
+          handleIncomingEvent({
+            id: data.id || 'gift_' + Date.now(),
+            uniqueId: data.uniqueId || 'viewer',
+            nickname: data.nickname || 'คนดูในไลฟ์',
+            comment: `ส่งของขวัญ ${data.giftName} ${data.count || 1} ชิ้น`,
+            type: 'gift',
+            giftName: data.giftName,
+            count: data.count,
+            timestamp: Date.now()
+          })
+        } catch (err) {}
+      })
+
+      sse.addEventListener('roomUser', (e: any) => {
+        try {
+          const data = JSON.parse(e.data)
+          if (data.viewerCount) setViewerCount(data.viewerCount)
+        } catch (err) {}
+      })
+    } catch (err) {
+      console.warn('[Overlay SSE] Connection error:', err)
+    }
+
+    return () => {
+      if (sse) sse.close()
+    }
   }, [username])
 
   return (
@@ -240,7 +280,7 @@ export default function TikTokLiveTTSOverlay() {
             <span className={`w-2.5 h-2.5 rounded-full ${isLive ? 'bg-rose-500 animate-ping' : 'bg-slate-500'}`}></span>
             <Radio className={`w-4 h-4 ${isLive ? 'text-pink-400' : 'text-slate-400'}`} />
             <span className="text-xs font-black font-mono">
-              @{username} {isLive ? `🔴 LIVE (${viewerCount || 1} คนดู)` : '⚪ OFFLINE'}
+              @{displayHandle} {isLive ? `🔴 LIVE (${viewerCount || 1} คนดู)` : '⚪ OFFLINE'}
             </span>
           </div>
 
