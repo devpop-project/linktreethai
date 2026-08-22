@@ -141,7 +141,7 @@ export default function Template6({ profile, links, products, handleLinkClick, i
                 }`}
               >
                 <div className="flex items-center justify-between w-full">
-                  <div className="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center shadow overflow-hidden">
+                  <div style={{ backgroundColor: link.icon_bg_color || undefined }} className="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center shadow overflow-hidden">
                     {link.logo_url ? (
                       <img src={link.logo_url} alt={link.title} className="w-full h-full object-cover" />
                     ) : (

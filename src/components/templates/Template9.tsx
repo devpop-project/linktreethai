@@ -203,7 +203,7 @@ export default function Template9({ profile, links, products, handleLinkClick, i
                   {link.logo_url ? (
                     <img src={link.logo_url} alt={link.title} className="w-10 h-10 object-cover rounded-xl shrink-0 border border-white/20 shadow-md" />
                   ) : (
-                    <div className="w-10 h-10 bg-indigo-500/20 text-indigo-300 rounded-xl flex items-center justify-center shrink-0 border border-indigo-500/30">
+                    <div style={{ backgroundColor: link.icon_bg_color || undefined }} className="w-10 h-10 bg-indigo-500/20 text-indigo-300 rounded-xl flex items-center justify-center shrink-0 border border-indigo-500/30">
                       <SocialIcon type={link.icon} className="w-5 h-5" />
                     </div>
                   )}

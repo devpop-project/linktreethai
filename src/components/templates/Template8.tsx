@@ -198,7 +198,7 @@ export default function Template8({ profile, links, products, handleLinkClick, i
                   {link.logo_url ? (
                     <img src={link.logo_url} alt={link.title} className="w-10 h-10 object-cover rounded-2xl shrink-0 border border-white/30 shadow-md" />
                   ) : (
-                    <div className="w-10 h-10 bg-cyan-500/20 text-cyan-300 rounded-2xl flex items-center justify-center shrink-0 border border-cyan-400/30">
+                    <div style={{ backgroundColor: link.icon_bg_color || undefined }} className="w-10 h-10 bg-cyan-500/20 text-cyan-300 rounded-2xl flex items-center justify-center shrink-0 border border-cyan-400/30">
                       <SocialIcon type={link.icon} className="w-5 h-5" />
                     </div>
                   )}

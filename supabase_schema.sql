@@ -736,3 +736,14 @@ INSERT INTO public.system_settings (key, value, description) VALUES
 ('contact_line_url', 'https://line.me/ti/p/@amth', 'ลิงก์ LINE Official สำหรับติดต่อ'),
 ('payment_instructions', 'สแกน QR Code พร้อมเพย์ด้วยแอปธนาคาร แล้วแนบรูปสลิปเพื่อแจ้งชำระเงิน', 'คำแนะนำการชำระเงิน')
 ON CONFLICT (key) DO NOTHING;
+
+-- Migration for icon_bg_color on links and tab_active_color on profiles
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'links' AND column_name = 'icon_bg_color') THEN
+        ALTER TABLE public.links ADD COLUMN icon_bg_color TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'tab_active_color') THEN
+        ALTER TABLE public.profiles ADD COLUMN tab_active_color TEXT;
+    END IF;
+END $$;

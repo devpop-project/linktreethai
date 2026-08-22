@@ -155,15 +155,16 @@ export default function Template7({ profile, links, products, handleLinkClick, i
       <div className="flex bg-white border-[3px] border-black p-1 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-mono text-xs">
         <button
           onClick={() => setActiveTab('links')}
+          style={{ backgroundColor: activeTab === 'links' ? (profile.tab_active_color || profile.card_bg_color || '#34D399') : undefined }}
           className={`flex-1 py-2 rounded-xl font-black flex items-center justify-center gap-1 transition ${
-            activeTab === 'links' ? 'bg-[#34D399] text-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'text-black'
+            activeTab === 'links' ? 'text-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'text-black'
           }`}
         >
           <Zap className="w-3.5 h-3.5" /> ลิ้งก์ ({links?.length || 0})
         </button>
         <button
           onClick={() => setActiveTab('shop')}
-          style={{ backgroundColor: activeTab === 'shop' ? (profile.card_bg_color || "#FDE047") : undefined }}
+          style={{ backgroundColor: activeTab === 'shop' ? (profile.tab_active_color || profile.card_bg_color || '#FDE047') : undefined }}
           className={`flex-1 py-2 rounded-xl font-black flex items-center justify-center gap-1 transition ${
             activeTab === 'shop' ? 'text-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'text-black'
           }`}
@@ -172,8 +173,9 @@ export default function Template7({ profile, links, products, handleLinkClick, i
         </button>
         <button
           onClick={() => setActiveTab('lead')}
+          style={{ backgroundColor: activeTab === 'lead' ? (profile.tab_active_color || profile.card_bg_color || '#C084FC') : undefined }}
           className={`flex-1 py-2 rounded-xl font-black flex items-center justify-center gap-1 transition ${
-            activeTab === 'lead' ? 'bg-[#C084FC] text-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'text-black'
+            activeTab === 'lead' ? 'text-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'text-black'
           }`}
         >
           <MessageSquare className="w-3.5 h-3.5" /> ติดต่อ
@@ -197,7 +199,13 @@ export default function Template7({ profile, links, products, handleLinkClick, i
                   {link.logo_url ? (
                     <img src={link.logo_url} alt={link.title} className="w-10 h-10 object-cover rounded-xl shrink-0 border-2 border-black" />
                   ) : (
-                    <div className="w-10 h-10 bg-[#34D399] text-black border-2 border-black rounded-xl flex items-center justify-center shrink-0">
+                    <div 
+                      className="w-10 h-10 border-2 border-black rounded-xl flex items-center justify-center shrink-0"
+                      style={{
+                        backgroundColor: link.icon_bg_color || (link.bg_color ? 'rgba(0,0,0,0.15)' : (profile.card_bg_color || '#34D399')),
+                        color: link.text_color || '#000000'
+                      }}
+                    >
                       <SocialIcon type={link.icon} className="w-5 h-5" />
                     </div>
                   )}

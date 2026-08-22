@@ -301,6 +301,7 @@ export default function DashboardPage() {
     logo_url: '',
     bg_color: '#1E1B4B',
     text_color: '#FFFFFF',
+    icon_bg_color: '',
     starts_at: '',
     ends_at: ''
   })
@@ -460,6 +461,7 @@ export default function DashboardPage() {
           logo_url: editingLink.logo_url || null,
           bg_color: editingLink.bg_color || '#1E1B4B',
           text_color: editingLink.text_color || '#FFFFFF',
+          icon_bg_color: editingLink.icon_bg_color || null,
           starts_at: editingLink.starts_at || null,
           ends_at: editingLink.ends_at || null,
           is_active: editingLink.is_active
@@ -960,6 +962,7 @@ export default function DashboardPage() {
         outer_bg_color: profile.outer_bg_color || '#0B0F17',
         text_secondary_color: profile.text_secondary_color || '#94A3B8',
         card_bg_color: profile.card_bg_color || '#FFFFFF',
+        tab_active_color: profile.tab_active_color || null,
         bg_image_url: profile.bg_image_url || null,
         youtube_url: profile.youtube_url,
         template_id: profile.template_id,
@@ -1016,13 +1019,14 @@ export default function DashboardPage() {
         logo_url: newLink.logo_url || null,
         bg_color: newLink.bg_color || '#1E1B4B',
         text_color: newLink.text_color || '#FFFFFF',
+        icon_bg_color: newLink.icon_bg_color || null,
         position: links.length
       }])
       .select()
 
     if (!error && data) {
       setLinks([...links, data[0]])
-      setNewLink({ title: '', subtitle: '', url: '', icon: 'website', logo_url: '', bg_color: '#1E1B4B', text_color: '#FFFFFF' })
+      setNewLink({ title: '', subtitle: '', url: '', icon: 'website', logo_url: '', bg_color: '#1E1B4B', text_color: '#FFFFFF', icon_bg_color: '' })
       showToast('✅ เพิ่มลิ้งก์ใหม่สำเร็จ')
     } else if (error) {
       showToast('❌ เกิดข้อผิดพลาด: ' + error.message)
@@ -1060,6 +1064,7 @@ export default function DashboardPage() {
         image_url: newProduct.image_url,
         buy_url: finalBuyUrl,
         badge: newProduct.badge,
+        is_active: true,
         position: products.length
       }])
       .select()
@@ -2013,6 +2018,34 @@ export default function DashboardPage() {
                             />
                           </div>
                         </div>
+
+                        <div className="sm:col-span-2">
+                          <span className="text-[11px] font-bold text-slate-500 mb-1 block">สีพื้นหลังกรอบไอคอน (Icon Box Background Color)</span>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={newLink.icon_bg_color || '#34D399'}
+                              onChange={(e) => setNewLink({ ...newLink, icon_bg_color: e.target.value })}
+                              className="w-9 h-9 rounded-xl border border-slate-300 dark:border-slate-700 cursor-pointer p-0.5 bg-white"
+                            />
+                            <input
+                              type="text"
+                              placeholder="เว้นว่างไว้สำหรับสีอัตโนมัติ (Auto / Transparent)"
+                              value={newLink.icon_bg_color || ''}
+                              onChange={(e) => setNewLink({ ...newLink, icon_bg_color: e.target.value })}
+                              className="flex-1 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold"
+                            />
+                            {newLink.icon_bg_color && (
+                              <button
+                                type="button"
+                                onClick={() => setNewLink({ ...newLink, icon_bg_color: '' })}
+                                className="px-2.5 py-1.5 text-xs text-slate-500 hover:text-rose-500 font-bold"
+                              >
+                                ล้างสี
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -2304,10 +2337,12 @@ export default function DashboardPage() {
                       {products.map((prod) => (
                         <div
                           key={prod.id}
-                          className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-4 flex flex-col justify-between space-y-3 shadow-sm hover:shadow-md transition"
+                          className={`bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-4 flex flex-col justify-between space-y-3 shadow-sm hover:shadow-md transition ${
+                            !prod.is_active ? 'opacity-65 bg-slate-50/50 dark:bg-slate-950/50' : ''
+                          }`}
                         >
                           <div className="flex gap-3">
-                            <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 overflow-hidden flex-shrink-0">
+                            <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 overflow-hidden flex-shrink-0 relative">
                               {prod.image_url ? (
                                 <img src={prod.image_url} alt={prod.title} className="w-full h-full object-cover" />
                               ) : (
@@ -2315,9 +2350,21 @@ export default function DashboardPage() {
                                   <ShoppingBag className="w-6 h-6" />
                                 </div>
                               )}
+                              {!prod.is_active && (
+                                <div className="absolute inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center text-[9px] font-bold text-white uppercase">
+                                  ปิด
+                                </div>
+                              )}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <h4 className="font-bold text-[#1E1B4B] dark:text-white text-xs truncate">{prod.title}</h4>
+                              <div className="flex items-center gap-1.5">
+                                <h4 className="font-bold text-[#1E1B4B] dark:text-white text-xs truncate">{prod.title}</h4>
+                                {!prod.is_active && (
+                                  <span className="text-[9px] bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.2 rounded font-bold shrink-0">
+                                    ซ่อนอยู่
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-emerald-600 dark:text-emerald-400 font-black text-xs font-mono mt-0.5">
                                 ฿{parseFloat(prod.price).toLocaleString()}
                               </p>
@@ -2359,33 +2406,50 @@ export default function DashboardPage() {
                               </a>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setQrTargetUrl(prod.buy_url)
-                                setQrModalOpen(true)
-                              }}
-                              className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition cursor-pointer"
-                              title="QR Code & แชร์สินค้า"
-                            >
-                              <QrCode className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleEditProduct(prod)}
-                              className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition cursor-pointer"
-                              title="แก้ไขข้อมูลสินค้า"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteProduct(prod.id)}
-                              className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer"
-                              title="ลบสินค้า"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              {/* Toggle Active / Inactive Switch Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleToggleProductActive(prod.id, prod.is_active)}
+                                className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
+                                  prod.is_active 
+                                    ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
+                                }`}
+                                title={prod.is_active ? 'แตะเพื่อปิดการแสดงผลสินค้านี้' : 'แตะเพื่อเปิดแสดงสินค้านี้บนหน้า Bio Link'}
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full ${prod.is_active ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                                <span>{prod.is_active ? 'เปิดอยู่' : 'ปิด'}</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setQrTargetUrl(prod.buy_url)
+                                  setQrModalOpen(true)
+                                }}
+                                className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition cursor-pointer"
+                                title="QR Code & แชร์สินค้า"
+                              >
+                                <QrCode className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleEditProduct(prod)}
+                                className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition cursor-pointer"
+                                title="แก้ไขข้อมูลสินค้า"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteProduct(prod.id)}
+                                className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer"
+                                title="ลบสินค้า"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -2588,10 +2652,60 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
-                    {/* 3. Text Color (Name, Bio, Subtitles) */}
+                    {/* 3. Tab Bar 3-Button Active Color */}
+                    <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
+                          3. สีแถบแท็บ 3 ปุ่ม (3 Tabs Active Color: ลิ้งก์, สินค้า, ติดต่อ)
+                        </label>
+                        <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">เปลี่ยนสี 3 ปุ่มแท็บ</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {[
+                          { color: '#34D399', label: 'เขียวมินต์ (Default)' },
+                          { color: '#FDE047', label: 'เหลือง Retro' },
+                          { color: '#C084FC', label: 'ม่วงนีออน' },
+                          { color: '#FB7185', label: 'ชมพูกุหลาบ' },
+                          { color: '#38BDF8', label: 'ฟ้า Sky' },
+                          { color: '#1E1B4B', label: 'ดำน้ำเงิน' }
+                        ].map((preset) => (
+                          <button
+                            key={preset.color}
+                            type="button"
+                            onClick={() => setProfile({ ...profile, tab_active_color: preset.color })}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
+                              profile.tab_active_color === preset.color
+                                ? 'border-purple-600 ring-2 ring-purple-500/30 bg-white dark:bg-slate-900 shadow-sm'
+                                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300'
+                            }`}
+                          >
+                            <span className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shadow-inner" style={{ backgroundColor: preset.color }}></span>
+                            <span>{preset.label}</span>
+                          </button>
+                        ))}
+
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          <input
+                            type="color"
+                            value={profile.tab_active_color || '#34D399'}
+                            onChange={(e) => setProfile({ ...profile, tab_active_color: e.target.value })}
+                            className="w-7 h-7 rounded-lg border border-slate-300 dark:border-slate-700 cursor-pointer p-0.5 bg-white"
+                          />
+                          <input
+                            type="text"
+                            placeholder="#34D399"
+                            value={profile.tab_active_color || '#34D399'}
+                            onChange={(e) => setProfile({ ...profile, tab_active_color: e.target.value })}
+                            className="w-24 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono font-bold text-[#1E1B4B] dark:text-white focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 4. Text Color (Name, Bio, Subtitles) */}
                     <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-slate-800">
                       <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
-                        3. สีตัวหนังสือ (Text & Title Color)
+                        4. สีตัวหนังสือ (Text & Title Color)
                       </label>
                       <div className="flex flex-wrap items-center gap-2">
                         {[
@@ -2636,7 +2750,7 @@ export default function DashboardPage() {
                     {/* 3. Button Background & Button Text Color */}
                     <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-slate-800">
                       <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
-                        4. สีปุ่มลิงก์รวม & สีตัวอักษรบนปุ่ม (Buttons Style)
+                        5. สีปุ่มลิงก์รวม & สีตัวอักษรบนปุ่ม (Buttons Style)
                       </label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1.5">
@@ -2681,7 +2795,7 @@ export default function DashboardPage() {
                     <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-slate-800">
                       <div className="flex items-center justify-between">
                         <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
-                          5. ภาพวอลเปเปอร์เฉพาะในกรอบเล็ก (Inner Card Wallpaper Image)
+                          6. ภาพวอลเปเปอร์เฉพาะในกรอบเล็ก (Inner Card Wallpaper Image)
                         </label>
                         <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">แสดงภายในกรอบสมาร์ตโฟน / กรอบเล็ก</span>
                       </div>
@@ -2721,7 +2835,7 @@ export default function DashboardPage() {
                     <div className="space-y-2 pt-2 border-t border-slate-200/80 dark:border-slate-800">
                       <div className="flex items-center justify-between">
                         <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
-                          6. ภาพวอลเปเปอร์พื้นหลังใหญ่สุดด้านหลัง (Outer Full-Screen Wallpaper)
+                          7. ภาพวอลเปเปอร์พื้นหลังใหญ่สุดด้านหลัง (Outer Full-Screen Wallpaper)
                         </label>
                         <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">แสดงเต็มจอคอมพิวเตอร์ / พื้นหลังหลัก</span>
                       </div>
@@ -6191,6 +6305,34 @@ export default function DashboardPage() {
                       onChange={(e) => setEditingLink({ ...editingLink, text_color: e.target.value })}
                       className="flex-1 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg font-mono text-[11px]"
                     />
+                  </div>
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-slate-600 dark:text-slate-300 mb-1">สีพื้นหลังกรอบไอคอน (Icon Box Background)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={editingLink.icon_bg_color || '#34D399'}
+                      onChange={(e) => setEditingLink({ ...editingLink, icon_bg_color: e.target.value })}
+                      className="w-8 h-8 rounded-lg border cursor-pointer p-0.5 bg-white"
+                    />
+                    <input
+                      type="text"
+                      placeholder="เว้นว่างไว้สำหรับสีอัตโนมัติ (Auto)"
+                      value={editingLink.icon_bg_color || ''}
+                      onChange={(e) => setEditingLink({ ...editingLink, icon_bg_color: e.target.value })}
+                      className="flex-1 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg font-mono text-[11px]"
+                    />
+                    {editingLink.icon_bg_color && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingLink({ ...editingLink, icon_bg_color: '' })}
+                        className="px-2 py-1 text-xs text-rose-500 hover:underline font-bold"
+                      >
+                        ล้างสี
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

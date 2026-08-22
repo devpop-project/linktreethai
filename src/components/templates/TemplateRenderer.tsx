@@ -28,9 +28,12 @@ export default function TemplateRenderer({ profile, links, products, handleLinkC
     templateId = 'template_1'
   }
 
-  // Enforce links and products limits on public views
-  const activeLinks = !isDashboardPreview ? (links || []).slice(0, tierInfo.maxLinks) : (links || [])
-  const activeProducts = !isDashboardPreview ? (products || []).slice(0, tierInfo.maxProducts) : (products || [])
+  // Filter out inactive links and products, and enforce tier limits
+  const visibleLinks = (links || []).filter(l => l.is_active !== false)
+  const visibleProducts = (products || []).filter(p => p.is_active !== false)
+
+  const activeLinks = !isDashboardPreview ? visibleLinks.slice(0, tierInfo.maxLinks) : visibleLinks
+  const activeProducts = !isDashboardPreview ? visibleProducts.slice(0, tierInfo.maxProducts) : visibleProducts
 
   switch (templateId) {
     case 'template_9':
