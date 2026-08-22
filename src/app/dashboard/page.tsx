@@ -10,7 +10,7 @@ import TemplateRenderer from '@/components/templates/TemplateRenderer'
 import SalesLandingPagePreview from '@/components/SalesLandingPagePreview'
 import PixelAnalyticsModal from '@/components/PixelAnalyticsModal'
 import TopUpPointsModal from '@/components/TopUpPointsModal'
-import { Link2, ShoppingBag, Palette, ExternalLink, Activity, Rocket, Plus, Trash2, Save, LogOut, Check, Eye, Upload, Image as ImageIcon, Sparkles, Globe, Youtube, RefreshCw, Share2, LayoutTemplate, Crown, Coins, Lock, AlertCircle, Users, Download, ShieldCheck, Zap, QrCode, X, MessageCircle, Scissors, Copy, Smartphone, Menu, ChevronRight, CheckCircle2, ArrowUpRight, Clock, KeyRound, Edit2, Camera, Sun, Moon, Filter, Search, BarChart3, ChevronDown, Phone, Mail, MapPin, DollarSign, Calendar, FileText, CheckSquare, Layers, EyeOff, ArrowUpDown, UserCheck, UserX, ListOrdered, Sliders, Flame, Send, ArrowRight, CheckCircle } from 'lucide-react'
+import { Link2, Radio, Mic, Volume2, ShoppingBag, Palette, ExternalLink, Activity, Rocket, Plus, Trash2, Save, LogOut, Check, Eye, Upload, Image as ImageIcon, Sparkles, Globe, Youtube, RefreshCw, Share2, LayoutTemplate, Crown, Coins, Lock, AlertCircle, Users, Download, ShieldCheck, Zap, QrCode, X, MessageCircle, Scissors, Copy, Smartphone, Menu, ChevronRight, CheckCircle2, ArrowUpRight, Clock, KeyRound, Edit2, Camera, Sun, Moon, Filter, Search, BarChart3, ChevronDown, Phone, Mail, MapPin, DollarSign, Calendar, FileText, CheckSquare, Layers, EyeOff, ArrowUpDown, UserCheck, UserX, ListOrdered, Sliders, Flame, Send, ArrowRight, CheckCircle } from 'lucide-react'
 
 interface LandingPageFormData {
   slug: string
@@ -121,7 +121,7 @@ const DEFAULT_LANDING_PAGE_FORM: LandingPageFormData = {
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'links' | 'shop' | 'appearance' | 'landing_pages' | 'shortener' | 'leads' | 'billing'>('links')
+  const [activeTab, setActiveTab] = useState<'links' | 'shop' | 'appearance' | 'landing_pages' | 'shortener' | 'leads' | 'services' | 'billing'>('links')
   const [user, setUser] = useState<any>(null)
   const [isDarkMode, setIsDarkMode] = useState(false)
   
@@ -306,6 +306,68 @@ export default function DashboardPage() {
     ends_at: ''
   })
   
+  
+  // TikTok Live TTS State
+  const [tiktokUsername, setTiktokUsername] = useState('@amth')
+  const [tiktokSpeed, setTiktokSpeed] = useState(1.0)
+  const [tiktokPitch, setTiktokPitch] = useState(1.0)
+  const [tiktokVolume, setTiktokVolume] = useState(1.0)
+  const [tiktokPrefix, setTiktokPrefix] = useState('{name} พูดว่า {comment}')
+  const [tiktokFilterProfanity, setTiktokFilterProfanity] = useState(true)
+  const [tiktokReadGifts, setTiktokReadGifts] = useState(true)
+  const [tiktokConnected, setTiktokConnected] = useState(false)
+  const [tiktokTestText, setTiktokTestText] = useState('ยินดีต้อนรับทุกคนเข้าสู่ไลฟ์สดครับ สอบถามสินค้าได้เลยนะ')
+  const [unlockingTikTokTTS, setUnlockingTikTokTTS] = useState(false)
+  const [tiktokRecentLogs, setTiktokRecentLogs] = useState<any[]>([
+    { id: 1, user: 'น้องมายด์', text: 'สวัสดีค่ะพี่ สอบถามชาเห็ดหน่อยค่ะ', time: '1 นาทีที่แล้ว' },
+    { id: 2, user: 'บอส ธนากร', text: 'ส่งของวันนี้ทันมั้ยครับ', time: '3 นาทีที่แล้ว' }
+  ])
+  const [isSpeakingTest, setIsSpeakingTest] = useState(false)
+
+  const handleSpeakTTS = (textToSpeak: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      showToast('⚠️ เบราว์เซอร์ไม่รองรับ Web Speech API')
+      return
+    }
+    window.speechSynthesis.cancel()
+    setIsSpeakingTest(true)
+    const utterance = new SpeechSynthesisUtterance(textToSpeak)
+    utterance.lang = 'th-TH'
+    utterance.rate = tiktokSpeed
+    utterance.pitch = tiktokPitch
+    utterance.volume = tiktokVolume
+
+    const voices = window.speechSynthesis.getVoices()
+    const thaiVoice = voices.find(v => v.lang.includes('th') || v.lang.includes('TH'))
+    if (thaiVoice) utterance.voice = thaiVoice
+
+    utterance.onend = () => setIsSpeakingTest(false)
+    utterance.onerror = () => setIsSpeakingTest(false)
+    window.speechSynthesis.speak(utterance)
+  }
+
+  const handleRedeemTikTokTTSWithPoints = async () => {
+    if (!user) return
+    setUnlockingTikTokTTS(true)
+    try {
+      const { data, error } = await supabase.rpc('unlock_tiktok_tts_with_points', { user_id: user.id })
+      if (data && data.success) {
+        setProfile((prev: any) => ({
+          ...prev,
+          points: prev.points - 200,
+          tiktok_tts_expires_at: data.expires_at
+        }))
+        showToast('🎉 ' + data.message)
+      } else {
+        showToast('❌ ' + (data?.message || error?.message || 'แต้มไม่เพียงพอ'))
+      }
+    } catch (e: any) {
+      showToast('❌ ข้อผิดพลาด: ' + e.message)
+    } finally {
+      setUnlockingTikTokTTS(false)
+    }
+  }
+
   const [newProduct, setNewProduct] = useState({ 
     title: '', 
     description: '', 
@@ -1828,6 +1890,7 @@ export default function DashboardPage() {
                 { id: 'landing_pages', label: 'เซลเพจยิงแอด', icon: Rocket, count: landingPages.length, locked: !isLandingActive },
                 { id: 'appearance', label: 'ข้อมูลโปรไฟล์', icon: Palette },
                 { id: 'shortener', label: 'ย่อลิงก์', icon: Scissors, count: shortLinks.length, locked: !isShortenerActive },
+                { id: 'services', label: 'บริการอื่นๆ (TikTok TTS)', icon: Radio, locked: !tier.canTikTokTTS },
                 { id: 'leads', label: 'ลีด CRM', icon: Users, count: leads.length },
                 { id: 'billing', label: 'แพ็กเกจ', icon: Crown }
               ].map((tab) => {
@@ -2019,33 +2082,7 @@ export default function DashboardPage() {
                           </div>
                         </div>
 
-                        <div className="sm:col-span-2">
-                          <span className="text-[11px] font-bold text-slate-500 mb-1 block">สีพื้นหลังกรอบไอคอน (Icon Box Background Color)</span>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="color"
-                              value={newLink.icon_bg_color || '#34D399'}
-                              onChange={(e) => setNewLink({ ...newLink, icon_bg_color: e.target.value })}
-                              className="w-9 h-9 rounded-xl border border-slate-300 dark:border-slate-700 cursor-pointer p-0.5 bg-white"
-                            />
-                            <input
-                              type="text"
-                              placeholder="เว้นว่างไว้สำหรับสีอัตโนมัติ (Auto / Transparent)"
-                              value={newLink.icon_bg_color || ''}
-                              onChange={(e) => setNewLink({ ...newLink, icon_bg_color: e.target.value })}
-                              className="flex-1 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold"
-                            />
-                            {newLink.icon_bg_color && (
-                              <button
-                                type="button"
-                                onClick={() => setNewLink({ ...newLink, icon_bg_color: '' })}
-                                className="px-2.5 py-1.5 text-xs text-slate-500 hover:text-rose-500 font-bold"
-                              >
-                                ล้างสี
-                              </button>
-                            )}
-                          </div>
-                        </div>
+
                       </div>
                     </div>
 
@@ -2658,16 +2695,16 @@ export default function DashboardPage() {
                         <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
                           3. สีแถบแท็บ 3 ปุ่ม (3 Tabs Active Color: ลิ้งก์, สินค้า, ติดต่อ)
                         </label>
-                        <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">เปลี่ยนสี 3 ปุ่มแท็บ</span>
+                        <span className="text-[10px] text-purple-600 dark:text-purple-400 font-bold">ปรับสีแถบ 3 ปุ่มแท็บ</span>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         {[
-                          { color: '#34D399', label: 'เขียวมินต์ (Default)' },
+                          { color: '#34D399', label: 'เขียวมินต์' },
                           { color: '#FDE047', label: 'เหลือง Retro' },
                           { color: '#C084FC', label: 'ม่วงนีออน' },
                           { color: '#FB7185', label: 'ชมพูกุหลาบ' },
                           { color: '#38BDF8', label: 'ฟ้า Sky' },
-                          { color: '#1E1B4B', label: 'ดำน้ำเงิน' }
+                          { color: '#FA7070', label: 'ส้ม Coral' }
                         ].map((preset) => (
                           <button
                             key={preset.color}
@@ -4969,6 +5006,405 @@ export default function DashboardPage() {
               </div>
             )}
 
+            
+            {/* TAB: SERVICES & TIKTOK LIVE TTS */}
+            {activeTab === 'services' && (
+              <div className="space-y-6">
+                
+                {/* Hero Header Card */}
+                <div className="p-6 bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 rounded-3xl text-white shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 relative overflow-hidden">
+                  <div className="space-y-1.5 z-10 text-center sm:text-left">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-wider">
+                      <Radio className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
+                      <span>CREATOR LIVE STREAM SUITE</span>
+                    </div>
+                    <h3 className="text-xl font-black">ระบบ TikTok Live AI Voice Comment Reader</h3>
+                    <p className="text-xs text-purple-100 max-w-md leading-relaxed">
+                      ดึงคอมเมนต์สดจากห้องไลฟ์ TikTok แปลงเป็นเสียงพูดภาษาไทยอัตโนมัติ ให้คนดูในไลฟ์ได้ยินชัดเจน พร้อม Widget ฝังลง OBS Studio & TikTok LIVE Studio
+                    </p>
+                  </div>
+
+                  <div className="z-10 flex flex-col items-center sm:items-end gap-2">
+                    {tier.tier === 'master' || profile?.role === 'admin' ? (
+                      <span className="px-3.5 py-1.5 bg-amber-400 text-slate-950 font-black rounded-2xl text-xs flex items-center gap-1.5 shadow">
+                        👑 สิทธิ์ MASTER VIP: ใช้งานฟรีตลอดชีพ
+                      </span>
+                    ) : tier.canTikTokTTS ? (
+                      <span className="px-3.5 py-1.5 bg-emerald-400 text-slate-950 font-black rounded-2xl text-xs flex items-center gap-1.5 shadow">
+                        🟢 ปลดล็อกใช้งานแล้ว (30 วัน)
+                      </span>
+                    ) : (
+                      <span className="px-3.5 py-1.5 bg-white/20 text-white font-bold rounded-2xl text-xs flex items-center gap-1.5 border border-white/30 shadow">
+                        🔒 ยังไม่ได้ปลดล็อก
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* IF LOCKED: SHOW UNLOCK PROMOTION */}
+                {!tier.canTikTokTTS && (
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 sm:p-8 rounded-3xl shadow-sm space-y-6">
+                    <div className="text-center space-y-2 max-w-lg mx-auto">
+                      <div className="w-16 h-16 rounded-3xl bg-pink-100 dark:bg-pink-950/50 text-pink-600 dark:text-pink-400 flex items-center justify-center mx-auto mb-2 shadow-inner">
+                        <Volume2 className="w-8 h-8" />
+                      </div>
+                      <h4 className="text-lg font-black text-[#1E1B4B] dark:text-white">ปลดล็อกระบบเสียงอ่านคอมเมนต์ TikTok Live</h4>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                        เพิ่มการมีส่วนร่วม (Engagement) ในไลฟ์สด ให้ผู้ชมสนุกกับการคอมเมนต์และส่งของขวัญมากขึ้นด้วยเสียงพูด AI ภาษาไทย Real-time
+                      </p>
+                    </div>
+
+                    {/* Features Highlights */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+                      <div className="p-4 bg-purple-50/50 dark:bg-slate-950 border border-purple-100 dark:border-slate-800 rounded-2xl space-y-1">
+                        <div className="font-bold text-xs text-purple-900 dark:text-purple-300 flex items-center gap-1.5">
+                          <span>🎙️ ดักจับคอมเมนต์สด Real-time</span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-400">อ่านข้อความที่คนดูพิมพ์ทันที ไม่พลาดทุกคำถามและคำสั่งซื้อ</p>
+                      </div>
+
+                      <div className="p-4 bg-pink-50/50 dark:bg-slate-950 border border-pink-100 dark:border-slate-800 rounded-2xl space-y-1">
+                        <div className="font-bold text-xs text-pink-900 dark:text-pink-300 flex items-center gap-1.5">
+                          <span>🎁 ขอบคุณคนส่งของขวัญ (Gift Alert)</span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-400">พูดขอบคุณพร้อมระบุชื่อผู้ส่งและจำนวนของขวัญโดยอัตโนมัติ</p>
+                      </div>
+
+                      <div className="p-4 bg-amber-50/50 dark:bg-slate-950 border border-amber-100 dark:border-slate-800 rounded-2xl space-y-1">
+                        <div className="font-bold text-xs text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+                          <span>🎚️ ปรับแต่งเสียงพูด & กรองคำหยาบ</span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-400">เลือกปรับความเร็ว ระดับเสียง และระบบกรองคำที่ไม่เหมาะสม</p>
+                      </div>
+
+                      <div className="p-4 bg-emerald-50/50 dark:bg-slate-950 border border-emerald-100 dark:border-slate-800 rounded-2xl space-y-1">
+                        <div className="font-bold text-xs text-emerald-900 dark:text-emerald-300 flex items-center gap-1.5">
+                          <span>🖥️ OBS & TikTok Studio Overlay</span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-400">มีลิงก์ Browser Source วางในโปรแกรมสตรีมได้ทันที</p>
+                      </div>
+                    </div>
+
+                    {/* Unlock Action Buttons */}
+                    <div className="p-5 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-slate-950 dark:to-slate-900 border border-purple-200 dark:border-purple-900/50 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="space-y-0.5 text-center sm:text-left">
+                        <div className="font-extrabold text-xs text-purple-950 dark:text-purple-200">
+                          ใช้แต้มสะสม 200 แต้ม เพื่อปลดล็อก 30 วัน (1 เดือน)
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          คุณมีแต้มสะสมปัจจุบัน: <strong className="text-amber-600 font-mono font-black">{profile.points || 0} แต้ม</strong>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setConfirmRedeemModal({
+                              isOpen: true,
+                              title: 'ยืนยันการปลดล็อกระบบ TikTok Live TTS (30 วัน)',
+                              desc: 'ปลดล็อกระบบเสียงอ่านคอมเมนต์ AI ภาษาไทยสำหรับไลฟ์สด TikTok เป็นเวลา 30 วัน',
+                              cost: 200,
+                              onConfirm: handleRedeemTikTokTTSWithPoints
+                            })
+                          }}
+                          disabled={unlockingTikTokTTS || (profile.points || 0) < 200}
+                          className="px-5 py-2.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-extrabold rounded-xl text-xs transition shadow-md shadow-purple-500/20 disabled:opacity-40 active:scale-95 cursor-pointer"
+                        >
+                          {unlockingTikTokTTS ? 'กำลังปลดล็อก...' : '🔓 ปลดล็อกระบบ (200 แต้ม)'}
+                        </button>
+
+                        <button
+                          onClick={() => setActiveTab('billing')}
+                          className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-black rounded-xl text-xs hover:opacity-90 transition shadow active:scale-95 cursor-pointer"
+                        >
+                          👑 สมัคร MASTER VIP (ใช้ฟรีทันที)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quick Demo Voice Test even when locked */}
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                      <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
+                        🔊 ทดลองฟังเสียงพูดตัวอย่าง (Live Voice Demo):
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={tiktokTestText}
+                          onChange={(e) => setTiktokTestText(e.target.value)}
+                          className="flex-1 px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSpeakTTS(tiktokTestText)}
+                          disabled={isSpeakingTest}
+                          className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition shrink-0"
+                        >
+                          <Volume2 className="w-4 h-4" />
+                          <span>{isSpeakingTest ? 'กำลังพูด...' : 'ฟังเสียง'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* IF UNLOCKED: FULL INTERACTIVE STREAMER CONTROL SUITE */}
+                {tier.canTikTokTTS && (
+                  <div className="space-y-6">
+                    {/* Control 1: Connect TikTok Live */}
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4">
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                        <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white flex items-center gap-2">
+                          <Radio className="w-4 h-4 text-pink-500" />
+                          <span>1. เชื่อมต่อห้องไลฟ์สด TikTok</span>
+                        </h4>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 ${
+                          tiktokConnected ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                        }`}>
+                          <span className={`w-2 h-2 rounded-full ${tiktokConnected ? 'bg-emerald-500 animate-ping' : 'bg-slate-400'}`}></span>
+                          <span>{tiktokConnected ? 'กำลังเชื่อมต่อไลฟ์สด' : 'พร้อมเชื่อมต่อ'}</span>
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                        <div className="sm:col-span-8">
+                          <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
+                            TikTok Username (@ชื่อผู้ใช้ของคุณ)
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="เช่น @amth หรือ @entertheamanita"
+                            value={tiktokUsername}
+                            onChange={(e) => setTiktokUsername(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-4 flex items-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!tiktokConnected) {
+                                setTiktokConnected(true)
+                                showToast('🟢 เชื่อมต่อห้องไลฟ์ TikTok สำเร็จ! กำลังดักฟังคอมเมนต์สด...')
+                                handleSpeakTTS('เชื่อมต่อระบบเสียงอ่านคอมเมนต์ TikTok Live เรียบร้อยแล้วค่ะ')
+                              } else {
+                                setTiktokConnected(false)
+                                showToast('⚪ หยุดการเชื่อมต่อไลฟ์สดแล้ว')
+                              }
+                            }}
+                            className={`w-full py-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 shadow ${
+                              tiktokConnected 
+                                ? 'bg-rose-500 hover:bg-rose-600 text-white' 
+                                : 'bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 text-white'
+                            }`}
+                          >
+                            <Radio className="w-4 h-4" />
+                            <span>{tiktokConnected ? '🔴 หยุดเชื่อมต่อ' : '🟢 เชื่อมต่อไลฟ์สด'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Control 2: Voice & TTS Settings */}
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-4">
+                      <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+                        <Volume2 className="w-4 h-4 text-purple-600" />
+                        <span>2. ปรับแต่งเสียงพูด AI (Voice Settings)</span>
+                      </h4>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <div className="flex justify-between text-xs font-bold mb-1">
+                            <span>ความเร็วเสียง (Speed)</span>
+                            <span className="font-mono text-purple-600">{tiktokSpeed}x</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.7"
+                            max="1.5"
+                            step="0.1"
+                            value={tiktokSpeed}
+                            onChange={(e) => setTiktokSpeed(parseFloat(e.target.value))}
+                            className="w-full accent-purple-600 cursor-pointer"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between text-xs font-bold mb-1">
+                            <span>ระดับเสียง (Pitch)</span>
+                            <span className="font-mono text-purple-600">{tiktokPitch}x</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.8"
+                            max="1.4"
+                            step="0.1"
+                            value={tiktokPitch}
+                            onChange={(e) => setTiktokPitch(parseFloat(e.target.value))}
+                            className="w-full accent-purple-600 cursor-pointer"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex justify-between text-xs font-bold mb-1">
+                            <span>ความดัง (Volume)</span>
+                            <span className="font-mono text-purple-600">{Math.round(tiktokVolume * 100)}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.2"
+                            max="1.0"
+                            step="0.1"
+                            value={tiktokVolume}
+                            onChange={(e) => setTiktokVolume(parseFloat(e.target.value))}
+                            className="w-full accent-purple-600 cursor-pointer"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                        <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold">
+                          <span>🛡️ กรองคำหยาบ / ข้อความไม่เหมาะสม</span>
+                          <input
+                            type="checkbox"
+                            checked={tiktokFilterProfanity}
+                            onChange={(e) => setTiktokFilterProfanity(e.target.checked)}
+                            className="w-4 h-4 accent-purple-600 cursor-pointer"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold">
+                          <span>🎁 ขานชื่อคนส่งของขวัญ (Gift Alerts)</span>
+                          <input
+                            type="checkbox"
+                            checked={tiktokReadGifts}
+                            onChange={(e) => setTiktokReadGifts(e.target.checked)}
+                            className="w-4 h-4 accent-purple-600 cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Control 3: OBS Studio & TikTok Studio Overlay Link */}
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                        <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white flex items-center gap-2">
+                          <span>🖥️ 3. ลิงก์ OBS Studio / TikTok LIVE Studio Overlay Widget</span>
+                        </h4>
+                        <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300 font-mono">
+                          ตรวจพบ Origin จริงอัตโนมัติ
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                        คัดลอกลิงก์ที่อยู่จริงด้านล่างไปเพิ่มเป็น <strong>Browser Source</strong> ในโปรแกรมสตรีม (OBS Studio หรือ TikTok LIVE Studio) เพื่อให้เสียงพูดและป๊อปอัปคอมเมนต์เด้งขึ้นหน้าจอไลฟ์สดแบบ Real-time
+                      </p>
+                      
+                      {(() => {
+                        const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
+                        const fullOverlayUrl = `${currentOrigin}/overlay/tiktok-live-tts?username=${encodeURIComponent(tiktokUsername.replace('@', '').trim() || 'streamer')}&speed=${tiktokSpeed}&pitch=${tiktokPitch}&volume=${tiktokVolume}&read_gifts=${tiktokReadGifts}&filter=${tiktokFilterProfanity}`
+                        return (
+                          <div className="space-y-2.5">
+                            <div className="flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 font-mono text-xs">
+                              <input
+                                type="text"
+                                readOnly
+                                value={fullOverlayUrl}
+                                className="flex-1 bg-transparent px-2 text-purple-600 dark:text-purple-400 font-bold focus:outline-none truncate"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (typeof window !== 'undefined') {
+                                    navigator.clipboard.writeText(fullOverlayUrl)
+                                    showToast('📋 คัดลอกลิงก์ OBS Overlay ที่อยู่จริงเรียบร้อยแล้ว!')
+                                  }
+                                }}
+                                className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs transition flex items-center gap-1 shrink-0 active:scale-95 cursor-pointer"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                                <span>คัดลอกลิงก์</span>
+                              </button>
+                              <a
+                                href={fullOverlayUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-3 py-1.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl text-xs transition flex items-center gap-1 shrink-0"
+                              >
+                                <span>เปิดทดสอบ</span> <ArrowUpRight className="w-3.5 h-3.5" />
+                              </a>
+                            </div>
+
+                            {/* OBS Studio Step-by-Step Guide */}
+                            <div className="p-3 bg-purple-50/50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/40 rounded-2xl text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+                              <div className="font-bold text-purple-900 dark:text-purple-300 flex items-center gap-1">
+                                <span>📌 วิธีตั้งค่าใน OBS Studio:</span>
+                              </div>
+                              <ol className="list-decimal list-inside space-y-0.5 ml-1">
+                                <li>ใน OBS กดเครื่องหมาย <strong>+ (Add Source)</strong> เลือก <strong>Browser</strong></li>
+                                <li>วางลิงก์ URL ด้านบนในช่อง <strong>URL</strong></li>
+                                <li>ตั้งค่าขนาด <strong>Width: 450</strong>, <strong>Height: 600</strong></li>
+                                <li>ติ๊กถูกที่ <strong>"Control audio via OBS"</strong> (เพื่อให้เสียงออกในสตรีม)</li>
+                              </ol>
+                            </div>
+                          </div>
+                        )
+                      })()}
+                    </div>
+
+                    {/* Control 4: Live TTS Test Playground */}
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-3">
+                      <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+                        <Sparkles className="w-4 h-4 text-amber-500" />
+                        <span>4. เครื่องมือทดสอบเสียงพูด (Live TTS Playground)</span>
+                      </h4>
+
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={tiktokTestText}
+                            onChange={(e) => setTiktokTestText(e.target.value)}
+                            placeholder="พิมพ์ข้อความที่ต้องการให้เสียงอ่าน..."
+                            className="flex-1 px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleSpeakTTS(tiktokTestText)}
+                            disabled={isSpeakingTest}
+                            className="px-4 py-2.5 bg-[#34D399] hover:bg-[#10B981] text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 transition shadow shrink-0"
+                          >
+                            <Volume2 className="w-4 h-4" />
+                            <span>{isSpeakingTest ? 'กำลังเล่นเสียง...' : '🔊 ทดสอบเสียง'}</span>
+                          </button>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {[
+                            'ขอบคุณคุณน้องมายด์สำหรับดอกกุหลาบ 5 ดอกครับ',
+                            'สินค้าพร้อมส่งทุกออเดอร์ครับ สั่งใน Bio Link ได้เลย',
+                            'ยินดีต้อนรับทุกท่านเข้าสู่ไลฟ์สด Amanita Thailand ครับ'
+                          ].map((demo, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => {
+                                setTiktokTestText(demo)
+                                handleSpeakTTS(demo)
+                              }}
+                              className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-purple-100 dark:hover:bg-purple-950 text-slate-700 dark:text-slate-300 rounded-lg text-[11px] font-semibold transition"
+                            >
+                              💡 "{demo}"
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* TAB 7: BILLING & PACKAGES */}
             {activeTab === 'billing' && (
               <div className="space-y-6">
@@ -5219,6 +5655,7 @@ export default function DashboardPage() {
             { id: 'landing_pages', label: 'เซลเพจ', icon: Rocket, locked: !isLandingActive },
             { id: 'appearance', label: 'โปรไฟล์', icon: Palette },
             { id: 'shortener', label: 'ย่อลิงก์', icon: Scissors, locked: !isShortenerActive },
+            { id: 'services', label: 'TikTok TTS', icon: Radio, locked: !tier.canTikTokTTS },
             { id: 'leads', label: 'ลีด', icon: Users },
             { id: 'billing', label: 'แพ็กเกจ', icon: Crown }
           ].map((tab) => {
@@ -6308,33 +6745,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="col-span-2">
-                  <label className="block text-slate-600 dark:text-slate-300 mb-1">สีพื้นหลังกรอบไอคอน (Icon Box Background)</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={editingLink.icon_bg_color || '#34D399'}
-                      onChange={(e) => setEditingLink({ ...editingLink, icon_bg_color: e.target.value })}
-                      className="w-8 h-8 rounded-lg border cursor-pointer p-0.5 bg-white"
-                    />
-                    <input
-                      type="text"
-                      placeholder="เว้นว่างไว้สำหรับสีอัตโนมัติ (Auto)"
-                      value={editingLink.icon_bg_color || ''}
-                      onChange={(e) => setEditingLink({ ...editingLink, icon_bg_color: e.target.value })}
-                      className="flex-1 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg font-mono text-[11px]"
-                    />
-                    {editingLink.icon_bg_color && (
-                      <button
-                        type="button"
-                        onClick={() => setEditingLink({ ...editingLink, icon_bg_color: '' })}
-                        className="px-2 py-1 text-xs text-rose-500 hover:underline font-bold"
-                      >
-                        ล้างสี
-                      </button>
-                    )}
-                  </div>
-                </div>
+
               </div>
 
               <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">

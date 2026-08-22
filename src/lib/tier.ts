@@ -18,12 +18,16 @@ export interface TierLimits {
   canPerLinkColor: boolean
   canEmbedYouTube: boolean
   canAutoPixel: boolean
+  canTikTokTTS: boolean
 }
 
 export function getUserTier(profile: any): TierLimits {
   // Check if Pixels unlocked via 100 points
   const isPixelUnlocked = Boolean(
     profile?.pixel_expires_at && new Date(profile.pixel_expires_at).getTime() > Date.now()
+  )
+  const isTikTokTTSUnlocked = Boolean(
+    profile?.tiktok_tts_expires_at && new Date(profile.tiktok_tts_expires_at).getTime() > Date.now()
   )
 
   // If user is Admin, they get full Master VIP capabilities
@@ -49,6 +53,7 @@ export function getUserTier(profile: any): TierLimits {
       canPerLinkColor: true,
       canEmbedYouTube: true,
       canAutoPixel: true,
+      canTikTokTTS: true,
     }
   }
 
@@ -79,6 +84,7 @@ export function getUserTier(profile: any): TierLimits {
       canPerLinkColor: true,
       canEmbedYouTube: true,
       canAutoPixel: true,
+      canTikTokTTS: true,
     }
   }
 
@@ -109,6 +115,7 @@ export function getUserTier(profile: any): TierLimits {
       canPerLinkColor: true,
       canEmbedYouTube: true,
       canAutoPixel: isPixelUnlocked,
+      canTikTokTTS: isTikTokTTSUnlocked,
     }
   }
 
@@ -134,5 +141,6 @@ export function getUserTier(profile: any): TierLimits {
     canPerLinkColor: true,
     canEmbedYouTube: true,
     canAutoPixel: isPixelUnlocked,
+    canTikTokTTS: isTikTokTTSUnlocked,
   }
 }

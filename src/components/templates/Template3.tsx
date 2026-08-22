@@ -92,7 +92,7 @@ export default function Template3({ profile, links, products, handleLinkClick, i
                 {link.logo_url ? (
                   <img src={link.logo_url} alt={link.title} className="w-10 h-10 object-cover rounded-full shrink-0 border border-pink-100" />
                 ) : (
-                  <div style={{ backgroundColor: link.icon_bg_color || undefined }} className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${!link.icon_bg_color ? (!link.bg_color ? 'bg-pink-100 text-pink-600' : 'bg-white/20 text-white') : ''}`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 !link.bg_color ? 'bg-pink-100 text-pink-600' : 'bg-white/20 text-white'}`}>
                     <SocialIcon type={link.icon} className="w-5 h-5" />
                   </div>
                 )}

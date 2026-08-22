@@ -103,7 +103,7 @@ export default function Template2({ profile, links, products, handleLinkClick, i
                 {link.logo_url ? (
                   <img src={link.logo_url} alt={link.title} className="w-10 h-10 object-cover rounded-xl shrink-0 border border-white/10" />
                 ) : (
-                  <div style={{ backgroundColor: link.icon_bg_color || undefined }} className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${!link.icon_bg_color ? (!link.bg_color ? 'bg-slate-800 text-emerald-400' : 'bg-black/20 text-white') : ''}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 !link.bg_color ? 'bg-slate-800 text-emerald-400' : 'bg-black/20 text-white'}`}>
                     <SocialIcon type={link.icon} className="w-5 h-5" />
                   </div>
                 )}
