@@ -3521,6 +3521,16 @@ WHERE username = 'YOUR_USERNAME';`}
                     className="w-full h-8 bg-slate-950 border border-slate-800 rounded-xl cursor-pointer"
                   />
                 </div>
+
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">สีตัวอักษรปุ่ม</label>
+                  <input
+                    type="color"
+                    value={newLinkForm.text_color}
+                    onChange={(e) => setNewLinkForm({ ...newLinkForm, text_color: e.target.value })}
+                    className="w-full h-8 bg-slate-950 border border-slate-800 rounded-xl cursor-pointer"
+                  />
+                </div>
               </div>
 
               <button
@@ -3605,6 +3615,28 @@ WHERE username = 'YOUR_USERNAME';`}
                     value={editingLink.clicks || 0}
                     onChange={(e) => setEditingLink({ ...editingLink, clicks: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">สีพื้นหลังปุ่ม</label>
+                  <input
+                    type="color"
+                    value={editingLink.bg_color || '#1e293b'}
+                    onChange={(e) => setEditingLink({ ...editingLink, bg_color: e.target.value })}
+                    className="w-full h-8 bg-slate-950 border border-slate-800 rounded-xl cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-300 mb-1">สีตัวอักษรปุ่ม</label>
+                  <input
+                    type="color"
+                    value={editingLink.text_color || '#ffffff'}
+                    onChange={(e) => setEditingLink({ ...editingLink, text_color: e.target.value })}
+                    className="w-full h-8 bg-slate-950 border border-slate-800 rounded-xl cursor-pointer"
                   />
                 </div>
               </div>

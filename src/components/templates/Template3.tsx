@@ -97,7 +97,7 @@ export default function Template3({ profile, links, products, handleLinkClick, i
                   </div>
                 )}
                 <div className="overflow-hidden">
-                  <p className="text-xs sm:text-sm font-black truncate leading-snug" style={{ color: profile?.text_secondary_color || undefined }}>
+                  <p className="text-xs sm:text-sm font-black truncate leading-snug" style={{ color: link.text_color || (link.bg_color ? "#FFFFFF" : profile?.custom_button_text_color) || undefined }}>
                     {link.title}
                   </p>
                   {link.subtitle && <p className="text-[10px] opacity-75 truncate mt-0.5">{link.subtitle}</p>}

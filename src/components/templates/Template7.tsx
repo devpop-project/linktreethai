@@ -105,12 +105,15 @@ export default function Template7({ profile, links, products, handleLinkClick, i
       }}>
       
       {/* MASTER TIER: Neo-Brutalist Pop Header */}
-      <div className="bg-[#FDE047] border-[3px] border-black rounded-2xl p-6 text-center space-y-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative">
-        <span className="inline-block px-3 py-1 bg-black text-white text-[10px] font-black uppercase rounded font-mono shadow">
-          ★ MASTER CREATIVE HUB ★
-        </span>
+      <div className="bg-[#FDE047] border-[3px] border-black rounded-2xl p-6 text-center flex flex-col items-center space-y-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative">
+        <div className="w-full flex justify-center">
+          <span className="inline-block px-3 py-1 bg-black text-white text-[10px] font-black uppercase rounded font-mono shadow">
+            ★ MASTER CREATIVE HUB ★
+          </span>
+        </div>
 
-        <div className="relative inline-block">
+        <div className="w-full flex justify-center">
+          <div className="relative inline-block">
           <div className="w-24 h-24 rounded-2xl p-1 bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] border-[3px] border-black mx-auto">
             <img
               src={profile.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${profile.username}`}
@@ -121,6 +124,7 @@ export default function Template7({ profile, links, products, handleLinkClick, i
           <span className="absolute -bottom-1 -right-1 bg-[#34D399] text-black p-1.5 rounded-lg border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-bold">
             <Star className="w-3.5 h-3.5 fill-current" />
           </span>
+        </div>
         </div>
 
         <div>
@@ -197,7 +201,7 @@ export default function Template7({ profile, links, products, handleLinkClick, i
                     </div>
                   )}
                   <div className="overflow-hidden">
-                    <p className="text-xs sm:text-sm font-black truncate leading-snug" style={{ color: profile?.text_secondary_color || undefined }}>
+                    <p className="text-xs sm:text-sm font-black truncate leading-snug" style={{ color: link.text_color || (link.bg_color ? '#FFFFFF' : profile?.custom_button_text_color) || undefined }}>
                       {link.title}
                     </p>
                     {link.subtitle && <p className="text-[11px] font-bold opacity-80 truncate mt-0.5">{link.subtitle}</p>}

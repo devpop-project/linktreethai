@@ -108,7 +108,7 @@ export default function Template1({ profile, links, products, handleLinkClick, i
                   </div>
                 )}
                 <div className="overflow-hidden">
-                  <p className="text-xs sm:text-sm font-extrabold truncate leading-snug" style={{ color: profile?.text_secondary_color || undefined }}>
+                  <p className="text-xs sm:text-sm font-extrabold truncate leading-snug" style={{ color: link.text_color || (link.bg_color ? "#FFFFFF" : profile?.custom_button_text_color) || undefined }}>
                     {link.title}
                   </p>
                   {link.subtitle && <p className={`text-[11px] font-medium truncate mt-0.5 ${!link.bg_color ? 'text-slate-500' : 'opacity-80'}`}>{link.subtitle}</p>}

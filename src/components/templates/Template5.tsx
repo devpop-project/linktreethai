@@ -120,7 +120,7 @@ export default function Template5({ profile, links, products, handleLinkClick, i
                 onClick={() => handleLinkClick(link.id, link.url)}
                 style={{
                   backgroundColor: link.bg_color || '#1A1A24',
-                  color: link.text_color || '#FFFFFF'
+                  color: link.text_color || (link.bg_color ? '#FFFFFF' : profile?.custom_button_text_color) || '#FFFFFF'
                 }}
                 className="w-full p-4 rounded-2xl font-bold text-left flex items-center justify-between border border-white/10 shadow-lg hover:opacity-95 hover:scale-[1.01] transition-all group"
               >
@@ -133,7 +133,7 @@ export default function Template5({ profile, links, products, handleLinkClick, i
                     </div>
                   )}
                   <div className="overflow-hidden">
-                    <p className="text-xs sm:text-sm font-black truncate leading-snug" style={{ color: profile?.text_secondary_color || undefined }}>
+                    <p className="text-xs sm:text-sm font-black truncate leading-snug" style={{ color: link.text_color || (link.bg_color ? '#FFFFFF' : profile?.custom_button_text_color) || undefined }}>
                       {link.title}
                     </p>
                     {link.subtitle && <p className="text-[11px] opacity-80 truncate mt-0.5">{link.subtitle}</p>}

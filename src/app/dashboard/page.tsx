@@ -1609,6 +1609,10 @@ export default function DashboardPage() {
       setNewProduct(prev => ({ ...prev, image_url: publicUrl }))
     } else if (targetField === 'newLink') {
       setNewLink(prev => ({ ...prev, logo_url: publicUrl }))
+    } else if (targetField === 'editingLink') {
+      setEditingLink((prev: any) => ({ ...prev, logo_url: publicUrl }))
+    } else if (targetField === 'editingProduct') {
+      setEditingProduct((prev: any) => ({ ...prev, image_url: publicUrl }))
     } else {
       if (targetField === 'inner_bg_image_url' || targetField === 'inner_bg_image_url') {
         setProfile((prev: any) => ({ ...prev, inner_bg_image_url: publicUrl, inner_bg_image_url: publicUrl }))
@@ -2233,21 +2237,46 @@ export default function DashboardPage() {
                     {/* Large Drag & Drop Style Upload Zone */}
                     <div>
                       <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1.5">รูปภาพสินค้า</label>
-                      <label className="w-full py-8 px-4 bg-purple-50/50 dark:bg-slate-950 border-2 border-dashed border-purple-200 dark:border-purple-800 hover:border-purple-400 rounded-3xl text-center cursor-pointer transition flex flex-col items-center justify-center gap-2 group">
-                        <div className="w-12 h-12 rounded-2xl bg-purple-500 text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
-                          <Upload className="w-6 h-6" />
+                      <div className="space-y-2">
+                        <label className="w-full py-6 px-4 bg-purple-50/50 dark:bg-slate-950 border-2 border-dashed border-purple-200 dark:border-purple-800 hover:border-purple-400 rounded-3xl text-center cursor-pointer transition flex flex-col items-center justify-center gap-2 group">
+                          {newProduct.image_url ? (
+                            <div className="relative w-24 h-24 rounded-2xl overflow-hidden shadow-md border border-purple-200 dark:border-purple-800">
+                              <img src={newProduct.image_url} alt="Preview" className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <div className="w-12 h-12 rounded-2xl bg-purple-500 text-white flex items-center justify-center shadow-md group-hover:scale-105 transition">
+                              <Upload className="w-6 h-6" />
+                            </div>
+                          )}
+                          <span className="font-bold text-xs text-[#1E1B4B] dark:text-white">
+                            {uploading === 'newProduct' ? 'กำลังอัปโหลด...' : newProduct.image_url ? 'แตะเพื่อเปลี่ยนรูปภาพ' : 'แตะเพื่อเลือกรูปภาพจากมือถือ'}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileUpload(e, 'newProduct')}
+                            className="hidden"
+                          />
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="url"
+                            placeholder="หรือวาง Image URL เช่น https://..."
+                            value={newProduct.image_url}
+                            onChange={(e) => setNewProduct({ ...newProduct, image_url: e.target.value })}
+                            className="flex-1 px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono"
+                          />
+                          {newProduct.image_url && (
+                            <button
+                              type="button"
+                              onClick={() => setNewProduct({ ...newProduct, image_url: '' })}
+                              className="px-3 py-2 bg-rose-50 dark:bg-rose-950/40 text-rose-500 rounded-xl text-xs font-bold hover:bg-rose-100 transition shrink-0"
+                            >
+                              ลบรูป
+                            </button>
+                          )}
                         </div>
-                        <span className="font-bold text-xs text-[#1E1B4B] dark:text-white">
-                          {uploading === 'newProduct' ? 'กำลังอัปโหลด...' : newProduct.image_url ? 'เปลี่ยนรูปภาพสินค้า' : 'แตะเพื่อเลือกรูปภาพ'}
-                        </span>
-                        <span className="text-[11px] text-slate-500">หรือใส่ Image URL ด้านล่าง</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleFileUpload(e, 'newProduct')}
-                          className="hidden"
-                        />
-                      </label>
+                      </div>
                     </div>
 
                     {/* Mint Green Primary CTA Button */}
@@ -6023,6 +6052,60 @@ export default function DashboardPage() {
                 />
               </div>
 
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">ไอคอนแบรนด์</label>
+                <select
+                  value={editingLink.icon || 'website'}
+                  onChange={(e) => setEditingLink({ ...editingLink, icon: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400"
+                >
+                  <option value="website">🌐 Website ทั่วไป</option>
+                  <option value="line">🟢 LINE Official</option>
+                  <option value="shopee">🟠 Shopee Shop</option>
+                  <option value="lazada">🔵 Lazada Shop</option>
+                  <option value="facebook">🔵 Facebook</option>
+                  <option value="tiktok">⚫ TikTok</option>
+                  <option value="instagram">🟣 Instagram</option>
+                  <option value="youtube">🔴 YouTube</option>
+                  <option value="x">⚪ X (Twitter)</option>
+                  <option value="email">🟡 Email</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">รูปภาพไอคอน/โลโก้บนปุ่ม (Logo / Thumbnail)</label>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden shrink-0">
+                    {editingLink.logo_url ? (
+                      <img src={editingLink.logo_url} alt="Logo" className="w-full h-full object-cover" />
+                    ) : (
+                      <ImageIcon className="w-5 h-5 text-slate-400" />
+                    )}
+                  </div>
+
+                  <label className="flex-1 py-2.5 px-4 bg-white dark:bg-slate-950 border border-dashed border-purple-300 dark:border-purple-700 hover:border-purple-500 text-purple-600 dark:text-purple-400 rounded-xl text-xs font-bold cursor-pointer transition flex items-center justify-center gap-2">
+                    <Upload className="w-4 h-4" />
+                    <span>{uploading === 'editingLink' ? 'กำลังอัปโหลด...' : '📸 เลือกรูปภาพจากมือถือ'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload(e, 'editingLink')}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {editingLink.logo_url && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingLink({ ...editingLink, logo_url: '' })}
+                      className="text-xs text-rose-500 hover:underline shrink-0"
+                    >
+                      ลบรูป
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-slate-600 dark:text-slate-300 mb-1">สีพื้นหลังปุ่ม</label>
@@ -6127,6 +6210,52 @@ export default function DashboardPage() {
                   onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
                   className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl leading-relaxed"
                 />
+              </div>
+
+              {/* Product Image Upload & Edit */}
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 mb-1">รูปภาพสินค้า</label>
+                <div className="flex items-center gap-3">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                    {editingProduct.image_url ? (
+                      <img src={editingProduct.image_url} alt="Product" className="w-full h-full object-cover" />
+                    ) : (
+                      <ShoppingBag className="w-6 h-6 text-slate-400" />
+                    )}
+                  </div>
+
+                  <div className="flex-1 space-y-1.5">
+                    <label className="w-full py-2.5 px-4 bg-white dark:bg-slate-950 border border-dashed border-emerald-300 dark:border-emerald-700 hover:border-emerald-500 text-emerald-600 dark:text-emerald-400 rounded-xl text-xs font-bold cursor-pointer transition flex items-center justify-center gap-2 shadow-sm">
+                      <Upload className="w-4 h-4" />
+                      <span>{uploading === 'editingProduct' ? 'กำลังอัปโหลด...' : '📸 เลือกเปลี่ยนรูปภาพจากมือถือ'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleFileUpload(e, 'editingProduct')}
+                        className="hidden"
+                      />
+                    </label>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="url"
+                        placeholder="หรือใส่ Image URL เช่น https://..."
+                        value={editingProduct.image_url || ''}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, image_url: e.target.value })}
+                        className="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-[11px]"
+                      />
+                      {editingProduct.image_url && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingProduct({ ...editingProduct, image_url: '' })}
+                          className="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-950/40 text-rose-500 rounded-xl text-xs hover:bg-rose-100 transition shrink-0"
+                        >
+                          ลบรูป
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

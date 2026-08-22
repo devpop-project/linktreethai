@@ -105,14 +105,17 @@ export default function Template8({ profile, links, products, handleLinkClick, i
       }}>
       
       {/* MASTER TIER: Spatial Glass 3D Header */}
-      <div className="bg-white/[0.08] border border-white/20 rounded-[38px] overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] text-center backdrop-blur-2xl relative p-6 space-y-4">
+      <div className="bg-white/[0.08] border border-white/20 rounded-[38px] overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] text-center flex flex-col items-center backdrop-blur-2xl relative p-6 space-y-4">
         
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 rounded-full text-[10px] font-black tracking-wider">
-          <Layers className="w-3.5 h-3.5 text-cyan-400" />
-          <span>SPATIAL 3D STORE</span>
+        <div className="w-full flex justify-center">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 rounded-full text-[10px] font-black tracking-wider shadow">
+            <Layers className="w-3.5 h-3.5 text-cyan-400" />
+            <span>SPATIAL 3D STORE</span>
+          </div>
         </div>
 
-        <div className="relative inline-block">
+        <div className="w-full flex justify-center">
+          <div className="relative inline-block">
           <div className="w-24 h-24 rounded-full p-1 bg-white/10 shadow-2xl border-2 border-white/40 backdrop-blur-xl mx-auto">
             <img
               src={profile.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${profile.username}`}
@@ -123,6 +126,7 @@ export default function Template8({ profile, links, products, handleLinkClick, i
           <span className="absolute bottom-0 right-0 bg-gradient-to-r from-cyan-400 to-blue-500 text-slate-950 p-1 rounded-full border-2 border-white/60 shadow-md font-bold">
             <CheckCircle className="w-3.5 h-3.5" />
           </span>
+        </div>
         </div>
 
         <div>
@@ -199,7 +203,7 @@ export default function Template8({ profile, links, products, handleLinkClick, i
                     </div>
                   )}
                   <div className="overflow-hidden">
-                    <p className="text-xs sm:text-sm font-extrabold truncate leading-snug" style={{ color: profile?.text_secondary_color || undefined }}>
+                    <p className="text-xs sm:text-sm font-extrabold truncate leading-snug" style={{ color: link.text_color || (link.bg_color ? '#FFFFFF' : profile?.custom_button_text_color) || undefined }}>
                       {link.title}
                     </p>
                     {link.subtitle && <p className="text-[11px] opacity-75 truncate mt-0.5">{link.subtitle}</p>}

@@ -40,15 +40,18 @@ export default function Template4({ profile, links, products, handleLinkClick, i
       }}>
       
       {/* PRO TIER: Bento Profile Header Card */}
-      <div className="bg-[#120D26]/90 border border-purple-500/40 rounded-[36px] p-6 text-center backdrop-blur-2xl relative shadow-2xl space-y-4">
+      <div className="bg-[#120D26]/90 border border-purple-500/40 rounded-[36px] p-6 text-center flex flex-col items-center backdrop-blur-2xl relative shadow-2xl space-y-4">
         
         {/* Pro VIP Chip */}
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-500/20 text-purple-300 border border-purple-500/40 rounded-full text-[10px] font-black tracking-wider shadow">
-          <Crown className="w-3.5 h-3.5 text-purple-400" />
-          <span>PRO CREATOR BENTO</span>
+        <div className="w-full flex justify-center">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-500/20 text-purple-300 border border-purple-500/40 rounded-full text-[10px] font-black tracking-wider shadow">
+            <Crown className="w-3.5 h-3.5 text-purple-400" />
+            <span>PRO CREATOR BENTO</span>
+          </div>
         </div>
 
-        <div className="relative inline-block">
+        <div className="w-full flex justify-center">
+          <div className="relative inline-block">
           <div className="w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-cyan-400 via-purple-500 to-pink-500 shadow-[0_0_25px_rgba(168,85,247,0.5)] mx-auto">
             <img
               src={profile.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${profile.username}`}
@@ -59,6 +62,7 @@ export default function Template4({ profile, links, products, handleLinkClick, i
           <span className="absolute bottom-0 right-0 bg-gradient-to-r from-purple-500 to-indigo-500 text-white p-1.5 rounded-full border-2 border-[#120D26] shadow-md">
             <CheckCircle className="w-3.5 h-3.5" />
           </span>
+        </div>
         </div>
 
         <div>
@@ -95,7 +99,7 @@ export default function Template4({ profile, links, products, handleLinkClick, i
         {firstLink && (
           <button
             onClick={() => handleLinkClick(firstLink.id, firstLink.url)}
-            style={firstLink.bg_color ? { backgroundColor: firstLink.bg_color, color: firstLink.text_color || '#FFFFFF' } : {}}
+            style={{ backgroundColor: firstLink.bg_color || undefined, color: firstLink.text_color || (firstLink.bg_color ? '#FFFFFF' : profile?.custom_button_text_color) || undefined }}
             className={`w-full p-5 rounded-[28px] font-bold text-left flex flex-col justify-between gap-3 shadow-xl hover:scale-[1.02] transition-all group ${
               !firstLink.bg_color ? 'bg-gradient-to-r from-purple-900/80 to-indigo-900/80 border border-purple-500/40' : 'border border-white/20'
             }`}
@@ -113,7 +117,7 @@ export default function Template4({ profile, links, products, handleLinkClick, i
                   <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">
                     ★ FEATURED
                   </span>
-                  <h4 className="text-base sm:text-lg font-black mt-1 leading-snug">{firstLink.title}</h4>
+                  <h4 className="text-base sm:text-lg font-black mt-1 leading-snug" style={{ color: firstLink.text_color || (firstLink.bg_color ? '#FFFFFF' : profile?.custom_button_text_color) || undefined }}>{firstLink.title}</h4>
                 </div>
               </div>
               <ArrowUpRight className="w-5 h-5 text-white/80 group-hover:translate-x-1 group-hover:-translate-y-1 transition" />
@@ -147,7 +151,7 @@ export default function Template4({ profile, links, products, handleLinkClick, i
                   <ExternalLink className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100 transition" />
                 </div>
                 <div>
-                  <h4 className="text-xs sm:text-sm font-extrabold truncate leading-tight">{link.title}</h4>
+                  <h4 className="text-xs sm:text-sm font-extrabold truncate leading-tight" style={{ color: link.text_color || (link.bg_color ? '#FFFFFF' : profile?.custom_button_text_color) || undefined }}>{link.title}</h4>
                   {link.subtitle && <p className="text-[10px] opacity-75 truncate mt-0.5">{link.subtitle}</p>}
                 </div>
               </button>
