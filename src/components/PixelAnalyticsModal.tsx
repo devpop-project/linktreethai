@@ -81,11 +81,11 @@ export default function PixelAnalyticsModal({
   })
 
   // 4. Compute Metrics for Filtered Events
-  const pv = filteredEvents.filter(e => e.event_name === 'PageView').length
-  const co = filteredEvents.filter(e => e.event_name === 'InitiateCheckout').length
+  const pv = filteredEvents.filter(e => e.event_name === 'PageView' || e.event_name === 'ViewContent').length
+  const co = filteredEvents.filter(e => e.event_name === 'InitiateCheckout' || e.event_name === 'ClickShopee' || e.event_name === 'ClickLazada' || e.event_name === 'ClickTikTokShop').length
   const pu = filteredEvents.filter(e => e.event_name === 'Purchase' || e.event_name === 'Lead').length
-  const totalViews = Math.max(pv, 1)
-  const cvRate = ((pu / totalViews) * 100).toFixed(1) + '%'
+  const baseCount = pv > 0 ? pv : co
+  const cvRate = baseCount > 0 ? ((pu / baseCount) * 100).toFixed(1) + '%' : '0.0%'
 
   // 5. Evaluate Live Status per Pixel for the current view
   const pixels = [

@@ -151,6 +151,10 @@ export default function TopUpPointsModal({
     setIsConfirmPayModalOpen(false)
     setSubmitting(true)
     try {
+      const orderRef = 'TOPUP-' + Date.now().toString().slice(-6)
+      const formattedNote = `[💰 แจ้งโอนเติมแต้ม: ${currentPkg.points} แต้ม (฿${currentPkg.price})] ผู้ใช้: @${profile.username || 'user'}${userNote ? ` | โน้ต: ${userNote.trim()}` : ''}`
+
+      // 1. Save payment transaction to Supabase
       const { data, error } = await supabase
         .from('payment_transactions')
         .insert([{
@@ -165,6 +169,28 @@ export default function TopUpPointsModal({
         .select()
 
       if (!error && data) {
+        // 2. Trigger Real-Time LINE Messaging API Notification with Slip to Admin
+        try {
+          await fetch('/api/lead', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: profile.id,
+              name: profile.full_name || `@${profile.username}`,
+              phone: profile.phone || null,
+              line_id: profile.social_line || null,
+              email: profile.social_email || null,
+              amount: currentPkg.price,
+              payment_method: 'promptpay',
+              slip_url: slipUrl,
+              order_code: orderRef,
+              note: formattedNote
+            })
+          })
+        } catch (lineErr) {
+          console.warn('LINE notification dispatch notice:', lineErr)
+        }
+
         setSubmitSuccess(true)
         setSlipUrl('')
         setUserNote('')

@@ -1,6 +1,18 @@
 'use client'
 
 import { useEffect } from 'react'
+import { captureUTMParams, getStoredUTMParams } from '@/lib/utm'
+
+export type PixelEventName = 
+  | 'PageView' 
+  | 'ViewContent' 
+  | 'ClickShopee'
+  | 'ClickLazada'
+  | 'ClickTikTokShop'
+  | 'InitiateCheckout' 
+  | 'Lead' 
+  | 'Contact' 
+  | 'Purchase'
 
 interface TrackingPixelsProps {
   userId?: string | null
@@ -9,61 +21,118 @@ interface TrackingPixelsProps {
   tiktokPixelId?: string | null
   googlePixelId?: string | null
   lineTagId?: string | null
+  metaCapiToken?: string | null
 }
 
 export function trackPixelEvent(
-  eventName: 'PageView' | 'ViewContent' | 'InitiateCheckout' | 'Lead' | 'Contact' | 'Purchase', 
+  eventName: PixelEventName, 
   data?: any,
-  meta?: { userId?: string | null; landingPageId?: string | null; pixelId?: string | null }
+  meta?: { 
+    userId?: string | null
+    landingPageId?: string | null
+    pixelId?: string | null
+    fbPixelId?: string | null
+    tiktokPixelId?: string | null
+    metaCapiToken?: string | null
+    email?: string | null
+    phone?: string | null
+  }
 ) {
   if (typeof window === 'undefined') return
 
-  // 1. Meta (Facebook) Pixel Event
+  const utm = getStoredUTMParams()
+  const enrichedData = {
+    ...data,
+    ...utm,
+    currency: data?.currency || 'THB'
+  }
+
+  // 1. Meta (Facebook) Browser Pixel Event
   if ((window as any).fbq) {
     try {
-      (window as any).fbq('track', eventName, data)
+      if (eventName === 'ClickShopee' || eventName === 'ClickLazada' || eventName === 'ClickTikTokShop') {
+        (window as any).fbq('trackCustom', eventName, enrichedData)
+        (window as any).fbq('track', 'InitiateCheckout', enrichedData)
+      } else {
+        (window as any).fbq('track', eventName, enrichedData)
+      }
     } catch (e) {}
   }
 
-  // 2. TikTok Pixel Event
+  // 2. TikTok Browser Pixel Event
   if ((window as any).ttq) {
     try {
       let ttEvent: string = eventName
-      if (eventName === 'InitiateCheckout') ttEvent = 'InitiateCheckout'
-      if (eventName === 'Lead' || eventName === 'Contact') ttEvent = 'SubmitForm'
-      if (eventName === 'Purchase') ttEvent = 'PlaceAnOrder'
-      ;(window as any).ttq.track(ttEvent, data)
+      if (eventName === 'InitiateCheckout' || eventName === 'ClickShopee' || eventName === 'ClickLazada' || eventName === 'ClickTikTokShop') {
+        ttEvent = 'InitiateCheckout'
+      } else if (eventName === 'Lead' || eventName === 'Contact') {
+        ttEvent = 'SubmitForm'
+      } else if (eventName === 'Purchase') {
+        ttEvent = 'PlaceAnOrder'
+      } else if (eventName === 'ViewContent') {
+        ttEvent = 'ViewContent'
+      }
+      ;(window as any).ttq.track(ttEvent, enrichedData)
     } catch (e) {}
   }
 
   // 3. Google Tag (gtag) Event
   if ((window as any).gtag) {
     try {
-      (window as any).gtag('event', eventName, data)
+      let gEvent = eventName
+      if (eventName === 'ClickShopee' || eventName === 'ClickLazada' || eventName === 'ClickTikTokShop') {
+        gEvent = 'select_item'
+      } else if (eventName === 'InitiateCheckout') {
+        gEvent = 'begin_checkout'
+      } else if (eventName === 'Purchase') {
+        gEvent = 'purchase'
+      } else if (eventName === 'Lead') {
+        gEvent = 'generate_lead'
+      } else if (eventName === 'ViewContent') {
+        gEvent = 'view_item'
+      }
+      ;(window as any).gtag('event', gEvent, enrichedData)
     } catch (e) {}
   }
 
   // 4. LINE Tag Event
   if ((window as any)._lt) {
     try {
-      (window as any)._lt('send', 'cv', { type: eventName }, [data])
+      (window as any)._lt('send', 'cv', { type: eventName }, [enrichedData])
     } catch (e) {}
   }
 
-  // 5. Background Analytics Database Logger
-  if (meta?.userId) {
+  // 5. Conversions API (CAPI Server-Side Dispatch & Supabase DB Logger)
+  if (meta?.userId || meta?.fbPixelId || meta?.tiktokPixelId) {
     try {
+      // Get Facebook Cookies (_fbp, _fbc)
+      const getCookie = (name: string) => {
+        const value = `; ${document.cookie}`
+        const parts = value.split(`; ${name}=`)
+        if (parts.length === 2) return parts.pop()?.split(';').shift() || null
+        return null
+      }
+
       fetch('/api/pixel-track', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: meta.userId,
+          user_id: meta.userId || null,
           landing_page_id: meta.landingPageId || null,
           pixel_type: 'all',
-          pixel_id: meta.pixelId || null,
+          fb_pixel_id: meta.fbPixelId || meta.pixelId || null,
+          tiktok_pixel_id: meta.tiktokPixelId || null,
+          meta_capi_token: meta.metaCapiToken || null,
           event_name: eventName,
-          event_data: data || {},
-          url: window.location.href
+          event_data: enrichedData,
+          url: window.location.href,
+          user_data: {
+            email: meta.email || null,
+            phone: meta.phone || null,
+            fbp: getCookie('_fbp'),
+            fbc: getCookie('_fbc')
+          },
+          utm: utm
         })
       }).catch(() => {})
     } catch (e) {}
@@ -77,8 +146,12 @@ export default function TrackingPixels({
   tiktokPixelId,
   googlePixelId,
   lineTagId,
+  metaCapiToken
 }: TrackingPixelsProps) {
   useEffect(() => {
+    // Capture and persist UTM parameters in session
+    captureUTMParams()
+
     // 1. Injected Meta (Facebook) Pixel
     const cleanFb = (fbPixelId || '').trim()
     if (cleanFb && cleanFb.length >= 8) {
@@ -151,7 +224,7 @@ export default function TrackingPixels({
       }
     }
 
-    // 3. Injected Google Analytics / Tag
+    // 3. Injected Google Tag
     const cleanG = (googlePixelId || '').trim()
     if (cleanG && (cleanG.startsWith('G-') || cleanG.startsWith('AW-') || cleanG.startsWith('GT-'))) {
       const gScript = document.createElement('script')
@@ -193,11 +266,17 @@ export default function TrackingPixels({
       } catch (e) {}
     }
 
-    // 5. Fire initial PageView event to database logger
+    // 5. Fire initial PageView event to CAPI Server logger
     if (userId) {
-      trackPixelEvent('PageView', {}, { userId, landingPageId, pixelId: fbPixelId || tiktokPixelId || null })
+      trackPixelEvent('PageView', {}, { 
+        userId, 
+        landingPageId, 
+        fbPixelId: cleanFb || null, 
+        tiktokPixelId: cleanTt || null,
+        metaCapiToken 
+      })
     }
-  }, [userId, landingPageId, fbPixelId, tiktokPixelId, googlePixelId, lineTagId])
+  }, [userId, landingPageId, fbPixelId, tiktokPixelId, googlePixelId, lineTagId, metaCapiToken])
 
   return null
 }

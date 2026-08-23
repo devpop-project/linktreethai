@@ -1,5 +1,7 @@
 'use client'
 
+import { getPromptPayQRImageUrl } from '@/lib/promptpay'
+
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -24,8 +26,15 @@ export default function AdminDashboardPage() {
     promptpay_account_number: '',
     contact_line_id: '@amth',
     contact_line_url: 'https://line.me/ti/p/@amth',
-    payment_instructions: 'สแกน QR Code พร้อมเพย์ด้วยแอปธนาคาร แล้วแนบรูปสลิปเพื่อแจ้งชำระเงิน'
+    payment_instructions: 'สแกน QR Code พร้อมเพย์ด้วยแอปธนาคาร แล้วแนบรูปสลิปเพื่อแจ้งชำระเงิน',
+    line_channel_access_token: '',
+    line_user_id: '',
+    line_webhook_url: '',
+    line_notify_token: '',
+    meta_capi_token: ''
   })
+  const [testingLine, setTestingLine] = useState(false)
+  const [testAmount, setTestAmount] = useState(299)
   const [savingPaymentSettings, setSavingPaymentSettings] = useState(false)
 
   const [isDarkMode, setIsDarkMode] = useState(false)
@@ -197,6 +206,36 @@ export default function AdminDashboardPage() {
     } catch (e) {}
   }
 
+    const handleTestAdminLine = async () => {
+    if (!paymentSettings.line_channel_access_token && !paymentSettings.line_user_id && !paymentSettings.line_webhook_url) {
+      alert('⚠️ กรุณาระบุ Channel Access Token และ User ID ของ LINE Messaging API ก่อนทดสอบครับ')
+      return
+    }
+    setTestingLine(true)
+    try {
+      const res = await fetch('/api/test-line-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel_access_token: paymentSettings.line_channel_access_token,
+          user_id: paymentSettings.line_user_id,
+          webhook_url: paymentSettings.line_webhook_url,
+          token: paymentSettings.line_notify_token
+        })
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        showNotification('✅ ' + data.message)
+      } else {
+        alert('❌ ' + (data.error || 'ส่งข้อความทดสอบไม่สำเร็จ'))
+      }
+    } catch (err: any) {
+      alert('❌ ข้อผิดพลาด: ' + err.message)
+    } finally {
+      setTestingLine(false)
+    }
+  }
+
   const handleSavePaymentSettings = async (e: React.FormEvent) => {
     e.preventDefault()
     setSavingPaymentSettings(true)
@@ -337,6 +376,9 @@ export default function AdminDashboardPage() {
         tiktok_pixel_id: editingLp.tiktok_pixel_id?.trim() || null,
         google_pixel_id: editingLp.google_pixel_id?.trim() || null,
         line_tag_id: editingLp.line_tag_id?.trim() || null,
+        promptpay_phone: editingLp.promptpay_phone?.trim() || null,
+        promptpay_name: editingLp.promptpay_name?.trim() || null,
+        promptpay_bank: editingLp.promptpay_bank?.trim() || null,
         updated_at: new Date().toISOString()
       }
 
@@ -1848,9 +1890,83 @@ export default function AdminDashboardPage() {
                 
                 {/* Left Form (7 cols) */}
                 <form onSubmit={handleSavePaymentSettings} className="lg:col-span-7 space-y-4 text-xs font-bold">
+                  
+                  {/* 1. OFFICIAL LINE MESSAGING API SETTINGS FOR REAL-TIME ORDER ALERTS */}
+                  <div className="p-5 bg-gradient-to-br from-[#06C755]/10 via-slate-950 to-slate-950 border-2 border-[#06C755]/40 rounded-3xl space-y-3.5 shadow-xl">
+                    <div className="flex items-center justify-between pb-2 border-b border-[#06C755]/20">
+                      <h4 className="font-black text-sm text-[#06C755] flex items-center gap-2">
+                        <MessageCircle className="w-4 h-4" /> 
+                        <span>1. LINE Messaging API (แจ้งเตือนออเดอร์ & สลิปเข้า LINE แอดมินทันที)</span>
+                      </h4>
+                      <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-[#06C755]/20 text-[#06C755] border border-[#06C755]/40 font-mono">
+                        Real-Time Push
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-slate-200 mb-1">
+                          LINE Channel Access Token (Long-Lived Token จาก LINE Developers) *
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={paymentSettings.line_channel_access_token || ''}
+                          onChange={(e) => setPaymentSettings({ ...paymentSettings, line_channel_access_token: e.target.value })}
+                          placeholder="วาง Channel Access Token ตัวยาว (160+ ตัวอักษร) จากแท็บ Messaging API ใน LINE Developers"
+                          className="w-full px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-[#06C755] leading-relaxed"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-slate-200 mb-1">
+                            LINE User ID ของแอดมิน (Your User ID ที่ขึ้นต้นด้วย U...) *
+                          </label>
+                          <input
+                            type="text"
+                            value={paymentSettings.line_user_id || ''}
+                            onChange={(e) => setPaymentSettings({ ...paymentSettings, line_user_id: e.target.value })}
+                            placeholder="เช่น U1234567890abcdef1234567890abcdef"
+                            className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-[#06C755]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-slate-200 mb-1">
+                            LINE Webhook URL (ทางเลือก / สำหรับส่งออก)
+                          </label>
+                          <input
+                            type="url"
+                            value={paymentSettings.line_webhook_url || ''}
+                            onChange={(e) => setPaymentSettings({ ...paymentSettings, line_webhook_url: e.target.value })}
+                            placeholder="https://your-webhook.com/..."
+                            className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-[#06C755]"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Test Push Button */}
+                      <div className="pt-1 flex items-center justify-between">
+                        <p className="text-[11px] text-slate-400">
+                          เมื่อมีลูกค้าสั่งซื้อพร้อมเพย์หรือ COD ระบบจะส่งรูปสลิปและข้อมูลเข้า LINE ทันที
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleTestAdminLine}
+                          disabled={testingLine}
+                          className="px-4 py-2 bg-[#06C755] hover:bg-[#05B34C] text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 transition shadow active:scale-95 disabled:opacity-50 cursor-pointer"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span>{testingLine ? 'กำลังส่ง...' : '📲 ทดสอบส่งเข้า LINE ทันที'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. PROMPTPAY PAYMENT SETTINGS */}
                   <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3">
                     <h4 className="font-extrabold text-sm text-amber-400 flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4" /> ข้อมูลบัญชีรับเงิน PromptPay (หลัก)
+                      <Sparkles className="w-4 h-4" /> 2. ข้อมูลบัญชีรับเงิน PromptPay & Dynamic QR Generator
                     </h4>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1903,12 +2019,61 @@ export default function AdminDashboardPage() {
                         />
                       </div>
                     </div>
+
+                    {/* Live Dynamic QR Test Preview in Admin */}
+                    <div className="p-3.5 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={getPromptPayQRImageUrl(paymentSettings.promptpay_phone || '0909964514', testAmount, 100)}
+                          alt="PromptPay QR Preview"
+                          className="w-16 h-16 bg-white p-1 rounded-lg shrink-0"
+                        />
+                        <div>
+                          <div className="font-bold text-white text-xs flex items-center gap-1.5">
+                            <span>📱 พรีวิว Dynamic PromptPay QR Code</span>
+                            <span className="text-[10px] text-emerald-400 font-mono">EMVCo 100%</span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            สร้าง QR Code ชำระเงินตามยอดเงินที่ลูกค้าเลือกเป๊ะๆ ({paymentSettings.promptpay_account_name})
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <label className="text-[10px] text-slate-400 block">ทดสอบยอด:</label>
+                        <input
+                          type="number"
+                          value={testAmount}
+                          onChange={(e) => setTestAmount(parseFloat(e.target.value) || 0)}
+                          className="w-20 px-2 py-1 bg-slate-950 border border-slate-700 rounded-lg text-emerald-400 font-mono font-bold text-right text-xs"
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  {/* LINE OA Support Contact Info */}
+                  {/* 3. META CONVERSIONS API (CAPI) & TRACKING SETTINGS */}
+                  <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3">
+                    <h4 className="font-extrabold text-sm text-purple-400 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4" /> 3. Meta Conversions API (CAPI) System Token
+                    </h4>
+                    <div>
+                      <label className="block text-slate-300 mb-1">Meta CAPI Access Token (Server-Side Events)</label>
+                      <textarea
+                        rows={2}
+                        value={paymentSettings.meta_capi_token || ''}
+                        onChange={(e) => setPaymentSettings({ ...paymentSettings, meta_capi_token: e.target.value })}
+                        placeholder="วาง Access Token ตัวยาวจาก Meta Events Manager เพื่อยิง CAPI ฝั่งเซิร์ฟเวอร์อัตโนมัติ"
+                        className="w-full px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-purple-400 leading-relaxed"
+                      />
+                      <span className="text-[10px] text-slate-500 block mt-0.5">
+                        * เมื่อกรอกค่านี้ เซิร์ฟเวอร์จะยิง CAPI ไปยัง Facebook Graph API ทันทีเมื่อมีคนเข้าชม สั่งซื้อ หรือคลิก Shopee
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 4. LINE OA Support Info */}
                   <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-3">
                     <h4 className="font-extrabold text-sm text-emerald-400 flex items-center gap-1.5">
-                      <MessageCircle className="w-4 h-4" /> ช่องทางติดต่อ & ส่งสลิปสำรอง (LINE OA)
+                      <MessageCircle className="w-4 h-4" /> 4. ช่องทางติดต่อ & ส่งสลิปสำรอง (LINE OA)
                     </h4>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2784,7 +2949,36 @@ export default function AdminDashboardPage() {
                               </a>
                             ) : '-'}
                           </td>
-                          <td className="p-3 max-w-xs text-slate-300 truncate" title={ld.note}>{ld.note || '-'}</td>
+                          <td className="p-3 max-w-sm text-slate-300 text-xs">
+                            {(() => {
+                              let slipUrl = ld.slip_url || null
+                              let displayNote = ld.note || ''
+
+                              if (!slipUrl && displayNote.includes('[สลิป:')) {
+                                const match = displayNote.match(/\[สลิป:\s*([^\]]+)\]/)
+                                if (match) slipUrl = match[1].trim()
+                              }
+
+                              displayNote = displayNote.replace(/\[สลิป:\s*[^\]]+\]\s*/g, '').trim()
+
+                              return (
+                                <div className="flex items-center gap-2.5">
+                                  {slipUrl && (
+                                    <div 
+                                      onClick={() => setZoomSlipUrl(slipUrl)}
+                                      className="w-10 h-10 rounded-xl overflow-hidden border-2 border-emerald-500/60 bg-black shrink-0 cursor-pointer shadow-md hover:scale-105 transition"
+                                      title="คลิกเพื่อดูรูปสลิปขนาดเต็ม"
+                                    >
+                                      <img src={slipUrl} alt="Slip" className="w-full h-full object-cover" />
+                                    </div>
+                                  )}
+                                  <span className="truncate max-w-[200px]" title={displayNote}>
+                                    {displayNote || (slipUrl ? 'แนบสลิปโอนเงิน' : '-')}
+                                  </span>
+                                </div>
+                              )
+                            })()}
+                          </td>
                           <td className="p-3">
                             <span className="font-bold text-purple-400">@{ld.profiles?.username || 'user'}</span>
                           </td>

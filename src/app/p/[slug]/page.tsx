@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import TrackingPixels, { trackPixelEvent } from '@/components/TrackingPixels'
+import { getPromptPayQRImageUrl } from '@/lib/promptpay'
+import { appendUTMToUrl, captureUTMParams, getStoredUTMParams } from '@/lib/utm'
 import ImageLightboxModal from '@/components/ImageLightboxModal'
 import { 
   ShoppingBag, Check, Flame, Clock, ShieldCheck, Truck, MessageCircle, Globe, 
   Sparkles, ArrowRight, Phone, Send, CheckCircle2, Star, 
-  Share2, AlertCircle, AlertTriangle, HelpCircle, ChevronDown, ChevronUp, Lock
+  Share2, AlertCircle, AlertTriangle, HelpCircle, ChevronDown, ChevronUp, Lock, Upload
 } from 'lucide-react'
 
 function getYouTubeEmbedUrl(url: string | null): string | null {
@@ -37,7 +39,10 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
   const [lightboxIndex, setLightboxIndex] = useState(0)
 
   // Quick Order Form
-  const [orderForm, setOrderForm] = useState({ name: '', phone: '', line_id: '', address: '', note: '' })
+  const [orderForm, setOrderForm] = useState({ name: '', phone: '', line_id: '', address: '', note: '', payment_method: 'promptpay', slip_url: '' })
+  const [customAmountInput, setCustomAmountInput] = useState<string>('')
+  const [uploadingSlip, setUploadingSlip] = useState(false)
+  const [localSlipPreview, setLocalSlipPreview] = useState<string | null>(null)
   const [ordering, setOrdering] = useState(false)
   const [orderSuccess, setOrderSuccess] = useState(false)
 
@@ -88,9 +93,17 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
     setLoading(false)
   }
 
-  const handleCtaClick = async (url?: string | null, eventName: 'PageView' | 'ViewContent' | 'InitiateCheckout' | 'Lead' | 'Contact' | 'Purchase' = 'InitiateCheckout') => {
+  const handleCtaClick = async (url?: string | null, eventName: 'PageView' | 'ViewContent' | 'ClickShopee' | 'ClickLazada' | 'ClickTikTokShop' | 'InitiateCheckout' | 'Lead' | 'Contact' | 'Purchase' = 'InitiateCheckout') => {
     if (!pageData) return
-    const targetUrl = url || pageData.cta_url || `/${ownerProfile?.username || ''}`
+    let rawTarget = url || pageData.cta_url || `/${ownerProfile?.username || ''}`
+    
+    // Detect marketplace
+    let targetEvent = eventName
+    if (rawTarget.includes('shopee.co.th') || rawTarget.includes('shp.ee')) targetEvent = 'ClickShopee'
+    else if (rawTarget.includes('lazada.co.th') || rawTarget.includes('laz.ee')) targetEvent = 'ClickLazada'
+    else if (rawTarget.includes('tiktok.com') && (rawTarget.includes('shop') || rawTarget.includes('product'))) targetEvent = 'ClickTikTokShop'
+
+    const targetUrl = appendUTMToUrl(rawTarget)
 
     // Track Pixel conversion event
     trackPixelEvent(eventName, {
@@ -111,13 +124,62 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
     }
   }
 
+  const handleSlipUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingSlip(true)
+
+    // 1. Show instant local preview on screen immediately
+    const localUrl = URL.createObjectURL(file)
+    setLocalSlipPreview(localUrl)
+
+    try {
+      const fileExt = file.name.split('.').pop() || 'jpg'
+      const fileName = `slips/slip-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`
+      const filePath = `slips/${fileName}`
+
+      // 2. Upload to Supabase 'media' bucket (Exact same bucket as Top-up system)
+      const { data, error } = await supabase.storage
+        .from('media')
+        .upload(filePath, file, { upsert: true })
+
+      if (!error && data) {
+        const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filePath)
+        setOrderForm(prev => ({ ...prev, slip_url: publicUrl }))
+      } else {
+        // Fallback: Upload to 'linktree-assets' bucket
+        const { data: d2, error: e2 } = await supabase.storage
+          .from('linktree-assets')
+          .upload(fileName, file, { upsert: true })
+
+        if (!e2 && d2) {
+          const { data: { publicUrl } } = supabase.storage.from('linktree-assets').getPublicUrl(fileName)
+          setOrderForm(prev => ({ ...prev, slip_url: publicUrl }))
+        } else {
+          // If storage upload fails, use localUrl as temporary preview
+          setOrderForm(prev => ({ ...prev, slip_url: localUrl }))
+        }
+      }
+    } catch (err: any) {
+      console.warn('Slip upload notice:', err)
+      setOrderForm(prev => ({ ...prev, slip_url: localUrl }))
+    } finally {
+      setUploadingSlip(false)
+    }
+  }
+
   const handleOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!orderForm.name || !orderForm.phone || !pageData) return
 
     setOrdering(true)
-    const formattedNote = `[🛒 ออเดอร์ COD: ${pageData.title}] ยอด: ฿${pageData.offer_price ? parseFloat(String(pageData.offer_price)).toLocaleString() : '0'}${orderForm.line_id ? ` | LINE: ${orderForm.line_id}` : ''} | ที่อยู่จัดส่ง: ${orderForm.address || '-'} | หมายเหตุ: ${orderForm.note || '-'}`
-    const orderRef = 'COD-' + Date.now().toString().slice(-6)
+    const isPP = orderForm.payment_method === 'promptpay'
+    const orderRef = (isPP ? 'PP-' : 'COD-') + Date.now().toString().slice(-6)
+    const defaultPrice = pageData.offer_price ? parseFloat(String(pageData.offer_price)) : 0
+    const enteredAmount = parseFloat(customAmountInput)
+    const orderAmount = !isNaN(enteredAmount) && enteredAmount > 0 ? enteredAmount : defaultPrice
+
+    const formattedNote = `[${isPP ? '📱 พร้อมเพย์' : '🚚 COD'}: ${pageData.title}] ยอด: ฿${orderAmount.toLocaleString()} บาท${orderForm.line_id ? ` | LINE: ${orderForm.line_id}` : ''} | ที่อยู่จัดส่ง: ${orderForm.address || '-'}${orderForm.note ? ` | โน้ต: ${orderForm.note}` : ''}`
 
     try {
       await fetch('/api/lead', {
@@ -125,13 +187,17 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: pageData.user_id,
+          landing_page_id: pageData.id,
           name: orderForm.name.trim(),
           phone: orderForm.phone.trim(),
           line_id: orderForm.line_id.trim() || null,
           address: orderForm.address ? orderForm.address.trim() : null,
-          amount: pageData.offer_price || null,
+          amount: orderAmount || null,
+          payment_method: orderForm.payment_method,
+          slip_url: orderForm.slip_url || null,
           order_code: orderRef,
           note: formattedNote,
+          utm: getStoredUTMParams(),
           line_channel_access_token: ownerProfile?.line_channel_access_token || pageData.profiles?.line_channel_access_token || null,
           line_user_id: ownerProfile?.line_user_id || pageData.profiles?.line_user_id || null,
           line_webhook_url: ownerProfile?.line_webhook_url || pageData.profiles?.line_webhook_url || null,
@@ -139,15 +205,25 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
         })
       })
 
-      // Trigger tracking pixel event
+      // Trigger tracking pixel event & CAPI
       trackPixelEvent('Purchase', {
         content_name: pageData.title,
-        value: pageData.offer_price || 0,
-        currency: 'THB'
-      }, { userId: pageData.user_id, landingPageId: pageData.id, pixelId: pageData.fb_pixel_id || ownerProfile?.fb_pixel_id || null })
+        value: orderAmount,
+        currency: 'THB',
+        order_code: orderRef,
+        payment_method: orderForm.payment_method
+      }, { 
+        userId: pageData.user_id, 
+        landingPageId: pageData.id, 
+        fbPixelId: pageData.fb_pixel_id || ownerProfile?.fb_pixel_id || null,
+        tiktokPixelId: pageData.tiktok_pixel_id || ownerProfile?.tiktok_pixel_id || null,
+        metaCapiToken: ownerProfile?.meta_capi_token || null,
+        phone: orderForm.phone.trim()
+      })
 
       setOrderSuccess(true)
-      setOrderForm({ name: '', phone: '', line_id: '', address: '', note: '' })
+      setLocalSlipPreview(null)
+      setOrderForm({ name: '', phone: '', line_id: '', address: '', note: '', payment_method: 'promptpay', slip_url: '' })
     } catch (e) {
       // Fallback insert on client
       try {
@@ -287,10 +363,13 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
       
       {/* 1. AUTO INJECT TRACKING PIXELS (Meta FB, TikTok, Google, LINE) */}
       <TrackingPixels
+        userId={pageData.user_id || ownerProfile?.id || null}
+        landingPageId={pageData.id || null}
         fbPixelId={pageData.fb_pixel_id || ownerProfile?.fb_pixel_id || null}
         tiktokPixelId={pageData.tiktok_pixel_id || ownerProfile?.tiktok_pixel_id || null}
         googlePixelId={pageData.google_pixel_id || ownerProfile?.google_pixel_id || null}
         lineTagId={pageData.line_tag_id || ownerProfile?.line_tag_id || null}
+        metaCapiToken={pageData.meta_capi_token || ownerProfile?.meta_capi_token || null}
       />
 
       {/* 2. FLASH SALE COUNTDOWN HEADER BAR */}
@@ -691,147 +770,376 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
           </section>
         )}
 
-        {/* INSTANT COD ORDER FORM (แสดงเฉพาะเมื่อเปิดใช้งานฟอร์มเก็บเงินปลายทาง) */}
-        {Boolean(pageData.enable_cod_form) && (
-        <section className={`border-2 rounded-[32px] p-6 sm:p-8 shadow-2xl space-y-5 backdrop-blur-xl relative z-10 ${
-          isLightBg 
-            ? 'bg-white border-slate-200 text-slate-900 shadow-slate-200/50' 
-            : 'bg-[#111827]/95 border-slate-600/80 text-white shadow-2xl'
-        }`}>
-          <div className="text-center border-b border-slate-700/80 pb-3">
-            <h3 className={`text-xl sm:text-2xl font-black flex items-center justify-center gap-2 ${
-              isLightBg ? 'text-slate-950' : 'text-white'
+        {/* INSTANT CHECKOUT FORM (พร้อมเพย์ QR ตามยอดของเจ้าของร้าน + เก็บเงินปลายทาง COD + แนบสลิป + แจ้งเตือนเข้า LINE) */}
+        {Boolean(pageData.enable_cod_form) && (() => {
+          const ownerPPPhone = pageData.promptpay_phone || ownerProfile?.promptpay_phone || '0909964514'
+          const ownerPPName = pageData.promptpay_name || ownerProfile?.full_name || ownerProfile?.username || 'เจ้าของร้านค้า'
+          const ownerPPBank = pageData.promptpay_bank || 'พร้อมเพย์ (PromptPay)'
+          const defaultPrice = pageData.offer_price ? parseFloat(String(pageData.offer_price)) : 0
+          const enteredAmt = parseFloat(customAmountInput)
+          const currentPayAmount = !isNaN(enteredAmt) && enteredAmt > 0 ? enteredAmt : defaultPrice
+          const isPromptPay = orderForm.payment_method === 'promptpay'
+          const canSubmit = !ordering && !uploadingSlip && (!isPromptPay || Boolean(orderForm.slip_url || localSlipPreview))
+
+          return (
+            <section id="order-section" className={`border-2 rounded-[36px] p-6 sm:p-9 shadow-2xl space-y-6 backdrop-blur-2xl relative z-10 transition-all duration-300 ${
+              isLightBg 
+                ? 'bg-white/95 border-slate-200/90 text-slate-900 shadow-slate-200/60' 
+                : 'bg-gradient-to-b from-slate-900/95 via-[#0F172A]/95 to-[#0B0F17]/98 border-slate-700/80 text-white shadow-2xl ring-1 ring-white/10'
             }`}>
-              📦 กรอกข้อมูลสั่งซื้อ (เก็บเงินปลายทาง)
-            </h3>
-            <p className={`text-xs sm:text-sm mt-1 font-medium ${
-              isLightBg ? 'text-slate-600' : 'text-slate-200'
-            }`}>
-              กรอกชื่อ เบอร์โทร และที่อยู่จัดส่ง เจ้าหน้าที่จะติดต่อกลับเพื่อยืนยันออเดอร์
-            </p>
-          </div>
-
-          {orderSuccess ? (
-            <div className="p-8 bg-emerald-500/10 border border-emerald-500/40 rounded-3xl text-center space-y-2">
-              <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto" />
-              <h4 className="font-extrabold text-lg text-white">บันทึกการสั่งซื้อเรียบร้อยแล้ว!</h4>
-              <p className="text-xs sm:text-sm text-slate-200">เจ้าหน้าที่จะติดต่อกลับไปยังเบอร์ที่ระบุโดยเร็วที่สุดครับ</p>
-            </div>
-          ) : (
-            <form onSubmit={handleOrderSubmit} className="space-y-4 text-xs sm:text-sm font-bold">
-              <div>
-                <label className={`block mb-1.5 font-extrabold text-xs sm:text-sm ${
-                  isLightBg ? 'text-slate-800' : 'text-white'
-                }`}>
-                  ชื่อ-นามสกุล ผู้รับสินค้า *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="เช่น สมชาย ใจดี"
-                  value={orderForm.name}
-                  onChange={(e) => setOrderForm({ ...orderForm, name: e.target.value })}
-                  className={`w-full px-4 py-3.5 rounded-2xl text-xs sm:text-sm font-medium transition focus:outline-none border-2 shadow-sm ${
-                    isLightBg 
-                      ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white' 
-                      : 'bg-[#1E293B] border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:bg-[#0F172A]'
-                  }`}
-                />
+              {/* Header with verified badge */}
+              <div className="text-center border-b border-slate-700/60 pb-4 space-y-1.5">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-black">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>ระบบสั่งซื้อปลอดภัย 100% • แจ้งเตือนเข้า LINE เจ้าหน้าที่</span>
+                </div>
+                <h3 className={`text-xl sm:text-3xl font-black tracking-tight ${isLightBg ? 'text-slate-950' : 'text-white'}`}>
+                  🛒 กรอกข้อมูลสั่งซื้อสินค้า & ชำระเงิน
+                </h3>
+                <p className={`text-xs sm:text-sm font-medium ${isLightBg ? 'text-slate-600' : 'text-slate-300'}`}>
+                  เลือกวิธีชำระเงิน กรอกที่อยู่จัดส่ง และกดยืนยันออเดอร์เพื่อรับโปรโมชั่นพิเศษ
+                </p>
               </div>
 
-              <div>
-                <label className={`block mb-1.5 font-extrabold text-xs sm:text-sm ${
-                  isLightBg ? 'text-slate-800' : 'text-white'
-                }`}>
-                  เบอร์โทรศัพท์สำหรับติดต่อ *
-                </label>
-                <input
-                  type="tel"
-                  required
-                  placeholder="081-xxx-xxxx"
-                  value={orderForm.phone}
-                  onChange={(e) => setOrderForm({ ...orderForm, phone: e.target.value })}
-                  className={`w-full px-4 py-3.5 rounded-2xl text-xs sm:text-sm font-mono font-medium transition focus:outline-none border-2 shadow-sm ${
-                    isLightBg 
-                      ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white' 
-                      : 'bg-[#1E293B] border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:bg-[#0F172A]'
-                  }`}
-                />
-              </div>
+              {orderSuccess ? (
+                <div className="p-8 sm:p-10 bg-emerald-500/10 border-2 border-emerald-500/50 rounded-3xl text-center space-y-3 shadow-xl animate-in zoom-in-95">
+                  <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto ring-4 ring-emerald-500/30">
+                    <CheckCircle2 className="w-9 h-9" />
+                  </div>
+                  <h4 className="font-black text-xl sm:text-2xl text-white">บันทึกการสั่งซื้อเรียบร้อยแล้ว! 🎉</h4>
+                  <p className="text-xs sm:text-sm text-slate-200 leading-relaxed max-w-md mx-auto">
+                    ระบบได้ส่งข้อมูลออเดอร์และสลิปโอนเงินแจ้งเตือนไปยังเจ้าหน้าที่เรียบร้อยแล้ว เจ้าหน้าที่จะติดต่อกลับเพื่อยืนยันการจัดส่งโดยเร็วที่สุดครับ
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setOrderSuccess(false)}
+                    className="mt-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-xs transition shadow"
+                  >
+                    + สั่งซื้อเพิ่มอีกรายการ
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleOrderSubmit} className="space-y-5 text-xs sm:text-sm font-bold">
+                  
+                  {/* 1. PAYMENT METHOD SWITCHER CARDS */}
+                  <div className="space-y-2">
+                    <label className={`block font-black text-xs sm:text-sm ${isLightBg ? 'text-slate-800' : 'text-slate-200'}`}>
+                      1. เลือกวิธีการชำระเงิน *
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setOrderForm({ ...orderForm, payment_method: 'promptpay' })}
+                        className={`p-4 rounded-2xl border-2 font-black text-xs sm:text-sm flex items-center gap-3 transition-all active:scale-98 cursor-pointer relative overflow-hidden text-left ${
+                          isPromptPay
+                            ? 'border-emerald-500 bg-gradient-to-r from-emerald-500/25 to-teal-500/15 text-emerald-300 shadow-lg ring-2 ring-emerald-500/30'
+                            : isLightBg ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100' : 'bg-slate-900/90 border-slate-700 text-slate-300 hover:bg-slate-800'
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 ${isPromptPay ? 'bg-emerald-500 text-slate-950 shadow' : 'bg-slate-800 text-white'}`}>
+                          📱
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-extrabold text-sm text-white">โอนเงินพร้อมเพย์ QR</span>
+                            {isPromptPay && <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>}
+                          </div>
+                          <span className="text-[11px] font-medium text-emerald-400 block mt-0.5">สแกนจ่ายตามยอดทันที • มี QR</span>
+                        </div>
+                      </button>
 
-              <div>
-                <label className={`block mb-1.5 font-extrabold text-xs sm:text-sm flex items-center justify-between ${
-                  isLightBg ? 'text-slate-800' : 'text-white'
-                }`}>
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#06C755]"></span>
-                    <span>LINE ID สำหรับติดต่อ (ถ้ามี)</span>
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-normal">แอดเพื่อแจ้งสถานะจัดส่ง</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="เช่น @yourshop หรือ line_id"
-                  value={orderForm.line_id}
-                  onChange={(e) => setOrderForm({ ...orderForm, line_id: e.target.value })}
-                  className={`w-full px-4 py-3.5 rounded-2xl text-xs sm:text-sm font-medium transition focus:outline-none border-2 shadow-sm ${
-                    isLightBg 
-                      ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white' 
-                      : 'bg-[#1E293B] border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:bg-[#0F172A]'
-                  }`}
-                />
-              </div>
+                      <button
+                        type="button"
+                        onClick={() => setOrderForm({ ...orderForm, payment_method: 'cod' })}
+                        className={`p-4 rounded-2xl border-2 font-black text-xs sm:text-sm flex items-center gap-3 transition-all active:scale-98 cursor-pointer relative overflow-hidden text-left ${
+                          !isPromptPay
+                            ? 'border-emerald-500 bg-gradient-to-r from-emerald-500/25 to-teal-500/15 text-emerald-300 shadow-lg ring-2 ring-emerald-500/30'
+                            : isLightBg ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100' : 'bg-slate-900/90 border-slate-700 text-slate-300 hover:bg-slate-800'
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 ${!isPromptPay ? 'bg-emerald-500 text-slate-950 shadow' : 'bg-slate-800 text-white'}`}>
+                          🚚
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-extrabold text-sm text-white">เก็บเงินปลายทาง (COD)</span>
+                            {!isPromptPay && <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>}
+                          </div>
+                          <span className="text-[11px] font-medium text-slate-400 block mt-0.5">ชำระเงินเมื่อพนักงานส่งมอบสินค้า</span>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
 
-              <div>
-                <label className={`block mb-1.5 font-extrabold text-xs sm:text-sm ${
-                  isLightBg ? 'text-slate-800' : 'text-white'
-                }`}>
-                  ที่อยู่สำหรับจัดส่งสินค้า
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="บ้านเลขที่, ถนน, ตำบล, อำเภอ, จังหวัด, รหัสไปรษณีย์"
-                  value={orderForm.address}
-                  onChange={(e) => setOrderForm({ ...orderForm, address: e.target.value })}
-                  className={`w-full px-4 py-3.5 rounded-2xl text-xs sm:text-sm font-medium transition focus:outline-none border-2 shadow-sm ${
-                    isLightBg 
-                      ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white' 
-                      : 'bg-[#1E293B] border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:bg-[#0F172A]'
-                  }`}
-                />
-              </div>
+                  {/* 2. DYNAMIC PROMPTPAY QR CODE & SLIP ATTACHMENT BOX */}
+                  {isPromptPay && (
+                    <div className={`p-5 sm:p-6 rounded-3xl border-2 border-emerald-500/40 space-y-5 text-center shadow-xl ${
+                      isLightBg ? 'bg-emerald-50/70' : 'bg-gradient-to-b from-slate-900/95 to-slate-950/98'
+                    }`}>
+                      
+                      {/* Merchant Account Details */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-emerald-500/20 text-left">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl shrink-0">
+                            🏦
+                          </div>
+                          <div>
+                            <div className="font-black text-sm text-emerald-400 flex items-center gap-1.5">
+                              <span>บัญชีรับเงินพร้อมเพย์ของร้านค้า</span>
+                              <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded font-mono">EMVCo</span>
+                            </div>
+                            <div className="text-xs text-slate-200 font-bold">{ownerPPName} • {ownerPPBank}</div>
+                            <div className="text-xs font-mono text-emerald-300 font-black">{ownerPPPhone}</div>
+                          </div>
+                        </div>
 
-              <div>
-                <label className={`block mb-1.5 font-extrabold text-xs sm:text-sm ${
-                  isLightBg ? 'text-slate-800' : 'text-white'
-                }`}>
-                  หมายเหตุเพิ่มเติม (ถ้ามี)
-                </label>
-                <input
-                  type="text"
-                  placeholder="เช่น ฝากไว้หน้าบ้าน, โทรแจ้งก่อนส่ง"
-                  value={orderForm.note}
-                  onChange={(e) => setOrderForm({ ...orderForm, note: e.target.value })}
-                  className={`w-full px-4 py-3.5 rounded-2xl text-xs sm:text-sm font-medium transition focus:outline-none border-2 shadow-sm ${
-                    isLightBg 
-                      ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white' 
-                      : 'bg-[#1E293B] border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:bg-[#0F172A]'
-                  }`}
-                />
-              </div>
+                        <div className="bg-slate-950/80 border border-slate-800 p-2.5 rounded-2xl text-right sm:text-right shrink-0">
+                          <span className="text-[10px] text-slate-400 block">ยอดที่ต้องชำระ</span>
+                          <span className="text-xl sm:text-2xl font-black text-emerald-400 font-mono">
+                            ฿{currentPayAmount.toLocaleString()} บาท
+                          </span>
+                        </div>
+                      </div>
 
-              <button
-                type="submit"
-                disabled={ordering}
-                className="w-full py-4 sm:py-4.5 bg-[#10B981] hover:bg-[#059669] text-white font-black rounded-2xl text-sm sm:text-base transition shadow-xl shadow-emerald-500/30 flex items-center justify-center gap-2 active:scale-98 cursor-pointer border border-emerald-400/40 mt-2"
-              >
-                <Send className="w-4 h-4" />
-                <span>{ordering ? 'กำลังบันทึกข้อมูล...' : 'ยืนยันการสั่งซื้อโปรโมชั่นนี้'}</span>
-              </button>
-            </form>
-          )}
-        </section>
-        )}
+                      {/* Custom Amount Input */}
+                      <div className="space-y-1.5 text-left max-w-md mx-auto">
+                        <label className="block text-xs font-black text-slate-200 flex items-center justify-between">
+                          <span>💰 ยอดเงินที่ต้องการโอน (บาท)</span>
+                          <span className="text-[10px] text-slate-400 font-medium">ราคาโปรโมชั่น: ฿{defaultPrice.toLocaleString()}</span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-black text-base">฿</span>
+                          <input
+                            type="number"
+                            step="any"
+                            placeholder={`ระบุยอดเงิน (หากไม่กรอกจะคิด ฿${defaultPrice.toLocaleString()})`}
+                            value={customAmountInput}
+                            onChange={(e) => setCustomAmountInput(e.target.value)}
+                            className="w-full pl-9 pr-4 py-3 bg-slate-950 border-2 border-slate-700 rounded-2xl text-sm font-mono font-black text-emerald-400 focus:outline-none focus:border-emerald-400 shadow-inner"
+                          />
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-medium">
+                          💡 เมื่อพิมพ์เปลี่ยนยอดเงิน QR Code ด้านล่างจะคำนวณยอดใหม่ให้สแกนจ่ายทันทีแบบ Real-Time
+                        </p>
+                      </div>
+
+                      {/* Dynamic PromptPay QR Code Image */}
+                      <div className="p-4 bg-white rounded-3xl inline-block shadow-2xl mx-auto border-2 border-slate-200">
+                        <img
+                          src={getPromptPayQRImageUrl(ownerPPPhone, currentPayAmount, 220)}
+                          alt="PromptPay QR Code"
+                          className="w-48 h-48 sm:w-52 sm:h-52 object-contain mx-auto"
+                        />
+                        <div className="mt-2 text-slate-900 font-black text-sm font-mono">
+                          สแกนจ่าย ฿{currentPayAmount.toLocaleString()} บาท
+                        </div>
+                        <div className="text-xs text-slate-600 font-bold">{ownerPPName}</div>
+                      </div>
+
+                      {/* Modern Slip Upload Dropzone Area */}
+                      <div className="space-y-2 text-left max-w-md mx-auto pt-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-black text-slate-200 flex items-center gap-1.5">
+                            <Upload className="w-4 h-4 text-emerald-400" />
+                            <span>แนบรูปสลิปโอนเงิน *</span>
+                          </label>
+                          <span className="text-[10px] text-emerald-400 font-bold">
+                            {(orderForm.slip_url || localSlipPreview) ? '✓ แนบสลิปเรียบร้อย' : '(จำเป็นสำหรับการโอนพร้อมเพย์)'}
+                          </span>
+                        </div>
+
+                        {/* Upload trigger button / Dragzone */}
+                        <label className={`w-full p-4 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-all shadow-md group ${
+                          (orderForm.slip_url || localSlipPreview) 
+                            ? 'bg-emerald-500/15 border-emerald-500/60 text-emerald-300' 
+                            : 'bg-slate-950/80 hover:bg-slate-900 border-slate-700 hover:border-emerald-500/70 text-slate-300'
+                        }`}>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition group-hover:scale-110 ${(orderForm.slip_url || localSlipPreview) ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-emerald-400'}`}>
+                            <Upload className="w-5 h-5" />
+                          </div>
+                          <div className="text-center">
+                            <span className="font-extrabold text-xs sm:text-sm block text-white">
+                              {uploadingSlip ? 'กำลังอัปโหลดสลิป...' : ((orderForm.slip_url || localSlipPreview) ? '✓ เปลี่ยนรูปภาพสลิปโอนเงิน' : 'แตะเพื่อเลือกรูปสลิปโอนเงิน')}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block mt-0.5 font-medium">
+                              รองรับไฟล์ JPG, PNG, สลิปจากแอปธนาคารทุกธนาคาร
+                            </span>
+                          </div>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleSlipUpload}
+                            className="hidden"
+                          />
+                        </label>
+
+                        {/* Uploaded Slip Preview Card */}
+                        {(orderForm.slip_url || localSlipPreview) && (
+                          <div className="p-3 bg-slate-950 rounded-2xl border border-emerald-500/50 flex items-center justify-between gap-3 shadow-lg animate-in fade-in">
+                            <div className="flex items-center gap-3 truncate">
+                              <img 
+                                src={localSlipPreview || orderForm.slip_url || ''} 
+                                alt="Slip Preview" 
+                                className="w-14 h-14 object-cover rounded-xl border border-slate-700 shadow shrink-0" 
+                              />
+                              <div className="truncate">
+                                <div className="text-emerald-400 font-black text-xs flex items-center gap-1">
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>แนบรูปสลิปสำเร็จ</span>
+                                </div>
+                                <span className="text-[10px] text-slate-400 truncate block mt-0.5">
+                                  สลิปจะถูกส่งแจ้งเตือนเข้า LINE เจ้าของร้านทันที
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => { setOrderForm(prev => ({ ...prev, slip_url: '' })); setLocalSlipPreview(null); }}
+                              className="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer"
+                            >
+                              ลบรูป
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3. CUSTOMER INFORMATION INPUT FIELDS */}
+                  <div className="space-y-4 pt-1">
+                    <div>
+                      <label className={`block mb-1.5 font-black text-xs sm:text-sm ${isLightBg ? 'text-slate-800' : 'text-slate-200'}`}>
+                        ชื่อ-นามสกุล ผู้รับสินค้า *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="เช่น สมชาย ใจดี"
+                        value={orderForm.name}
+                        onChange={(e) => setOrderForm({ ...orderForm, name: e.target.value })}
+                        className={`w-full px-4 py-3.5 rounded-2xl text-xs sm:text-sm font-medium transition focus:outline-none border-2 shadow-sm ${
+                          isLightBg 
+                            ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white' 
+                            : 'bg-[#1E293B] border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:bg-[#0F172A]'
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={`block mb-1.5 font-black text-xs sm:text-sm ${isLightBg ? 'text-slate-800' : 'text-slate-200'}`}>
+                        เบอร์โทรศัพท์สำหรับติดต่อ *
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="081-xxx-xxxx"
+                        value={orderForm.phone}
+                        onChange={(e) => setOrderForm({ ...orderForm, phone: e.target.value })}
+                        className={`w-full px-4 py-3.5 rounded-2xl text-xs sm:text-sm font-mono font-medium transition focus:outline-none border-2 shadow-sm ${
+                          isLightBg 
+                            ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white' 
+                            : 'bg-[#1E293B] border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:bg-[#0F172A]'
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={`block mb-1.5 font-black text-xs sm:text-sm flex items-center justify-between ${isLightBg ? 'text-slate-800' : 'text-slate-200'}`}>
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#06C755]"></span>
+                          <span>LINE ID สำหรับติดต่อ (ถ้ามี)</span>
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-normal">แอดเพื่อแจ้งสถานะจัดส่ง</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="เช่น @yourshop หรือ line_id"
+                        value={orderForm.line_id}
+                        onChange={(e) => setOrderForm({ ...orderForm, line_id: e.target.value })}
+                        className={`w-full px-4 py-3.5 rounded-2xl text-xs sm:text-sm font-medium transition focus:outline-none border-2 shadow-sm ${
+                          isLightBg 
+                            ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white' 
+                            : 'bg-[#1E293B] border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:bg-[#0F172A]'
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={`block mb-1.5 font-black text-xs sm:text-sm ${isLightBg ? 'text-slate-800' : 'text-slate-200'}`}>
+                        ที่อยู่สำหรับจัดส่งสินค้า *
+                      </label>
+                      <textarea
+                        rows={2}
+                        required
+                        placeholder="บ้านเลขที่, ถนน, ตำบล, อำเภอ, จังหวัด, รหัสไปรษณีย์"
+                        value={orderForm.address}
+                        onChange={(e) => setOrderForm({ ...orderForm, address: e.target.value })}
+                        className={`w-full px-4 py-3.5 rounded-2xl text-xs sm:text-sm font-medium transition focus:outline-none border-2 shadow-sm leading-relaxed ${
+                          isLightBg 
+                            ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white' 
+                            : 'bg-[#1E293B] border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:bg-[#0F172A]'
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={`block mb-1.5 font-black text-xs sm:text-sm ${isLightBg ? 'text-slate-800' : 'text-slate-200'}`}>
+                        หมายเหตุเพิ่มเติม (ถ้ามี)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="เช่น ฝากไว้หน้าบ้าน, โทรแจ้งก่อนส่ง"
+                        value={orderForm.note}
+                        onChange={(e) => setOrderForm({ ...orderForm, note: e.target.value })}
+                        className={`w-full px-4 py-3.5 rounded-2xl text-xs sm:text-sm font-medium transition focus:outline-none border-2 shadow-sm ${
+                          isLightBg 
+                            ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white' 
+                            : 'bg-[#1E293B] border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-400 focus:bg-[#0F172A]'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 4. LUXURIOUS HIGH-CONVERTING E-COMMERCE CTA BUTTON */}
+                  <div className="pt-3">
+                    {canSubmit ? (
+                      <button
+                        type="submit"
+                        className="w-full py-4.5 sm:py-5 px-5 sm:px-7 bg-gradient-to-r from-[#10B981] via-[#34D399] to-[#059669] hover:from-[#34D399] hover:to-[#10B981] text-slate-950 font-black rounded-3xl text-sm sm:text-base transition-all duration-200 shadow-2xl shadow-emerald-500/40 hover:shadow-emerald-500/60 ring-4 ring-emerald-400/30 flex items-center justify-between gap-3 active:scale-[0.98] cursor-pointer relative overflow-hidden group"
+                      >
+                        <div className="flex items-center gap-3 text-left">
+                          <div className="w-11 h-11 rounded-2xl bg-slate-950/15 text-slate-950 flex items-center justify-center font-black shadow-inner shrink-0">
+                            <ShoppingBag className="w-5 h-5 text-slate-950" />
+                          </div>
+                          <div>
+                            <span className="block font-black text-sm sm:text-base leading-tight tracking-tight text-slate-950">
+                              ยืนยันการสั่งซื้อโปรโมชั่นนี้
+                            </span>
+                            <span className="text-[11px] font-bold opacity-85 block text-slate-900 mt-0.5">
+                              {isPromptPay ? '✓ ชำระเงินโอนพร้อมเพย์แนบสลิป' : '✓ เก็บเงินปลายทาง (COD) ชำระเมื่อรับของ'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="px-3.5 py-2 bg-slate-950 text-emerald-400 rounded-2xl font-mono font-black text-sm sm:text-base flex items-center gap-1.5 shadow-md shrink-0">
+                          <span>฿{currentPayAmount.toLocaleString()}</span>
+                          <ArrowRight className="w-4 h-4 text-emerald-300 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </button>
+                    ) : (
+                      <div className="w-full py-4.5 px-5 bg-amber-500/15 border-2 border-amber-500/40 text-amber-200 rounded-3xl text-xs sm:text-sm font-bold text-center flex items-center justify-center gap-2.5 shadow-lg">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                        <span className="text-left">กรุณาแตะแนบรูปสลิปโอนเงินด้านบน เพื่อปลดล็อกปุ่มยืนยันการสั่งซื้อ</span>
+                      </div>
+                    )}
+                  </div>
+                </form>
+              )}
+            </section>
+          )
+        })()}
 
       </main>
 

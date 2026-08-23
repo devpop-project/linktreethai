@@ -14,7 +14,7 @@ interface TemplateRendererProps {
   profile: any
   links: any[]
   products: any[]
-  handleLinkClick: (id: string, url: string) => void
+  handleLinkClick: (id: string, url: string, title?: string) => void
   isDashboardPreview?: boolean
 }
 

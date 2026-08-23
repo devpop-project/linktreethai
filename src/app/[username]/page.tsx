@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import TemplateRenderer from '@/components/templates/TemplateRenderer'
 import TrackingPixels, { trackPixelEvent } from '@/components/TrackingPixels'
+import { appendUTMToUrl, captureUTMParams, getStoredUTMParams } from '@/lib/utm'
 import { Link2, Share2, QrCode, X, Check, ArrowLeft } from 'lucide-react'
 
 export default function UserBioPage({ params }: { params: { username: string } }) {
@@ -18,6 +19,7 @@ export default function UserBioPage({ params }: { params: { username: string } }
   const supabase = createClient()
 
   useEffect(() => {
+    captureUTMParams()
     loadPublicData()
   }, [username])
 
@@ -59,21 +61,62 @@ export default function UserBioPage({ params }: { params: { username: string } }
     if (prodData) setProducts(prodData)
 
     setLoading(false)
+
+    // Trigger ViewContent event on profile view
+    if (profData?.id) {
+      trackPixelEvent('ViewContent', {
+        content_name: profData.full_name || profData.username,
+        content_type: 'profile',
+        content_category: 'bio_link'
+      }, {
+        userId: profData.id,
+        fbPixelId: profData.fb_pixel_id,
+        tiktokPixelId: profData.tiktok_pixel_id,
+        metaCapiToken: profData.meta_capi_token
+      })
+    }
   }
 
-  // Handle Link Click tracking + Pixel Trigger
-  const handleLinkClick = async (linkId: string, url: string) => {
-    // Trigger tracking pixel event
-    trackPixelEvent('InitiateCheckout', { link_id: linkId, url })
+  // Handle Link Click tracking + ClickShopee / ClickLazada + UTM Forwarding
+  const handleLinkClick = async (linkId: string, url: string, linkTitle?: string) => {
+    const isShopee = url.includes('shopee.co.th') || url.includes('shp.ee')
+    const isLazada = url.includes('lazada.co.th') || url.includes('laz.ee')
+    const isTikTokShop = url.includes('tiktok.com') && (url.includes('shop') || url.includes('product') || url.includes('view/product'))
+
+    let eventName: 'ClickShopee' | 'ClickLazada' | 'ClickTikTokShop' | 'InitiateCheckout' = 'InitiateCheckout'
+    if (isShopee) eventName = 'ClickShopee'
+    else if (isLazada) eventName = 'ClickLazada'
+    else if (isTikTokShop) eventName = 'ClickTikTokShop'
+
+    // Forward UTM tracking parameters to destination URL
+    const destinationUrl = appendUTMToUrl(url)
+
+    // Trigger Pixel + CAPI Event
+    trackPixelEvent(eventName, { 
+      link_id: linkId, 
+      content_name: linkTitle || 'Outbound Link',
+      url: destinationUrl,
+      platform: isShopee ? 'Shopee' : isLazada ? 'Lazada' : isTikTokShop ? 'TikTokShop' : 'External'
+    }, {
+      userId: profile?.id,
+      fbPixelId: profile?.fb_pixel_id,
+      tiktokPixelId: profile?.tiktok_pixel_id,
+      metaCapiToken: profile?.meta_capi_token
+    })
 
     try {
-      await fetch('/api/click', {
+      fetch('/api/click', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ linkId })
-      })
+        body: JSON.stringify({ 
+          linkId,
+          url: destinationUrl,
+          utm: getStoredUTMParams()
+        })
+      }).catch(() => {})
     } catch (e) {}
-    window.open(url, '_blank')
+
+    window.open(destinationUrl, '_blank')
   }
 
   const handleCopyProfileUrl = () => {
@@ -126,10 +169,12 @@ export default function UserBioPage({ params }: { params: { username: string } }
     >
       {/* 1. AUTO INJECT TRACKING PIXELS (Meta FB, TikTok, Google, LINE) */}
       <TrackingPixels
+        userId={profile.id}
         fbPixelId={profile.fb_pixel_id}
         tiktokPixelId={profile.tiktok_pixel_id}
         googlePixelId={profile.google_pixel_id}
         lineTagId={profile.line_tag_id}
+        metaCapiToken={profile.meta_capi_token}
       />
 
       {/* Background Overlay */}

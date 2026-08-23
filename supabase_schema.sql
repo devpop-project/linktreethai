@@ -763,3 +763,100 @@ BEGIN
         ALTER TABLE public.links ADD COLUMN icon_bg_color TEXT;
     END IF;
 END $$;
+
+-- ==============================================================================
+-- MIGRATION: META CAPI, TIKTOK CAPI & PROMPTPAY SLIP CHECKOUT
+-- ==============================================================================
+DO $$
+BEGIN
+    -- 1. Add meta_capi_token to profiles
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'meta_capi_token') THEN
+        ALTER TABLE public.profiles ADD COLUMN meta_capi_token TEXT;
+    END IF;
+
+    -- 2. Add tiktok_capi_token to profiles
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'tiktok_capi_token') THEN
+        ALTER TABLE public.profiles ADD COLUMN tiktok_capi_token TEXT;
+    END IF;
+
+    -- 3. Add payment_method and slip_url to leads
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'leads' AND column_name = 'payment_method') THEN
+        ALTER TABLE public.leads ADD COLUMN payment_method TEXT DEFAULT 'cod';
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'leads' AND column_name = 'slip_url') THEN
+        ALTER TABLE public.leads ADD COLUMN slip_url TEXT;
+    END IF;
+END $$;
+
+-- Table for storing detailed pixel events & CAPI history
+CREATE TABLE IF NOT EXISTS public.pixel_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    landing_page_id UUID REFERENCES public.landing_pages(id) ON DELETE SET NULL,
+    pixel_type TEXT DEFAULT 'all',
+    pixel_id TEXT,
+    event_name TEXT NOT NULL,
+    event_data JSONB DEFAULT '{}'::jsonb,
+    url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS on pixel_events
+ALTER TABLE public.pixel_events ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'pixel_events' AND policyname = 'Allow insert pixel_events') THEN
+        CREATE POLICY "Allow insert pixel_events" ON public.pixel_events FOR INSERT WITH CHECK (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'pixel_events' AND policyname = 'Allow users view own pixel_events') THEN
+        CREATE POLICY "Allow users view own pixel_events" ON public.pixel_events FOR SELECT USING (
+            auth.uid() = user_id OR EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+        );
+    END IF;
+END $$;
+
+-- ==============================================================================
+-- MIGRATION: SALEPAGE OWNER PROMPTPAY & CUSTOM AMOUNT CONFIGURATION
+-- ==============================================================================
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'promptpay_phone') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN promptpay_phone TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'promptpay_name') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN promptpay_name TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'promptpay_bank') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN promptpay_bank TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'allow_custom_amount') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN allow_custom_amount BOOLEAN DEFAULT true;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'owner_line_token') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN owner_line_token TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'owner_line_user_id') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN owner_line_user_id TEXT;
+    END IF;
+END $$;
+
+-- ==============================================================================
+-- MIGRATION: PER-SALEPAGE LINE MESSAGING API CONFIGURATION
+-- ==============================================================================
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'line_channel_access_token') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN line_channel_access_token TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'line_user_id') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN line_user_id TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'line_webhook_url') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN line_webhook_url TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'line_notify_token') THEN
+        ALTER TABLE public.landing_pages ADD COLUMN line_notify_token TEXT;
+    END IF;
+END $$;

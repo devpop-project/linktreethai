@@ -20,7 +20,7 @@ interface TemplateProps {
   profile: any
   links: any[]
   products: any[]
-  handleLinkClick: (id: string, url: string) => void
+  handleLinkClick: (id: string, url: string, title?: string) => void
   isDashboardPreview?: boolean
 }
 
@@ -117,7 +117,7 @@ export default function Template5({ profile, links, products, handleLinkClick, i
             links.map((link) => (
               <button
                 key={link.id}
-                onClick={() => handleLinkClick(link.id, link.url)}
+                onClick={() => handleLinkClick(link.id, link.url, link.title)}
                 style={{
                   backgroundColor: link.bg_color || '#1A1A24',
                   color: link.text_color || (link.bg_color ? '#FFFFFF' : profile?.custom_button_text_color) || '#FFFFFF'

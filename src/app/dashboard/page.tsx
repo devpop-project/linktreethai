@@ -63,6 +63,12 @@ interface LandingPageFormData {
   tiktok_pixel_id: string
   google_pixel_id: string
   line_tag_id: string
+  promptpay_phone: string
+  promptpay_name: string
+  promptpay_bank: string
+  line_channel_access_token: string
+  line_user_id: string
+  line_webhook_url: string
 }
 
 const DEFAULT_LANDING_PAGE_FORM: LandingPageFormData = {
@@ -116,7 +122,13 @@ const DEFAULT_LANDING_PAGE_FORM: LandingPageFormData = {
   fb_pixel_id: '',
   tiktok_pixel_id: '',
   google_pixel_id: '',
-  line_tag_id: ''
+  line_tag_id: '',
+  promptpay_phone: '',
+  promptpay_name: '',
+  promptpay_bank: '',
+  line_channel_access_token: '',
+  line_user_id: '',
+  line_webhook_url: ''
 }
 
 export default function DashboardPage() {
@@ -1236,7 +1248,13 @@ export default function DashboardPage() {
       fb_pixel_id: lp.fb_pixel_id || '',
       tiktok_pixel_id: lp.tiktok_pixel_id || '',
       google_pixel_id: lp.google_pixel_id || '',
-      line_tag_id: lp.line_tag_id || ''
+      line_tag_id: lp.line_tag_id || '',
+      promptpay_phone: lp.promptpay_phone || '',
+      promptpay_name: lp.promptpay_name || '',
+      promptpay_bank: lp.promptpay_bank || '',
+      line_channel_access_token: lp.line_channel_access_token || '',
+      line_user_id: lp.line_user_id || '',
+      line_webhook_url: lp.line_webhook_url || ''
     })
     setPreviewMode('landing')
     showToast('✏️ กำลังแก้ไขเซลเพจ: ' + lp.title)
@@ -1411,7 +1429,13 @@ export default function DashboardPage() {
       fb_pixel_id: newLandingPage.fb_pixel_id.trim() || null,
       tiktok_pixel_id: newLandingPage.tiktok_pixel_id.trim() || null,
       google_pixel_id: newLandingPage.google_pixel_id.trim() || null,
-      line_tag_id: newLandingPage.line_tag_id.trim() || null
+      line_tag_id: newLandingPage.line_tag_id.trim() || null,
+      promptpay_phone: newLandingPage.promptpay_phone.trim() || null,
+      promptpay_name: newLandingPage.promptpay_name.trim() || null,
+      promptpay_bank: newLandingPage.promptpay_bank.trim() || null,
+      line_channel_access_token: newLandingPage.line_channel_access_token.trim() || null,
+      line_user_id: newLandingPage.line_user_id.trim() || null,
+      line_webhook_url: newLandingPage.line_webhook_url.trim() || null
     }
 
     if (editingLandingPageId) {
@@ -3281,6 +3305,21 @@ export default function DashboardPage() {
                       />
                     </div>
                   </div>
+
+                  {/* Meta Conversions API (CAPI) Token Input */}
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                      <span>Meta Conversions API (CAPI) Access Token (ยิง Event ฝั่ง Server 100%)</span>
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="วาง Meta CAPI Token จาก Facebook Events Manager เพื่อยิง Conversion ฝั่ง Server ป้องกันปัญหา iOS 14+ และ AdBlocker"
+                      value={profile.meta_capi_token || ''}
+                      onChange={(e) => setProfile({ ...profile, meta_capi_token: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono"
+                    />
+                  </div>
                 </div>
                 
                 {/* Header & Quota Card */}
@@ -3490,16 +3529,16 @@ export default function DashboardPage() {
                             </div>
                           </div>
 
-                          {/* COD Form Toggle Switch */}
+                          {/* COD & PROMPTPAY FORM TOGGLE SWITCH */}
                           <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                             <div>
                               <p className="text-xs font-extrabold text-[#1E1B4B] dark:text-white">
-                                แสดง "ฟอร์มสั่งซื้อเก็บเงินปลายทาง (COD Form)" ด้านล่าง
+                                แสดง "ฟอร์มสั่งซื้อ & ชำระเงิน (PromptPay QR + COD Form)" ด้านล่างเซลเพจ
                               </p>
                               <p className="text-[10px] text-slate-500">
                                 {newLandingPage.enable_cod_form 
-                                  ? '✓ เปิดใช้งาน: ลูกค้าสามารถกรอกชื่อ-เบอร์โทร-ที่อยู่สั่งซื้อ COD ได้ทันที' 
-                                  : '✕ ปิดใช้งาน: ซ่อนฟอร์ม COD และให้ลูกค้าคลิกปุ่มสั่งซื้อผ่าน LINE OA / เว็บไซต์แทน'}
+                                  ? '✓ เปิดใช้งาน: ลูกค้าสามารถสลับชำระเงินโอนพร้อมเพย์แนบสลิป หรือ COD ได้ทันที' 
+                                  : '✕ ปิดใช้งาน: ซ่อนฟอร์มสั่งซื้อ และให้ลูกค้าคลิกปุ่มสั่งซื้อผ่าน LINE OA / เว็บไซต์แทน'}
                               </p>
                             </div>
                             <button
@@ -3511,8 +3550,139 @@ export default function DashboardPage() {
                                   : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                               }`}
                             >
-                              <span>{newLandingPage.enable_cod_form ? 'เปิดใช้งาน COD' : 'ปิดฟอร์ม COD'}</span>
+                              <span>{newLandingPage.enable_cod_form ? 'เปิดใช้งานฟอร์มสั่งซื้อ' : 'ปิดฟอร์มสั่งซื้อ'}</span>
                             </button>
+                          </div>
+                        </div>
+
+                        {/* PROMPTPAY ACCOUNT SETTINGS FOR THIS SALEPAGE */}
+                        <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Sparkles className="w-4 h-4 text-emerald-500" />
+                              <span className="font-extrabold text-xs text-emerald-900 dark:text-emerald-300">
+                                ข้อมูลบัญชี PromptPay ประจำเซลเพจนี้ (สำหรับสร้าง QR Code ชำระเงินอัตโนมัติ)
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-full">
+                              Dynamic QR Code
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                เบอร์พร้อมเพย์ / เลขประจำตัว
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="เช่น 0909964514"
+                                value={newLandingPage.promptpay_phone || ''}
+                                onChange={(e) => setNewLandingPage({ ...newLandingPage, promptpay_phone: e.target.value })}
+                                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                ชื่อบัญชีผู้รับเงิน
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="เช่น วันชนะ ขวัญแก้ว"
+                                value={newLandingPage.promptpay_name || ''}
+                                onChange={(e) => setNewLandingPage({ ...newLandingPage, promptpay_name: e.target.value })}
+                                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                ธนาคาร
+                              </label>
+                              <input
+                                type="text"
+                                placeholder="เช่น กสิกรไทย (KBANK)"
+                                value={newLandingPage.promptpay_bank || ''}
+                                onChange={(e) => setNewLandingPage({ ...newLandingPage, promptpay_bank: e.target.value })}
+                                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* PER-SALEPAGE LINE MESSAGING API NOTIFICATION SETTINGS */}
+                        <div className="p-4 bg-gradient-to-br from-[#06C755]/10 via-slate-900 to-slate-950 border-2 border-[#06C755]/40 rounded-2xl space-y-3 shadow-lg">
+                          <div className="flex items-center justify-between pb-1.5 border-b border-[#06C755]/20">
+                            <div className="flex items-center gap-2">
+                              <MessageCircle className="w-4 h-4 text-[#06C755]" />
+                              <span className="font-black text-xs text-[#06C755]">
+                                การตั้งค่ารับแจ้งเตือนออเดอร์เข้า LINE ประจำเซลเพจนี้ (LINE Messaging API)
+                              </span>
+                            </div>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#06C755]/20 text-[#06C755] border border-[#06C755]/40 font-mono">
+                              Real-Time Alert
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 leading-relaxed">
+                            กำหนดบัญชี LINE OA เพื่อรับแจ้งเตือนออเดอร์ COD และรูปสลิปโอนเงินแยกเฉพาะเซลเพจนี้ (ถ้าไม่กรอก จะใช้ค่าของโปรไฟล์หลัก)
+                          </p>
+                          <div className="space-y-2.5">
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-200 mb-1">
+                                LINE Channel Access Token (Long-lived Token จาก LINE Developers)
+                              </label>
+                              <textarea
+                                rows={2}
+                                placeholder="วาง Channel Access Token ตัวยาว (160+ ตัวอักษร) จากแท็บ Messaging API ใน LINE Developers"
+                                value={newLandingPage.line_channel_access_token || ''}
+                                onChange={(e) => setNewLandingPage({ ...newLandingPage, line_channel_access_token: e.target.value })}
+                                className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-[#06C755]"
+                              />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-200 mb-1">
+                                  LINE User ID ของผู้รับแจ้งเตือน (ขึ้นต้นด้วย U...)
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="เช่น U1234567890abcdef..."
+                                  value={newLandingPage.line_user_id || ''}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, line_user_id: e.target.value })}
+                                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-[#06C755]"
+                                />
+                              </div>
+                              <div className="flex items-end">
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!newLandingPage.line_channel_access_token && !newLandingPage.line_user_id) {
+                                      showToast('⚠️ กรุณากรอก Token และ User ID ก่อนกดทดสอบครับ')
+                                      return
+                                    }
+                                    try {
+                                      const res = await fetch('/api/test-line-notify', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                          channel_access_token: newLandingPage.line_channel_access_token,
+                                          user_id: newLandingPage.line_user_id
+                                        })
+                                      })
+                                      const data = await res.json()
+                                      if (res.ok && data.success) {
+                                        showToast('✅ ' + data.message)
+                                      } else {
+                                        showToast('❌ ' + (data.error || 'ส่งข้อความทดสอบไม่สำเร็จ'))
+                                      }
+                                    } catch (e) {}
+                                  }}
+                                  className="w-full py-2 bg-[#06C755] hover:bg-[#05B34C] text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 transition shadow active:scale-95 cursor-pointer"
+                                >
+                                  <Send className="w-3.5 h-3.5" />
+                                  <span>📲 ทดสอบส่งเข้า LINE เซลเพจนี้</span>
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
 
@@ -4899,11 +5069,66 @@ export default function DashboardPage() {
                               </p>
                             )}
 
-                            {lead.note && (
-                              <p className="text-xs text-slate-700 dark:text-slate-300 bg-purple-50/50 dark:bg-purple-950/20 p-2.5 rounded-xl border border-purple-100 dark:border-purple-900/30">
-                                💬 {lead.note}
-                              </p>
-                            )}
+                            {(() => {
+                              let slipUrl = lead.slip_url || null
+                              let displayNote = lead.note || ''
+
+                              if (!slipUrl && displayNote.includes('[สลิป:')) {
+                                const match = displayNote.match(/\[สลิป:\s*([^\]]+)\]/)
+                                if (match) slipUrl = match[1].trim()
+                              }
+
+                              displayNote = displayNote.replace(/\[สลิป:\s*[^\]]+\]\s*/g, '').trim()
+
+                              return (
+                                <div className="space-y-2">
+                                  {/* Beautiful Clickable Slip Preview Card */}
+                                  {slipUrl && (
+                                    <div className="p-3 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-slate-900 border-2 border-emerald-500/40 rounded-2xl flex items-center justify-between gap-3 shadow-md">
+                                      <div className="flex items-center gap-3 truncate">
+                                        <div
+                                          onClick={() => setZoomSlipUrl(slipUrl)}
+                                          className="relative group cursor-pointer w-16 h-16 rounded-xl overflow-hidden border-2 border-emerald-500/50 bg-black shrink-0 shadow-md"
+                                          title="แตะเพื่อดูรูปสลิปขนาดเต็ม"
+                                        >
+                                          <img
+                                            src={slipUrl}
+                                            alt="Slip Preview"
+                                            className="w-full h-full object-cover group-hover:scale-110 transition duration-200"
+                                          />
+                                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-[10px] font-black">
+                                            🔍 ดูรูป
+                                          </div>
+                                        </div>
+                                        <div className="truncate">
+                                          <div className="flex items-center gap-1.5 font-black text-xs text-emerald-600 dark:text-emerald-400">
+                                            <CheckCircle2 className="w-3.5 h-3.5" />
+                                            <span>หลักฐานการโอนเงิน (สลิปพร้อมเพย์)</span>
+                                          </div>
+                                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                                            แตะที่รูปเพื่อดูสลิปหลักฐานการโอนเงินขนาดเต็ม
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => setZoomSlipUrl(slipUrl)}
+                                        className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-black transition shadow flex items-center gap-1 shrink-0 cursor-pointer"
+                                      >
+                                        <Eye className="w-3.5 h-3.5" />
+                                        <span>ดูสลิป</span>
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {displayNote && (
+                                    <p className="text-xs text-slate-700 dark:text-slate-300 bg-purple-50/50 dark:bg-purple-950/20 p-2.5 rounded-xl border border-purple-100 dark:border-purple-900/30 leading-relaxed font-medium">
+                                      💬 {displayNote}
+                                    </p>
+                                  )}
+                                </div>
+                              )
+                            })()}
 
                             {/* Row Action Footer */}
                             <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
@@ -6958,12 +7183,52 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {selectedLeadDetails.note && (
-                <div className="p-3 bg-purple-50/50 dark:bg-purple-950/20 rounded-xl border border-purple-100 dark:border-purple-900/30 space-y-1">
-                  <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 block">💬 บันทึก / รายการสั่งซื้อ</span>
-                  <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{selectedLeadDetails.note}</p>
-                </div>
-              )}
+              {(() => {
+                let slipUrl = selectedLeadDetails.slip_url || null
+                let displayNote = selectedLeadDetails.note || ''
+
+                if (!slipUrl && displayNote.includes('[สลิป:')) {
+                  const match = displayNote.match(/\[สลิป:\s*([^\]]+)\]/)
+                  if (match) slipUrl = match[1].trim()
+                }
+
+                displayNote = displayNote.replace(/\[สลิป:\s*[^\]]+\]\s*/g, '').trim()
+
+                return (
+                  <div className="space-y-3">
+                    {/* Full Slip Image View inside Modal */}
+                    {slipUrl && (
+                      <div className="p-3.5 bg-slate-900 border-2 border-emerald-500/40 rounded-2xl space-y-2 text-center">
+                        <div className="flex items-center justify-between text-xs font-bold pb-2 border-b border-slate-800">
+                          <span className="text-emerald-400 flex items-center gap-1.5">
+                            <CheckCircle2 className="w-4 h-4" /> รูปภาพสลิปหลักฐานการโอนเงิน
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setZoomSlipUrl(slipUrl)}
+                            className="text-purple-400 hover:underline flex items-center gap-1 text-xs"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> ขยายเต็มจอ
+                          </button>
+                        </div>
+                        <div
+                          onClick={() => setZoomSlipUrl(slipUrl)}
+                          className="max-h-64 overflow-hidden rounded-xl border border-slate-800 bg-black cursor-pointer inline-block mx-auto hover:opacity-95 transition shadow-lg"
+                        >
+                          <img src={slipUrl} alt="Slip Details" className="max-h-60 w-auto object-contain mx-auto" />
+                        </div>
+                      </div>
+                    )}
+
+                    {displayNote && (
+                      <div className="p-3 bg-purple-50/50 dark:bg-purple-950/20 rounded-xl border border-purple-100 dark:border-purple-900/30 space-y-1">
+                        <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 block">💬 บันทึก / รายการสั่งซื้อ</span>
+                        <p className="text-slate-700 dark:text-slate-300 leading-relaxed font-medium">{displayNote}</p>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
             </div>
 
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">

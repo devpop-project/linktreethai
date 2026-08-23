@@ -2,10 +2,11 @@
 
 import React, { useEffect, useState } from 'react'
 import ImageLightboxModal from '@/components/ImageLightboxModal'
+import { getPromptPayQRImageUrl } from '@/lib/promptpay'
 import { 
   ShoppingBag, Check, Flame, Clock, ShieldCheck, Truck, MessageCircle, Globe, 
   Sparkles, ArrowRight, CheckCircle2, Send, AlertTriangle, 
-  HelpCircle, Star, ChevronDown, ChevronUp, Lock, Palette, ImageIcon
+  HelpCircle, Star, ChevronDown, ChevronUp, Lock, Palette, ImageIcon, Upload
 } from 'lucide-react'
 
 function getYouTubeEmbedUrl(url: string | null): string | null {
@@ -83,6 +84,9 @@ interface SalesLandingPagePreviewProps {
     tiktok_pixel_id?: string
     google_pixel_id?: string
     line_tag_id?: string
+    promptpay_phone?: string
+    promptpay_name?: string
+    promptpay_bank?: string
   }
   profile: any
 }
@@ -93,6 +97,8 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxImages, setLightboxImages] = useState<string[]>([])
   const [lightboxIndex, setLightboxIndex] = useState(0)
+  const [previewPaymentMethod, setPreviewPaymentMethod] = useState<'promptpay' | 'cod'>('promptpay')
+  const [previewCustomAmount, setPreviewCustomAmount] = useState<string>('')
 
   const themeColor = pageData.theme_color || '#EF4444'
   const bgColor = pageData.bg_color || '#0B0F17'
@@ -604,91 +610,223 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
           </section>
         )}
 
-        {/* COD Form Mockup (Shown ONLY when enable_cod_form is explicitly TRUE) */}
-        {/* COD Form Preview (Exact Image 8/9 Match) */}
-        {Boolean(pageData.enable_cod_form) && (
-          <div className="bg-[#111827]/95 border-2 border-slate-700/80 rounded-[32px] p-5 sm:p-6 shadow-2xl space-y-4 text-white">
-            <div className="text-center pb-2 border-b border-slate-700/50">
-              <h3 className="font-extrabold text-base text-white flex items-center justify-center gap-2">
-                <span>📦 กรอกข้อมูลสั่งซื้อ (เก็บเงินปลายทาง)</span>
-              </h3>
-              <p className="text-xs text-slate-300 mt-1 font-medium">
-                กรอกชื่อ เบอร์โทร และที่อยู่จัดส่ง เจ้าหน้าที่จะติดต่อกลับเพื่อยืนยันออเดอร์
-              </p>
-            </div>
+        {/* FULL CHECKOUT FORM PREVIEW (พร้อมเพย์ QR ตามยอด + COD + แนบสลิป) */}
+        {Boolean(pageData.enable_cod_form) && (() => {
+          const ownerPPPhone = pageData.promptpay_phone || profile?.promptpay_phone || '0909964514'
+          const ownerPPName = pageData.promptpay_name || profile?.full_name || profile?.username || 'เจ้าของร้านค้า'
+          const ownerPPBank = pageData.promptpay_bank || 'พร้อมเพย์ (PromptPay)'
+          const defaultPrice = pageData.offer_price ? parseFloat(String(pageData.offer_price)) : 0
+          const enteredAmt = parseFloat(previewCustomAmount)
+          const currentPayAmount = !isNaN(enteredAmt) && enteredAmt > 0 ? enteredAmt : defaultPrice
+          const isPromptPay = previewPaymentMethod === 'promptpay'
 
-            <div className="space-y-3.5 text-xs font-bold">
-              <div>
-                <label className="block mb-1.5 text-slate-200">
-                  ชื่อ-นามสกุล ผู้รับสินค้า *
-                </label>
-                <input
-                  type="text"
-                  disabled
-                  placeholder="เช่น สมชาย ใจดี"
-                  className="w-full px-4 py-3 bg-[#1E293B] border-2 border-slate-700 rounded-2xl text-white placeholder:text-slate-400 text-xs shadow-inner font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block mb-1.5 text-slate-200">
-                  เบอร์โทรศัพท์สำหรับติดต่อ *
-                </label>
-                <input
-                  type="tel"
-                  disabled
-                  placeholder="081-xxx-xxxx"
-                  className="w-full px-4 py-3 bg-[#1E293B] border-2 border-slate-700 rounded-2xl text-white placeholder:text-slate-400 font-mono text-xs shadow-inner"
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-slate-200 flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#06C755]"></span>
-                    <span>LINE ID สำหรับติดต่อ (ถ้ามี)</span>
-                  </label>
-                  <span className="text-[10px] text-slate-400 font-normal">แอดเพื่อแจ้งสถานะจัดส่ง</span>
+          return (
+            <div className="bg-gradient-to-b from-slate-900/95 via-[#0F172A]/95 to-[#0B0F17]/98 border-2 border-slate-700/80 rounded-[32px] p-5 sm:p-7 shadow-2xl space-y-5 text-white ring-1 ring-white/10">
+              <div className="text-center pb-3 border-b border-slate-700/60 space-y-1">
+                <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-black">
+                  <ShieldCheck className="w-3 h-3" />
+                  <span>ระบบสั่งซื้อปลอดภัย 100% • แจ้งเตือนเข้า LINE เจ้าหน้าที่</span>
                 </div>
-                <input
-                  type="text"
-                  disabled
-                  placeholder="เช่น @yourshop หรือ line_id"
-                  className="w-full px-4 py-3 bg-[#1E293B] border-2 border-slate-700 rounded-2xl text-white placeholder:text-slate-400 font-mono text-xs shadow-inner"
-                />
+                <h3 className="font-black text-lg sm:text-xl text-white flex items-center justify-center gap-2">
+                  <span>🛒 กรอกข้อมูลสั่งซื้อสินค้า & ชำระเงิน</span>
+                </h3>
+                <p className="text-xs text-slate-300 font-medium">
+                  เลือกวิธีชำระเงิน กรอกที่อยู่จัดส่ง และกดยืนยันออเดอร์
+                </p>
               </div>
 
-              <div>
-                <label className="block mb-1.5 text-slate-200">
-                  ที่อยู่สำหรับจัดส่งสินค้า
-                </label>
-                <textarea
-                  rows={2}
-                  disabled
-                  placeholder="บ้านเลขที่, ถนน, ตำบล, อำเภอ, จังหวัด, รหัสไปรษณีย์"
-                  className="w-full px-4 py-3 bg-[#1E293B] border-2 border-slate-700 rounded-2xl text-white placeholder:text-slate-400 text-xs shadow-inner font-medium leading-relaxed"
-                />
-              </div>
+              <div className="space-y-4 text-xs font-bold">
+                {/* 1. Payment Method Switcher in Preview */}
+                <div className="space-y-1.5">
+                  <label className="block text-slate-200">1. เลือกวิธีการชำระเงิน *</label>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewPaymentMethod('promptpay')}
+                      className={`p-3.5 rounded-2xl border-2 font-black text-xs flex items-center gap-2.5 transition active:scale-98 cursor-pointer ${
+                        isPromptPay
+                          ? 'border-emerald-500 bg-gradient-to-r from-emerald-500/25 to-teal-500/15 text-emerald-300 shadow-md ring-2 ring-emerald-500/30'
+                          : 'bg-slate-900/90 border-slate-700 text-slate-400 hover:bg-slate-800'
+                      }`}
+                    >
+                      <span className="text-lg">📱</span>
+                      <div className="text-left min-w-0 flex-1">
+                        <span className="block font-black text-xs text-white">โอนพร้อมเพย์</span>
+                        <span className="text-[9px] font-medium text-emerald-400 block">สแกน QR Code</span>
+                      </div>
+                    </button>
 
-              <div>
-                <label className="block mb-1.5 text-slate-200">
-                  หมายเหตุเพิ่มเติม (ถ้ามี)
-                </label>
-                <input
-                  type="text"
-                  disabled
-                  placeholder="เช่น ฝากไว้หน้าบ้าน, โทรแจ้งก่อนส่ง"
-                  className="w-full px-4 py-3 bg-[#1E293B] border-2 border-slate-700 rounded-2xl text-white placeholder:text-slate-400 text-xs shadow-inner font-medium"
-                />
-              </div>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewPaymentMethod('cod')}
+                      className={`p-3.5 rounded-2xl border-2 font-black text-xs flex items-center gap-2.5 transition active:scale-98 cursor-pointer ${
+                        !isPromptPay
+                          ? 'border-emerald-500 bg-gradient-to-r from-emerald-500/25 to-teal-500/15 text-emerald-300 shadow-md ring-2 ring-emerald-500/30'
+                          : 'bg-slate-900/90 border-slate-700 text-slate-400 hover:bg-slate-800'
+                      }`}
+                    >
+                      <span className="text-lg">🚚</span>
+                      <div className="text-left min-w-0 flex-1">
+                        <span className="block font-black text-xs text-white">เก็บเงินปลายทาง</span>
+                        <span className="text-[9px] font-medium text-slate-400 block">ชำระเมื่อรับของ</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
 
-              <div className="w-full py-3.5 bg-[#34D399] text-slate-950 font-black rounded-2xl text-center flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 text-xs sm:text-sm">
-                <Send className="w-4 h-4" />
-                <span>ยืนยันการสั่งซื้อโปรโมชั่นนี้</span>
+                {/* 2. PromptPay QR Code Box in Preview */}
+                {isPromptPay && (
+                  <div className="p-4 sm:p-5 rounded-3xl bg-slate-950 border-2 border-emerald-500/40 space-y-3.5 text-center shadow-inner">
+                    <div className="flex items-center justify-between pb-2 border-b border-emerald-500/20 text-left">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">🏦</span>
+                        <div>
+                          <div className="font-black text-xs text-emerald-400">บัญชีรับเงินพร้อมเพย์ร้านค้า</div>
+                          <div className="text-[10px] text-slate-300">{ownerPPName} • {ownerPPBank}</div>
+                          <div className="text-[10px] font-mono text-emerald-400 font-bold">{ownerPPPhone}</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[9px] text-slate-400 block">ยอดชำระ</span>
+                        <span className="text-base sm:text-lg font-black text-emerald-400 font-mono">
+                          ฿{currentPayAmount.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Custom Amount Input in Preview */}
+                    <div className="space-y-1 text-left">
+                      <label className="block text-[10px] font-extrabold text-slate-200 flex items-center justify-between">
+                        <span>💰 ยอดเงินที่ต้องการโอน (บาท)</span>
+                        <span className="text-[9px] text-slate-400">ราคาตั้งต้น: ฿{defaultPrice.toLocaleString()}</span>
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">฿</span>
+                        <input
+                          type="number"
+                          placeholder={`ระบุยอดเงิน (หากไม่กรอกจะคิด ฿${defaultPrice.toLocaleString()})`}
+                          value={previewCustomAmount}
+                          onChange={(e) => setPreviewCustomAmount(e.target.value)}
+                          className="w-full pl-7 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs font-mono font-black text-emerald-400 focus:outline-none focus:border-emerald-400"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Dynamic QR Code Image */}
+                    <div className="p-3 bg-white rounded-2xl inline-block shadow-lg mx-auto border border-slate-200">
+                      <img
+                        src={getPromptPayQRImageUrl(ownerPPPhone, currentPayAmount, 160)}
+                        alt="PromptPay QR Code"
+                        className="w-36 h-36 object-contain mx-auto"
+                      />
+                      <div className="mt-1 text-slate-900 font-black text-[11px] font-mono">
+                        สแกนจ่าย ฿{currentPayAmount.toLocaleString()} บาท
+                      </div>
+                      <div className="text-[9px] text-slate-600 font-bold">{ownerPPName}</div>
+                    </div>
+
+                    {/* Slip Upload Dropzone Preview */}
+                    <div className="space-y-1.5 text-left pt-0.5">
+                      <label className="block text-[11px] font-extrabold text-slate-200 flex items-center gap-1">
+                        <Upload className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>แนบรูปสลิปโอนเงิน</span>
+                        <span className="text-[9px] text-emerald-400">(ส่งเข้า LINE เจ้าของร้านทันที)</span>
+                      </label>
+                      <div className="w-full p-3 bg-slate-900/90 border-2 border-dashed border-emerald-500/50 hover:bg-slate-850 text-slate-200 rounded-2xl text-xs flex flex-col items-center justify-center gap-1 shadow cursor-pointer">
+                        <Upload className="w-4 h-4 text-emerald-400" />
+                        <span className="font-bold text-white text-[11px]">แตะเพื่อเลือกรูปสลิปโอนเงิน</span>
+                        <span className="text-[9px] text-slate-400">รองรับไฟล์ภาพ JPG, PNG</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Customer Information Input Fields */}
+                <div className="space-y-3 pt-1">
+                  <div>
+                    <label className="block mb-1 text-slate-200 text-xs font-bold">ชื่อ-นามสกุล ผู้รับสินค้า *</label>
+                    <input
+                      type="text"
+                      disabled
+                      placeholder="เช่น สมชาย ใจดี"
+                      className="w-full px-3.5 py-2.5 bg-[#1E293B] border-2 border-slate-700 rounded-xl text-white placeholder:text-slate-400 text-xs shadow-inner font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1 text-slate-200 text-xs font-bold">เบอร์โทรศัพท์สำหรับติดต่อ *</label>
+                    <input
+                      type="tel"
+                      disabled
+                      placeholder="081-xxx-xxxx"
+                      className="w-full px-3.5 py-2.5 bg-[#1E293B] border-2 border-slate-700 rounded-xl text-white placeholder:text-slate-400 font-mono text-xs shadow-inner font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-slate-200 flex items-center gap-1 text-xs font-bold">
+                        <span className="w-2 h-2 rounded-full bg-[#06C755]"></span>
+                        <span>LINE ID สำหรับติดต่อ (ถ้ามี)</span>
+                      </label>
+                      <span className="text-[9px] text-slate-400 font-normal">แอดเพื่อแจ้งสถานะจัดส่ง</span>
+                    </div>
+                    <input
+                      type="text"
+                      disabled
+                      placeholder="เช่น @yourshop หรือ line_id"
+                      className="w-full px-3.5 py-2.5 bg-[#1E293B] border-2 border-slate-700 rounded-xl text-white placeholder:text-slate-400 font-mono text-xs shadow-inner font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1 text-slate-200 text-xs font-bold">ที่อยู่สำหรับจัดส่งสินค้า</label>
+                    <textarea
+                      rows={2}
+                      disabled
+                      placeholder="บ้านเลขที่, ถนน, ตำบล, อำเภอ, จังหวัด, รหัสไปรษณีย์"
+                      className="w-full px-3.5 py-2.5 bg-[#1E293B] border-2 border-slate-700 rounded-xl text-white placeholder:text-slate-400 text-xs shadow-inner leading-relaxed font-medium"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block mb-1 text-slate-200 text-xs font-bold">หมายเหตุเพิ่มเติม (ถ้ามี)</label>
+                    <input
+                      type="text"
+                      disabled
+                      placeholder="เช่น ฝากไว้หน้าบ้าน, โทรแจ้งก่อนส่ง"
+                      className="w-full px-3.5 py-2.5 bg-[#1E293B] border-2 border-slate-700 rounded-xl text-white placeholder:text-slate-400 text-xs shadow-inner font-medium"
+                    />
+                  </div>
+                </div>
+
+                {/* Luxurious High-Converting CTA Button Preview */}
+                <div className="pt-2">
+                  <div className="w-full py-4 px-5 bg-gradient-to-r from-[#10B981] via-[#34D399] to-[#059669] text-slate-950 font-black rounded-3xl text-xs sm:text-sm shadow-2xl shadow-emerald-500/40 ring-4 ring-emerald-400/30 flex items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-2.5 text-left">
+                      <div className="w-9 h-9 rounded-xl bg-slate-950/15 text-slate-950 flex items-center justify-center font-black shadow-inner shrink-0">
+                        <ShoppingBag className="w-4 h-4 text-slate-950" />
+                      </div>
+                      <div>
+                        <span className="block font-black text-xs sm:text-sm leading-tight text-slate-950">
+                          ยืนยันการสั่งซื้อโปรโมชั่นนี้
+                        </span>
+                        <span className="text-[10px] font-bold opacity-85 block text-slate-900 mt-0.5">
+                          {isPromptPay ? '✓ ชำระเงินโอนพร้อมเพย์แนบสลิป' : '✓ เก็บเงินปลายทาง (COD)'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="px-3 py-1.5 bg-slate-950 text-emerald-400 rounded-xl font-mono font-black text-xs flex items-center gap-1 shadow shrink-0">
+                      <span>฿{currentPayAmount.toLocaleString()}</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-emerald-300" />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
       </div>
 

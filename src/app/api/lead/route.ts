@@ -8,6 +8,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { 
       user_id, 
+      landing_page_id,
       name, 
       phone, 
       email, 
@@ -17,6 +18,9 @@ export async function POST(request: Request) {
       address, 
       order_code, 
       status,
+      payment_method,
+      slip_url,
+      utm,
       line_channel_access_token,
       line_user_id,
       line_webhook_url,
@@ -27,12 +31,68 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields (name)' }, { status: 400 })
     }
 
-    const orderRef = order_code ? String(order_code).trim() : `MSG-${Date.now().toString().slice(-6)}`
-    const isOrder = Boolean(address || (note && (note.includes('COD') || note.includes('สั่งซื้อ') || note.includes('ออเดอร์'))) || amount)
-    const headerTitle = isOrder ? '🛒 มีออเดอร์สั่งซื้อ (COD) ใหม่!' : '💬 มีข้อความติดต่อ/ลีดใหม่!'
+    const orderRef = order_code ? String(order_code).trim() : `ORD-${Date.now().toString().slice(-6)}`
+    const isPromptPay = payment_method === 'promptpay' || Boolean(slip_url)
+    const isCOD = payment_method === 'cod'
+    const isOrder = Boolean(address || isPromptPay || isCOD || amount)
+    
+    let headerTitle = '💬 มีข้อความติดต่อ/ลีดใหม่!'
+    if (isPromptPay) headerTitle = '📱 มีออเดอร์โอนพร้อมเพย์ (แนบสลิปแล้ว)!'
+    else if (isCOD) headerTitle = '🚚 มีออเดอร์เก็บเงินปลายทาง (COD) ใหม่!'
+    else if (isOrder) headerTitle = '🛒 มีออเดอร์สั่งซื้อใหม่!'
+
+    // =========================================================================
+    // 1. SUPABASE CLIENT & ADMIN SETTINGS LOOKUP
+    // =========================================================================
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dkidksohprjhkcokdbja.supabase.co'
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_rV42rP4GC0GQaI7eK56X9Q_ADKY96PU'
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { persistSession: false }
+    })
+
+    // Convert Base64 slip to permanent public Storage URL if uploaded as Data URL
+    let finalSlipUrl = slip_url ? String(slip_url).trim() : null
+    if (finalSlipUrl && finalSlipUrl.startsWith('data:image/')) {
+      try {
+        const matches = finalSlipUrl.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/)
+        if (matches) {
+          const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1]
+          const buffer = Buffer.from(matches[2], 'base64')
+          const fileName = `slips/order-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${ext}`
+
+          let uploadSuccess = false
+          // Try bucket 'media' first (standard Supabase bucket)
+          try {
+            const { data: up1, error: err1 } = await supabase.storage
+              .from('media')
+              .upload(fileName, buffer, { contentType: `image/${matches[1]}`, upsert: true })
+            if (!err1 && up1) {
+              const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(fileName)
+              finalSlipUrl = publicUrl
+              uploadSuccess = true
+            }
+          } catch (e1) {}
+
+          // Fallback to bucket 'linktree-assets'
+          if (!uploadSuccess) {
+            try {
+              const { data: up2, error: err2 } = await supabase.storage
+                .from('linktree-assets')
+                .upload(fileName, buffer, { contentType: `image/${matches[1]}`, upsert: true })
+              if (!err2 && up2) {
+                const { data: { publicUrl } } = supabase.storage.from('linktree-assets').getPublicUrl(fileName)
+                finalSlipUrl = publicUrl
+              }
+            } catch (e2) {}
+          }
+        }
+      } catch (uploadEx) {
+        console.warn('Server slip upload notice:', uploadEx)
+      }
+    }
 
     // Construct Clean Human-Readable Notification Message
-    const linePushMessage = `${headerTitle}\n` +
+    let linePushMessage = `${headerTitle}\n` +
       `━━━━━━━━━━━━━━━━━\n` +
       `👤 ลูกค้า: ${String(name).trim()}\n` +
       `📱 เบอร์โทร: ${phone ? String(phone).trim() : '-'}\n` +
@@ -40,50 +100,97 @@ export async function POST(request: Request) {
       (email ? `✉️ อีเมล: ${String(email).trim()}\n` : '') +
       (address ? `🏠 ที่อยู่จัดส่ง: ${String(address).trim()}\n` : '') +
       (amount ? `💰 ยอดเงิน: ฿${parseFloat(String(amount)).toLocaleString()} บาท\n` : '') +
+      `💳 การชำระเงิน: ${isPromptPay ? 'โอนเงินผ่านพร้อมเพย์ (แนบสลิป)' : (isCOD ? 'เก็บเงินปลายทาง (COD)' : 'ชำระเงินออนไลน์')}\n` +
+      (finalSlipUrl ? `🧾 ลิงก์สลิปโอนเงิน: ${finalSlipUrl}\n` : '') +
+      (utm?.utm_source ? `🎯 แหล่งที่มา (UTM): ${utm.utm_source}${utm.utm_campaign ? ` / ${utm.utm_campaign}` : ''}\n` : '') +
       (note ? `📝 รายละเอียด: ${String(note).trim()}\n` : '') +
       `🏷️ รหัสอ้างอิง: #${orderRef}\n` +
       `━━━━━━━━━━━━━━━━━\n` +
-      `🔗 เข้าดูในแดชบอร์ด: https://linktreethai.com/dashboard`
+      `🔗 เข้าดูในแดชบอร์ด: https://linktreethai.com/admin`
 
-    // =========================================================================
-    // 1. REAL-TIME LINE NOTIFICATION (DISPATCHED IMMEDIATELY)
-    // =========================================================================
     let channelToken = (line_channel_access_token || '').trim()
     let targetUserId = (line_user_id || '').trim()
     let webhookUrl = (line_webhook_url || '').trim()
     let notifyToken = (line_notify_token || '').trim()
 
-    // Initialize Supabase Client for DB & Profile lookup
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dkidksohprjhkcokdbja.supabase.co'
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_rV42rP4GC0GQaI7eK56X9Q_ADKY96PU'
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      auth: { persistSession: false }
-    })
-
-    // If tokens were not passed directly from client, query owner profile
-    if ((!channelToken || !targetUserId) && !webhookUrl && !notifyToken && user_id) {
+    // 1.1 Check Owner Profile for credentials
+    if ((!channelToken || !targetUserId) && user_id) {
       try {
         const { data: owner } = await supabase
           .from('profiles')
-          .select('id, username, full_name, role, master_expires_at, line_channel_access_token, line_user_id, line_webhook_url, line_notify_token')
+          .select('id, username, full_name, role, line_channel_access_token, line_user_id, line_webhook_url, line_notify_token')
           .eq('id', user_id)
           .single()
 
         if (owner) {
-          channelToken = (owner.line_channel_access_token || '').trim()
-          targetUserId = (owner.line_user_id || '').trim()
-          webhookUrl = (owner.line_webhook_url || '').trim()
-          notifyToken = (owner.line_notify_token || '').trim()
+          if (!channelToken && owner.line_channel_access_token) channelToken = owner.line_channel_access_token.trim()
+          if (!targetUserId && owner.line_user_id) targetUserId = owner.line_user_id.trim()
+          if (!webhookUrl && owner.line_webhook_url) webhookUrl = owner.line_webhook_url.trim()
+          if (!notifyToken && owner.line_notify_token) notifyToken = owner.line_notify_token.trim()
         }
-      } catch (profErr) {
-        console.warn('Notice: Could not fetch owner profile from DB:', profErr)
-      }
+      } catch (e) {}
     }
 
-    // Execute LINE Messaging API Push
+    // 1.2 Fallback: Check system_settings table (where Admin configures LINE Messaging API)
+    if (!channelToken || !targetUserId) {
+      try {
+        const { data: sysData } = await supabase
+          .from('system_settings')
+          .select('key, value')
+          .in('key', ['line_channel_access_token', 'line_user_id', 'line_webhook_url', 'line_notify_token'])
+
+        if (sysData && sysData.length > 0) {
+          sysData.forEach((row: any) => {
+            if (row.key === 'line_channel_access_token' && row.value && !channelToken) channelToken = row.value.trim()
+            if (row.key === 'line_user_id' && row.value && !targetUserId) targetUserId = row.value.trim()
+            if (row.key === 'line_webhook_url' && row.value && !webhookUrl) webhookUrl = row.value.trim()
+            if (row.key === 'line_notify_token' && row.value && !notifyToken) notifyToken = row.value.trim()
+          })
+        }
+      } catch (e) {}
+    }
+
+    // 1.3 Fallback: Check Admin Profiles row
+    if (!channelToken || !targetUserId) {
+      try {
+        const { data: adminProf } = await supabase
+          .from('profiles')
+          .select('line_channel_access_token, line_user_id, line_webhook_url, line_notify_token')
+          .eq('role', 'admin')
+          .limit(1)
+          .single()
+
+        if (adminProf) {
+          if (!channelToken && adminProf.line_channel_access_token) channelToken = adminProf.line_channel_access_token.trim()
+          if (!targetUserId && adminProf.line_user_id) targetUserId = adminProf.line_user_id.trim()
+          if (!webhookUrl && adminProf.line_webhook_url) webhookUrl = adminProf.line_webhook_url.trim()
+          if (!notifyToken && adminProf.line_notify_token) notifyToken = adminProf.line_notify_token.trim()
+        }
+      } catch (e) {}
+    }
+
+    // =========================================================================
+    // 2. DISPATCH LINE MESSAGING API PUSH NOTIFICATION (WITH IMAGE IF SLIP)
+    // =========================================================================
     if (channelToken && targetUserId) {
       try {
-        const lineRes = await fetch('https://api.line.me/v2/bot/message/push', {
+        const messagesPayload: any[] = [
+          {
+            type: 'text',
+            text: linePushMessage
+          }
+        ]
+
+        // If slip image URL exists, send slip image directly in LINE chat!
+        if (finalSlipUrl && finalSlipUrl.startsWith('https://')) {
+          messagesPayload.push({
+            type: 'image',
+            originalContentUrl: finalSlipUrl,
+            previewImageUrl: finalSlipUrl
+          })
+        }
+
+        let lineRes = await fetch('https://api.line.me/v2/bot/message/push', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -91,71 +198,77 @@ export async function POST(request: Request) {
           },
           body: JSON.stringify({
             to: targetUserId,
-            messages: [
-              {
-                type: 'text',
-                text: linePushMessage
-              }
-            ]
+            messages: messagesPayload
           })
         })
+
+        // Fail-safe Retry: If sending with image fails (e.g. LINE rejects external image URL with 400),
+        // immediately send the text notification so the admin NEVER misses the order!
+        if (!lineRes.ok && messagesPayload.length > 1) {
+          console.warn('[LINE API] Push with image was rejected, retrying text-only payload...')
+          lineRes = await fetch('https://api.line.me/v2/bot/message/push', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${channelToken}`
+            },
+            body: JSON.stringify({
+              to: targetUserId,
+              messages: [
+                {
+                  type: 'text',
+                  text: linePushMessage
+                }
+              ]
+            })
+          })
+        }
+
         if (!lineRes.ok) {
           const errText = await lineRes.text()
-          console.error('LINE Messaging API error response:', lineRes.status, errText)
+          console.error('[LINE API] Error response:', lineRes.status, errText)
         } else {
-          console.log('✅ LINE Messaging API push sent successfully!')
+          console.log('✅ LINE Messaging API push delivered successfully!')
         }
       } catch (lineErr) {
         console.error('Error executing LINE Messaging API push:', lineErr)
       }
     }
 
-    // Execute Custom Webhook / LINE OA Webhook
+    // Fallback Webhook
     if (webhookUrl) {
       try {
-        await fetch(webhookUrl, {
+        fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             event: isOrder ? 'new_order' : 'new_lead',
             timestamp: new Date().toISOString(),
             order_code: orderRef,
-            lead: {
-              name,
-              phone,
-              email,
-              line_id,
-              address,
-              amount,
-              note
-            }
+            payment_method: isPromptPay ? 'promptpay' : (isCOD ? 'cod' : 'online'),
+            slip_url: finalSlipUrl || null,
+            lead: { name, phone, email, line_id, address, amount, note, utm }
           })
-        })
-        console.log('✅ Webhook sent successfully!')
-      } catch (wErr) {
-        console.error('Error executing Webhook push:', wErr)
-      }
+        }).catch(() => {})
+      } catch (e) {}
     }
 
-    // Execute Legacy LINE Notify (Fallback)
+    // Fallback LINE Notify
     if (notifyToken && (!channelToken || !targetUserId)) {
       try {
-        await fetch('https://notify-api.line.me/api/notify', {
+        fetch('https://notify-api.line.me/api/notify', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${notifyToken}`,
             'Content-Type': 'application/x-www-form-urlencoded'
           },
           body: new URLSearchParams({ message: `\n${linePushMessage}` }).toString()
-        })
-        console.log('✅ Legacy LINE Notify sent successfully!')
-      } catch (nErr) {
-        console.error('Error executing LINE Notify push:', nErr)
-      }
+        }).catch(() => {})
+      } catch (e) {}
     }
 
     // =========================================================================
-    // 2. SAVE LEAD TO SUPABASE DATABASE (RESILIENT WITH FALLBACKS)
+    // 3. SAVE ORDER / LEAD TO DATABASE
     // =========================================================================
     if (user_id) {
       try {
@@ -168,43 +281,34 @@ export async function POST(request: Request) {
           amount: amount ? parseFloat(String(amount)) : null,
           address: address ? String(address).trim() : null,
           order_code: orderRef,
-          note: note ? String(note).trim() : null,
-          status: status || 'pending'
+          note: (finalSlipUrl ? `[สลิป: ${finalSlipUrl}] ` : '') + (note ? String(note).trim() : ''),
+          status: status || (isPromptPay ? 'paid' : 'pending'),
+          created_at: new Date().toISOString()
         }
 
-        const { error: insertErr } = await supabase.from('leads').insert([fullPayload])
-        if (insertErr) {
-          // Minimal fallback
-          const minPayload = {
-            user_id,
-            name: String(name).trim(),
-            phone: phone ? String(phone).trim() : null,
-            line_id: line_id ? String(line_id).trim() : null,
-            email: email ? String(email).trim() : null,
-            note: note ? String(note).trim() : null
-          }
-          await supabase.from('leads').insert([minPayload])
-        }
+        await supabase.from('leads').insert([fullPayload])
 
-        // Record conversion event asynchronously
-        try {
-          await supabase.from('analytics_events').insert([{
+        // Save into payment_transactions if promptpay slip uploaded
+        if (finalSlipUrl && amount) {
+          await supabase.from('payment_transactions').insert([{
             user_id,
-            event_type: 'lead_submission',
-            referrer: isOrder ? 'sales_landing_page' : 'bio_contact_form',
+            amount: parseFloat(String(amount)),
+            payment_type: 'product_order',
+            slip_url: finalSlipUrl,
+            status: 'pending',
             created_at: new Date().toISOString()
-          }])
-        } catch (aErr) {}
+          }]).catch(() => {})
+        }
       } catch (dbErr) {
-        console.warn('Notice: Supabase lead insert notice:', dbErr)
+        console.warn('DB lead insert notice:', dbErr)
       }
     }
 
-    // Always return HTTP 200 Success
     return NextResponse.json({ 
       success: true, 
-      message: 'ส่งข้อมูลและแจ้งเตือนเข้า LINE เรียบร้อยแล้ว',
-      order_code: orderRef 
+      message: 'บันทึกออเดอร์และแจ้งเตือนเข้า LINE เรียบร้อยแล้ว',
+      order_code: orderRef,
+      slip_url: finalSlipUrl
     })
   } catch (e: any) {
     console.error('Unhandled lead API exception:', e)
