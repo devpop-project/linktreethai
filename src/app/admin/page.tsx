@@ -2120,26 +2120,36 @@ export default function AdminDashboardPage() {
                     </div>
 
                     {/* LIVE NAVBAR LOGO PREVIEW (LIGHT & DARK) */}
-                    <div className="p-3 bg-slate-900/90 rounded-2xl border border-slate-800 space-y-2">
+                    <div className="p-3.5 bg-slate-900/90 rounded-2xl border border-slate-800 space-y-2.5">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
-                        ตัวอย่างการแสดงผลบน Navbar:
+                        ตัวอย่างการแสดงผลบน Navbar (โลโก้ + ชื่อแบรนด์):
                       </span>
-                      <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                        <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center min-h-[60px]">
-                          <span className="text-[9px] text-slate-400 mb-1 font-bold">พื้นหลังสว่าง (Light)</span>
-                          {siteSettings.site_logo_url ? (
-                            <img src={siteSettings.site_logo_url} alt="Logo Light Preview" className="h-8 max-w-full object-contain" />
-                          ) : (
-                            <span className="font-black text-[#1E1B4B] text-sm">LinkTreeThai</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-center text-xs">
+                        <div className="p-3.5 bg-white rounded-xl border border-slate-200 flex items-center justify-center gap-3 min-h-[70px]">
+                          {siteSettings.site_logo_url && (
+                            <img src={siteSettings.site_logo_url} alt="Logo Light Preview" className="h-10 sm:h-12 max-w-[120px] object-contain shrink-0" />
                           )}
+                          <div className="flex flex-col text-left">
+                            <span className="font-black text-[#1E1B4B] text-sm sm:text-base tracking-tight">
+                              {siteSettings.site_title ? siteSettings.site_title.split(' - ')[0].trim() : 'LinkTreeThai'}
+                            </span>
+                            <span className="text-[8px] font-black uppercase text-purple-600 tracking-wider">
+                              Bio & Sales Automation
+                            </span>
+                          </div>
                         </div>
-                        <div className="p-3 bg-[#0F172A] rounded-xl border border-slate-800 flex flex-col items-center justify-center min-h-[60px]">
-                          <span className="text-[9px] text-slate-500 mb-1 font-bold">พื้นหลังมืด (Dark)</span>
-                          {siteSettings.site_logo_url ? (
-                            <img src={siteSettings.site_logo_url} alt="Logo Dark Preview" className="h-8 max-w-full object-contain" />
-                          ) : (
-                            <span className="font-black text-white text-sm">LinkTreeThai</span>
+                        <div className="p-3.5 bg-[#0F172A] rounded-xl border border-slate-800 flex items-center justify-center gap-3 min-h-[70px]">
+                          {siteSettings.site_logo_url && (
+                            <img src={siteSettings.site_logo_url} alt="Logo Dark Preview" className="h-10 sm:h-12 max-w-[120px] object-contain shrink-0" />
                           )}
+                          <div className="flex flex-col text-left">
+                            <span className="font-black text-white text-sm sm:text-base tracking-tight">
+                              {siteSettings.site_title ? siteSettings.site_title.split(' - ')[0].trim() : 'LinkTreeThai'}
+                            </span>
+                            <span className="text-[8px] font-black uppercase text-teal-400 tracking-wider">
+                              Bio & Sales Automation
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>

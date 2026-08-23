@@ -290,14 +290,18 @@ export async function POST(request: Request) {
 
         // Save into payment_transactions if promptpay slip uploaded
         if (finalSlipUrl && amount) {
-          await supabase.from('payment_transactions').insert([{
-            user_id,
-            amount: parseFloat(String(amount)),
-            payment_type: 'product_order',
-            slip_url: finalSlipUrl,
-            status: 'pending',
-            created_at: new Date().toISOString()
-          }]).catch(() => {})
+          try {
+            await supabase.from('payment_transactions').insert([{
+              user_id,
+              amount: parseFloat(String(amount)),
+              payment_type: 'product_order',
+              slip_url: finalSlipUrl,
+              status: 'pending',
+              created_at: new Date().toISOString()
+            }])
+          } catch (ptEx) {
+            console.warn('Payment transaction insert warning:', ptEx)
+          }
         }
       } catch (dbErr) {
         console.warn('DB lead insert notice:', dbErr)

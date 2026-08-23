@@ -1775,36 +1775,46 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Quick Action Buttons (Compact on Mobile, Full on Desktop) */}
-          <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
+          {/* Quick Action Buttons (Smart Responsive Layout) */}
+          <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
             
+            {/* Mobile Live Preview Button (Replaces intrusive floating button) */}
+            <button
+              onClick={() => setMobilePreviewOpen(true)}
+              className="lg:hidden px-2.5 py-1.5 rounded-2xl bg-[#1E1B4B] dark:bg-purple-600 text-white text-xs font-black flex items-center gap-1 shadow-sm active:scale-95 border border-purple-400/30"
+              title="เปิดดูตัวอย่างหน้าเว็บบนมือถือ"
+            >
+              <Eye className="w-3.5 h-3.5 text-purple-400 dark:text-white" />
+              <span className="text-[11px]">พรีวิว</span>
+            </button>
+
             {/* Clickable Coins / Points Chip */}
             <button
               onClick={() => setAccountModalOpen(true)}
-              className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-300/80 dark:border-amber-500/40 text-amber-800 dark:text-amber-300 text-xs font-bold flex items-center gap-1 hover:bg-amber-100 dark:hover:bg-amber-900/50 active:scale-95 transition cursor-pointer shadow-sm"
-              title="คลิกเพื่อดูสถานะ ตำแหน่ง วันหมดอายุ และสิทธิ์การใช้งาน"
+              className="px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-300/80 dark:border-amber-500/40 text-amber-800 dark:text-amber-300 text-xs font-bold flex items-center gap-1 hover:bg-amber-100 active:scale-95 transition cursor-pointer shadow-sm"
+              title="คลิกเพื่อดูแต้มและสถานะบัญชี"
             >
               <Coins className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 animate-pulse" />
-              <span>{profile.points || 0}</span>
-              <span className="text-[9px] bg-amber-200/60 dark:bg-amber-800/60 text-amber-900 dark:text-amber-100 px-1 py-0.2 rounded font-bold">แต้ม</span>
+              <span className="font-bold font-mono">{profile.points || 0}</span>
+              <span className="hidden xs:inline text-[9px] bg-amber-200/60 dark:bg-amber-800/60 text-amber-900 dark:text-amber-100 px-1 py-0.2 rounded font-bold">แต้ม</span>
             </button>
 
-            {/* Top-up Button */}
+            {/* Top-up Button (Only on >= sm screens to avoid crowding) */}
             <button
               type="button"
               onClick={() => setTopUpModalOpen(true)}
-              className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 text-xs font-black flex items-center gap-1 active:scale-95 transition shadow-sm"
+              className="hidden sm:flex px-3 py-1.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 text-slate-950 text-xs font-black items-center gap-1 active:scale-95 transition shadow-sm"
               title="เติมแต้มสะสม"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">เติมแต้ม</span>
+              <span>เติมแต้ม</span>
             </button>
 
             {/* Dark / Light Mode Toggle Button ☀️🌙 */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-amber-400 hover:border-purple-300 transition active:scale-95 shadow-sm"
-              title={isDarkMode ? 'เปลี่ยนเป็นธีมสว่าง (Light Mode)' : 'เปลี่ยนเป็นธีมมืด (Dark Mode)'}
+              className="p-1.5 sm:p-2 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-amber-400 hover:border-purple-300 transition active:scale-95 shadow-sm"
+              title={isDarkMode ? 'เปลี่ยนเป็นธีมสว่าง' : 'เปลี่ยนเป็นธีมมืด'}
             >
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4 text-slate-700" />}
             </button>
@@ -1814,11 +1824,11 @@ export default function DashboardPage() {
               href={publicProfileUrl}
               target="_blank"
               rel="noreferrer"
-              className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:text-purple-600 text-xs font-bold flex items-center gap-1 hover:border-purple-300 transition shadow-sm"
+              className="hidden sm:flex px-3 py-1.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:text-purple-600 text-xs font-bold items-center gap-1 hover:border-purple-300 transition shadow-sm"
               title="เปิดหน้าโปรไฟล์จริง"
             >
               <Globe className="w-3.5 h-3.5 text-purple-500" />
-              <span className="hidden sm:inline">ดูหน้าจริง</span>
+              <span>ดูหน้าจริง</span>
             </a>
 
             {/* QR Code & Share Button */}
@@ -1827,7 +1837,7 @@ export default function DashboardPage() {
                 setQrTargetUrl(publicProfileUrl)
                 setQrModalOpen(true)
               }}
-              className="p-2 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:text-purple-600 transition active:scale-95 shadow-sm"
+              className="p-1.5 sm:p-2 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:text-purple-600 transition active:scale-95 shadow-sm"
               title="แชร์และสแกน QR Code"
             >
               <QrCode className="w-4 h-4" />
@@ -1837,10 +1847,10 @@ export default function DashboardPage() {
             {profile.role === 'admin' && (
               <button
                 onClick={() => router.push('/admin')}
-                className="px-2.5 py-1.5 rounded-2xl bg-purple-100 dark:bg-purple-900/40 border border-purple-300 dark:border-purple-500 text-purple-700 dark:text-purple-300 text-xs font-bold flex items-center gap-1 hover:bg-purple-200 transition"
+                className="hidden md:flex px-2.5 py-1.5 rounded-2xl bg-purple-100 dark:bg-purple-900/40 border border-purple-300 dark:border-purple-500 text-purple-700 dark:text-purple-300 text-xs font-bold items-center gap-1 hover:bg-purple-200 transition"
               >
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">Admin</span>
+                <span>Admin</span>
               </button>
             )}
 
@@ -1850,7 +1860,7 @@ export default function DashboardPage() {
                 await supabase.auth.signOut()
                 router.push('/login')
               }}
-              className="p-2 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-rose-500 transition shadow-sm"
+              className="p-1.5 sm:p-2 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-rose-500 transition shadow-sm"
               title="ออกจากระบบ"
             >
               <LogOut className="w-4 h-4" />
@@ -1860,7 +1870,7 @@ export default function DashboardPage() {
       </header>
 
       {/* Main Workspace Layout */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full flex-1">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-36 sm:pb-16 w-full flex-1">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* Left Column: Mobile App Tabs & Content Editors */}
@@ -5241,14 +5251,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Mobile Floating Action Button (FAB) for Live Preview */}
-      <button
-        onClick={() => setMobilePreviewOpen(true)}
-        className="lg:hidden fixed bottom-24 right-4 z-40 p-3.5 rounded-full bg-[#1E1B4B] dark:bg-purple-600 text-white shadow-xl flex items-center gap-1.5 text-xs font-extrabold active:scale-95 border-2 border-white dark:border-slate-800"
-      >
-        <Eye className="w-4 h-4 text-purple-400 dark:text-white" />
-        <span>ดูหน้าจริง</span>
-      </button>
+
 
       {/* Mobile Fullscreen Live Preview Modal */}
       {mobilePreviewOpen && (

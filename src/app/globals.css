@@ -77,3 +77,33 @@ html.dark ::-webkit-scrollbar-track {
 .safe-area-pb {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
 }
+
+/* ========================================================================== */
+/* CONTINUOUS SMOOTH AUTO-SCROLLING HORIZONTAL MARQUEE */
+/* ========================================================================== */
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 40s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee:hover,
+.animate-marquee:focus-within {
+  animation-play-state: paused;
+}
+
+@media (max-width: 640px) {
+  .animate-marquee {
+    animation-duration: 30s;
+  }
+}
