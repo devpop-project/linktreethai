@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import SiteLogo from '@/components/SiteLogo'
 import { useEffect } from 'react'
 import { 
   Link2, ShoppingBag, Palette, ShieldCheck, Sparkles, ArrowRight, Sun, Moon, Rocket, Flame, Activity, 
@@ -13,6 +14,7 @@ import {
 export default function HomePage() {
   const [claimUsername, setClaimUsername] = useState('')
   const [isDarkMode, setIsDarkMode] = useState(false)
+  const [siteSettings, setSiteSettings] = useState<any>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -24,6 +26,14 @@ export default function HomePage() {
       setIsDarkMode(false)
       document.documentElement.classList.remove('dark')
     }
+
+    // Load dynamic site settings (Logo, Title, Footer)
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.settings) setSiteSettings(data.settings)
+      })
+      .catch(() => {})
   }, [])
 
   const toggleTheme = () => {
@@ -56,14 +66,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-4 py-3.5 flex items-center justify-between">
           
           {/* Brand Logo */}
-          <Link href="/" className="flex items-center space-x-2.5 group">
-            <div className="bg-gradient-to-tr from-purple-500 to-indigo-500 p-2 rounded-2xl text-white font-black shadow-md shadow-purple-500/20 group-hover:scale-105 transition">
-              <Link2 className="w-5 h-5" />
-            </div>
-            <span className="text-xl font-black text-[#1E1B4B] dark:text-white tracking-tight">
-              LinkTreeThai
-            </span>
-          </Link>
+          <SiteLogo customLogoUrl={siteSettings?.site_logo_url} />
 
           {/* Center Nav Links (Desktop) */}
           <nav className="hidden md:flex items-center space-x-6 text-xs font-bold text-slate-600 dark:text-slate-300">
@@ -433,15 +436,21 @@ export default function HomePage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200/80 py-8 bg-white text-xs text-slate-500">
+      <footer className="border-t border-slate-200/80 py-8 bg-white dark:bg-[#0B0F17] text-xs text-slate-500 dark:text-slate-400">
         <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 font-bold text-[#1E1B4B]">
-            <div className="w-6 h-6 rounded-lg bg-purple-500 flex items-center justify-center text-white text-[10px]">
-              LT
-            </div>
-            <span>LinkTreeThai</span>
+          <div className="flex items-center gap-2 font-bold text-[#1E1B4B] dark:text-white">
+            {siteSettings?.site_logo_url ? (
+              <img src={siteSettings.site_logo_url} alt="Logo" className="h-6 max-w-[120px] object-contain" />
+            ) : (
+              <>
+                <div className="w-6 h-6 rounded-lg bg-purple-500 flex items-center justify-center text-white text-[10px] font-black">
+                  LT
+                </div>
+                <span>{siteSettings?.site_title ? siteSettings.site_title.split(' - ')[0] : 'LinkTreeThai'}</span>
+              </>
+            )}
           </div>
-          <p>© 2026 LinkTreeThai. All rights reserved. สร้าง Bio Link & เซลเพจขายของยิงแอดครบวงจร</p>
+          <p>{siteSettings?.site_footer_text || '© 2026 LinkTreeThai. All rights reserved. สร้าง Bio Link & เซลเพจขายของยิงแอดครบวงจร'}</p>
         </div>
       </footer>
 

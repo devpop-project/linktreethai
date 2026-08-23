@@ -10,6 +10,7 @@ import TemplateRenderer from '@/components/templates/TemplateRenderer'
 import SalesLandingPagePreview from '@/components/SalesLandingPagePreview'
 import PixelAnalyticsModal from '@/components/PixelAnalyticsModal'
 import TopUpPointsModal from '@/components/TopUpPointsModal'
+import SiteLogo from '@/components/SiteLogo'
 import { Link2, Radio, Mic, Volume2, ShoppingBag, Palette, ExternalLink, Activity, Rocket, Plus, Trash2, Save, LogOut, Check, Eye, Upload, Image as ImageIcon, Sparkles, Globe, Youtube, RefreshCw, Share2, LayoutTemplate, Crown, Coins, Lock, AlertCircle, Users, Download, ShieldCheck, Zap, QrCode, X, MessageCircle, Scissors, Copy, Smartphone, Menu, ChevronRight, CheckCircle2, ArrowUpRight, Clock, KeyRound, Edit2, Camera, Sun, Moon, Filter, Search, BarChart3, ChevronDown, Phone, Mail, MapPin, DollarSign, Calendar, FileText, CheckSquare, Layers, EyeOff, ArrowUpDown, UserCheck, UserX, ListOrdered, Sliders, Flame, Send, ArrowRight, CheckCircle, ArrowLeft, Star, HelpCircle } from 'lucide-react'
 
 interface LandingPageFormData {
@@ -1750,11 +1751,9 @@ export default function DashboardPage() {
       <header className="border-b border-slate-200/80 dark:border-slate-800 backdrop-blur-xl sticky top-0 z-40 bg-white/95 dark:bg-[#0F172A]/95 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2">
           
-          {/* Logo & Brand: On Mobile only logo icon is shown without text so it never cuts off! */}
+          {/* Logo & Brand: Dynamically rendered with global site logo */}
           <div className="flex items-center space-x-2 shrink-0">
-            <div className="bg-gradient-to-tr from-purple-500 to-indigo-500 p-2 rounded-2xl text-white font-black shadow-md shadow-purple-500/20">
-              <Link2 className="w-4 h-4 sm:w-5 sm:h-5" />
-            </div>
+            <SiteLogo href="/dashboard" showText={false} imageClassName="h-8 max-w-[140px] object-contain" />
             
             {/* Brand Title (Hidden on Mobile screens to avoid clipping text) */}
             <div className="hidden sm:block">

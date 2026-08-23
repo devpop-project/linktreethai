@@ -1,6 +1,7 @@
 'use client'
 
 import { getPromptPayQRImageUrl } from '@/lib/promptpay'
+import SiteLogo from '@/components/SiteLogo'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -10,14 +11,30 @@ import {
   Edit3, Edit2, ArrowLeft, Check, AlertCircle, Lock, RefreshCw, Eye, X, 
   Trash2, ExternalLink, Link2, ShoppingBag, Settings, Scissors, 
   Copy, BarChart3, Database, Filter, Download, CheckCircle2, 
-  UserPlus, PackagePlus, Globe, Sparkles, Activity, Clock, Send, CreditCard, MessageCircle, Image as ImageIcon
+  UserPlus, PackagePlus, Globe, Sparkles, Activity, Clock, Send, CreditCard, MessageCircle, Image as ImageIcon,
+  Palette, Share2, Upload
 } from 'lucide-react'
 
-type AdminTab = 'users' | 'landing_pages' | 'pixels' | 'payments' | 'payment_settings' | 'shortlinks' | 'links' | 'products' | 'leads' | 'system'
+type AdminTab = 'users' | 'landing_pages' | 'pixels' | 'payments' | 'payment_settings' | 'site_settings' | 'shortlinks' | 'links' | 'products' | 'leads' | 'system'
 
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<AdminTab>('users')
+  // Site Logo, Favicon & Global SEO Settings State
+  const [siteSettings, setSiteSettings] = useState({
+    site_title: 'LinkTreeThai - รวมทุกลิงก์ โซเชียล และร้านค้าดิจิทัลในแอปเดียว',
+    site_description: 'สร้างหน้า Bio Link สวยทันสมัย สไตล์ Mobile App รวมทุกโซเชียล ขายสินค้าดิจิทัล ย่อลิงก์ พร้อมระบบจัดการครบวงจรด้วย LinkTreeThai',
+    site_keywords: 'linktree, biolink, ขายของออนไลน์, รวมลิงก์, เซลเพจ, ย่อลิงก์, linktreethai',
+    site_logo_url: '',
+    site_favicon_url: '',
+    site_og_image_url: '',
+    site_footer_text: '© 2026 LinkTreeThai. All rights reserved.'
+  })
+  const [savingSiteSettings, setSavingSiteSettings] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [uploadingFavicon, setUploadingFavicon] = useState(false)
+  const [uploadingOgImage, setUploadingOgImage] = useState(false)
+
   // Admin Managed Payment Settings State
   const [paymentSettings, setPaymentSettings] = useState({
     promptpay_phone: '0909964514',
@@ -198,12 +215,109 @@ export default function AdminDashboardPage() {
     // --- ADMIN PAYMENT SETTINGS HANDLERS ---
   const loadPaymentSettingsAdmin = async () => {
     try {
-      const res = await fetch('/api/settings/payment')
+      const res = await fetch('/api/settings')
       const data = await res.json()
       if (data?.settings) {
         setPaymentSettings(prev => ({ ...prev, ...data.settings }))
+        setSiteSettings(prev => ({
+          ...prev,
+          site_title: data.settings.site_title || prev.site_title,
+          site_description: data.settings.site_description || prev.site_description,
+          site_keywords: data.settings.site_keywords || prev.site_keywords,
+          site_logo_url: data.settings.site_logo_url || '',
+          site_favicon_url: data.settings.site_favicon_url || '',
+          site_og_image_url: data.settings.site_og_image_url || '',
+          site_footer_text: data.settings.site_footer_text || prev.site_footer_text
+        }))
       }
     } catch (e) {}
+  }
+
+  // Upload Brand Assets (Favicon, Logo, OG Image) to Supabase Storage
+  const handleUploadBrandAsset = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'favicon' | 'og') => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (type === 'logo') setUploadingLogo(true)
+    else if (type === 'favicon') setUploadingFavicon(true)
+    else if (type === 'og') setUploadingOgImage(true)
+
+    try {
+      const fileExt = file.name.split('.').pop() || 'png'
+      const fileName = `brand/${type}-${Date.now()}.${fileExt}`
+      
+      // Try 'media' bucket first
+      let { data, error } = await supabase.storage.from('media').upload(fileName, file, { upsert: true })
+      
+      let publicUrl = ''
+      if (!error && data) {
+        const res = supabase.storage.from('media').getPublicUrl(fileName)
+        publicUrl = res.data.publicUrl
+      } else {
+        // Fallback to 'linktree-assets'
+        const res2 = await supabase.storage.from('linktree-assets').upload(fileName, file, { upsert: true })
+        if (!res2.error && res2.data) {
+          const res = supabase.storage.from('linktree-assets').getPublicUrl(fileName)
+          publicUrl = res.data.publicUrl
+        }
+      }
+
+      if (publicUrl) {
+        if (type === 'logo') {
+          setSiteSettings(prev => ({ ...prev, site_logo_url: publicUrl }))
+          showNotification('📸 อัปโหลดโลโก้เว็บไซต์สำเร็จ!')
+        } else if (type === 'favicon') {
+          setSiteSettings(prev => ({ ...prev, site_favicon_url: publicUrl }))
+          // Live preview tab favicon
+          let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement
+          if (link) link.href = publicUrl
+          showNotification('🌐 อัปโหลดไอคอน Favicon สำเร็จ!')
+        } else if (type === 'og') {
+          setSiteSettings(prev => ({ ...prev, site_og_image_url: publicUrl }))
+          showNotification('🖼️ อัปโหลดรูปภาพ Social Share สำเร็จ!')
+        }
+      } else {
+        alert('❌ อัปโหลดรูปภาพไม่สำเร็จ กรุณาลองใหม่อีกครั้ง')
+      }
+    } catch (err: any) {
+      alert('❌ ข้อผิดพลาด: ' + err.message)
+    } finally {
+      if (type === 'logo') setUploadingLogo(false)
+      else if (type === 'favicon') setUploadingFavicon(false)
+      else if (type === 'og') setUploadingOgImage(false)
+    }
+  }
+
+  // Save Site Logo, Favicon & SEO Settings
+  const handleSaveSiteSettings = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingSiteSettings(true)
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: siteSettings })
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        showNotification('✅ บันทึกการตั้งค่าโลโก้ และ SEO เว็บไซต์เรียบร้อยแล้ว!')
+        
+        // Immediately apply live favicon and title
+        if (siteSettings.site_title) {
+          document.title = siteSettings.site_title
+        }
+        if (siteSettings.site_favicon_url) {
+          let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement
+          if (link) link.href = siteSettings.site_favicon_url
+        }
+      } else {
+        alert('❌ บันทึกไม่สำเร็จ: ' + (data?.error || 'เกิดข้อผิดพลาด'))
+      }
+    } catch (err: any) {
+      alert('❌ เกิดข้อผิดพลาด: ' + err.message)
+    } finally {
+      setSavingSiteSettings(false)
+    }
   }
 
     const handleTestAdminLine = async () => {
@@ -1230,9 +1344,7 @@ export default function AdminDashboardPage() {
       <header className="border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-[#0F172A]/90 backdrop-blur sticky top-0 z-40 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-3.5 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="bg-gradient-to-tr from-purple-500 to-indigo-500 p-2.5 rounded-2xl text-white font-bold shadow-md shadow-purple-500/20">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
+            <SiteLogo href="/admin" showText={false} imageClassName="h-9 max-w-[140px] object-contain" />
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-base text-[#1E1B4B] dark:text-white">ระบบจัดการหลังบ้านผู้ดูแลระบบ (Admin Suite)</span>
@@ -1371,6 +1483,15 @@ export default function AdminDashboardPage() {
             }`}
           >
             <Coins className="w-4 h-4" /> <span>💳 ตรวจสอบสลิป ({allPayments.length}){allPayments.filter(p => p.status === 'pending').length > 0 ? ` [${allPayments.filter(p => p.status === 'pending').length} รอตรวจ]` : ''}</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('site_settings'); setSearchQuery(''); }}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition ${
+              activeTab === 'site_settings' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black shadow-lg shadow-blue-500/30' : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <Globe className="w-4 h-4" /> <span>🌐 โลโก้ & SEO เว็บไซต์</span>
           </button>
 
           <button
@@ -1852,6 +1973,368 @@ export default function AdminDashboardPage() {
         )}
 
         
+        {/* ========================================================================= */}
+        {/* TAB: SITE LOGO, FAVICON & GLOBAL SEO SETTINGS (ADMIN MANAGED) */}
+        {/* ========================================================================= */}
+        {activeTab === 'site_settings' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            
+            {/* Header Card */}
+            <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-3xl space-y-3 text-white shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold shadow-lg shadow-blue-500/25">
+                    <Globe className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-lg text-white flex items-center gap-2">
+                      <span>ตั้งค่า Logo & SEO เว็บไซต์หลัก (Brand Identity & Meta Tags)</span>
+                      <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30 font-mono">
+                        Global Settings
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      จัดการโลโก้, ไอคอน Favicon บนแท็บเบราว์เซอร์, ชื่อเว็บไซต์, และข้อมูล Meta Tags สำหรับ Google Search และ Social Share
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveSiteSettings}
+                  disabled={savingSiteSettings}
+                  className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-blue-500/25 active:scale-95 transition cursor-pointer disabled:opacity-50"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{savingSiteSettings ? 'กำลังบันทึก...' : '💾 บันทึกการตั้งค่า SEO'}</span>
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveSiteSettings} className="space-y-6">
+              
+              {/* SECTION 1: LOGO & FAVICON (BRAND ASSETS) */}
+              <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-3xl space-y-5 text-white shadow-xl">
+                <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+                  <Palette className="w-5 h-5 text-blue-400" />
+                  <h4 className="font-black text-base text-white">
+                    1. จัดการรูปภาพแบรนด์ & ไอคอน (Favicon & Website Logo)
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  
+                  {/* 1.1 FAVICON ON BROWSER TAB */}
+                  <div className="p-5 bg-slate-950 border border-slate-800 rounded-2xl space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-black text-blue-400 flex items-center gap-1.5">
+                        <Globe className="w-4 h-4" />
+                        <span>ไอคอน Favicon บนแท็บเบราว์เซอร์ (Browser Tab Icon)</span>
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-mono">ขนาดแนะนำ 32x32 หรือ 64x64 px</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="วาง URL รูปภาพ Favicon หรือกดปุ่มอัปโหลดด้านข้าง..."
+                          value={siteSettings.site_favicon_url}
+                          onChange={(e) => setSiteSettings({ ...siteSettings, site_favicon_url: e.target.value })}
+                          className="flex-1 px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-blue-400 shadow-inner"
+                        />
+                        <label className="px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer transition shadow shrink-0 active:scale-95">
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>{uploadingFavicon ? 'กำลังอัปโหลด...' : '📸 อัปโหลด'}</span>
+                          <input
+                            type="file"
+                            accept="image/*,.ico"
+                            className="hidden"
+                            onChange={(e) => handleUploadBrandAsset(e, 'favicon')}
+                          />
+                        </label>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        * ไอคอนนี้จะไปปรากฏอยู่บนหัวแท็บของเบราว์เซอร์ (Chrome, Safari, Edge) แทนรูปโลกเดิม
+                      </p>
+                    </div>
+
+                    {/* LIVE REALISTIC BROWSER TAB PREVIEW (ตรงตามรูปของผู้ใช้) */}
+                    <div className="p-3 bg-slate-900/90 rounded-2xl border border-slate-800 space-y-1.5">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+                        ตัวอย่างการแสดงผลบน Browser Tab จริง:
+                      </span>
+                      <div className="bg-[#DEE1E6] dark:bg-[#1E293B] pt-2 px-2.5 rounded-t-xl max-w-xs flex items-end">
+                        <div className="bg-white dark:bg-slate-950 px-3 py-1.5 rounded-t-lg flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-white shadow-sm border-t border-x border-slate-300 dark:border-slate-800 max-w-[200px]">
+                          {siteSettings.site_favicon_url ? (
+                            <img
+                              src={siteSettings.site_favicon_url}
+                              alt="Favicon"
+                              className="w-4 h-4 rounded-sm object-contain shrink-0"
+                            />
+                          ) : (
+                            <Globe className="w-4 h-4 text-slate-500 shrink-0" />
+                          )}
+                          <span className="truncate font-sans text-[11px]">
+                            {siteSettings.site_title ? siteSettings.site_title.split(' - ')[0] : 'LinkTreeThai'}
+                          </span>
+                          <span className="text-slate-400 text-[10px] ml-auto shrink-0 hover:text-rose-500 cursor-pointer">✕</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 1.2 MAIN WEBSITE LOGO (HEADER / NAVBAR) */}
+                  <div className="p-5 bg-slate-950 border border-slate-800 rounded-2xl space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-black text-blue-400 flex items-center gap-1.5">
+                        <Palette className="w-4 h-4" />
+                        <span>โลโก้หลักของเว็บไซต์ (Header & Navbar Logo)</span>
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-mono">ขนาดแนะนำ สูง 40-60 px (PNG ใส)</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="วาง URL รูปภาพ Logo หรือกดปุ่มอัปโหลดด้านข้าง..."
+                          value={siteSettings.site_logo_url}
+                          onChange={(e) => setSiteSettings({ ...siteSettings, site_logo_url: e.target.value })}
+                          className="flex-1 px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-blue-400 shadow-inner"
+                        />
+                        <label className="px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer transition shadow shrink-0 active:scale-95">
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>{uploadingLogo ? 'กำลังอัปโหลด...' : '📸 อัปโหลด'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleUploadBrandAsset(e, 'logo')}
+                          />
+                        </label>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        * โลโก้นี้จะแสดงบนแถบเมนูด้านบน (Header Bar) ของหน้าเว็บหลัก
+                      </p>
+                    </div>
+
+                    {/* LIVE NAVBAR LOGO PREVIEW (LIGHT & DARK) */}
+                    <div className="p-3 bg-slate-900/90 rounded-2xl border border-slate-800 space-y-2">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+                        ตัวอย่างการแสดงผลบน Navbar:
+                      </span>
+                      <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                        <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center min-h-[60px]">
+                          <span className="text-[9px] text-slate-400 mb-1 font-bold">พื้นหลังสว่าง (Light)</span>
+                          {siteSettings.site_logo_url ? (
+                            <img src={siteSettings.site_logo_url} alt="Logo Light Preview" className="h-8 max-w-full object-contain" />
+                          ) : (
+                            <span className="font-black text-[#1E1B4B] text-sm">LinkTreeThai</span>
+                          )}
+                        </div>
+                        <div className="p-3 bg-[#0F172A] rounded-xl border border-slate-800 flex flex-col items-center justify-center min-h-[60px]">
+                          <span className="text-[9px] text-slate-500 mb-1 font-bold">พื้นหลังมืด (Dark)</span>
+                          {siteSettings.site_logo_url ? (
+                            <img src={siteSettings.site_logo_url} alt="Logo Dark Preview" className="h-8 max-w-full object-contain" />
+                          ) : (
+                            <span className="font-black text-white text-sm">LinkTreeThai</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* SECTION 2: GLOBAL SEO & SOCIAL SHARE METADATA */}
+              <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-3xl space-y-5 text-white shadow-xl">
+                <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+                  <Search className="w-5 h-5 text-blue-400" />
+                  <h4 className="font-black text-base text-white">
+                    2. ข้อมูล SEO & Meta Tags สำหรับ Google และ Social Share
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  
+                  {/* Left Form (7 cols) */}
+                  <div className="lg:col-span-7 space-y-4">
+                    
+                    {/* Site Title */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-bold text-slate-200">
+                          ชื่อเว็บไซต์หลัก (Site Title / SEO Title) *
+                        </label>
+                        <span className={`text-[10px] font-mono font-bold ${siteSettings.site_title.length > 60 ? 'text-amber-400' : 'text-slate-400'}`}>
+                          {siteSettings.site_title.length}/60 ตัวอักษร (แนะนำ 50-60)
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        value={siteSettings.site_title}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, site_title: e.target.value })}
+                        placeholder="เช่น LinkTreeThai - รวมทุกลิงก์ โซเชียล และร้านค้าดิจิทัลในแอปเดียว"
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-blue-400 shadow-inner"
+                      />
+                    </div>
+
+                    {/* Meta Description */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-bold text-slate-200">
+                          คำอธิบายเว็บไซต์ (Meta Description) *
+                        </label>
+                        <span className={`text-[10px] font-mono font-bold ${siteSettings.site_description.length > 160 ? 'text-amber-400' : 'text-slate-400'}`}>
+                          {siteSettings.site_description.length}/160 ตัวอักษร (แนะนำ 120-160)
+                        </span>
+                      </div>
+                      <textarea
+                        rows={3}
+                        required
+                        value={siteSettings.site_description}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, site_description: e.target.value })}
+                        placeholder="คำอธิบายสั้นๆ ของเว็บไซต์ที่จะไปแสดงใต้ชื่อเว็บในผลการค้นหา Google Search..."
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs leading-relaxed focus:outline-none focus:border-blue-400 shadow-inner font-medium"
+                      />
+                    </div>
+
+                    {/* Meta Keywords */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-200 mb-1">
+                        คีย์เวิร์ดสำหรับค้นหา (Meta Keywords - คั่นด้วยเครื่องหมายจุลภาค ,)
+                      </label>
+                      <input
+                        type="text"
+                        value={siteSettings.site_keywords}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, site_keywords: e.target.value })}
+                        placeholder="linktree, biolink, รวมลิงก์, ขายของออนไลน์, เซลเพจ, ย่อลิงก์"
+                        className="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-blue-400 shadow-inner"
+                      />
+                    </div>
+
+                    {/* OG Image */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-200 mb-1">
+                        รูปภาพแชร์โซเชียล (Open Graph Image - ขนาด 1200x630 px)
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={siteSettings.site_og_image_url}
+                          onChange={(e) => setSiteSettings({ ...siteSettings, site_og_image_url: e.target.value })}
+                          placeholder="วาง URL รูปภาพแชร์โซเชียล (Facebook, LINE, Twitter)..."
+                          className="flex-1 px-4 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-blue-400 shadow-inner"
+                        />
+                        <label className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer transition shadow shrink-0 active:scale-95">
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>{uploadingOgImage ? 'กำลังอัปโหลด...' : '📸 อัปโหลด'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handleUploadBrandAsset(e, 'og')}
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Footer Text */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-200 mb-1">
+                        ข้อความลิขสิทธิ์ท้ายหน้าเว็บ (Footer Copyright Text)
+                      </label>
+                      <input
+                        type="text"
+                        value={siteSettings.site_footer_text}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, site_footer_text: e.target.value })}
+                        placeholder="© 2026 LinkTreeThai. All rights reserved."
+                        className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs font-medium focus:outline-none focus:border-blue-400 shadow-inner"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Right Preview Box (5 cols) */}
+                  <div className="lg:col-span-5 space-y-4">
+                    
+                    {/* Google Search Snippet Simulation */}
+                    <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-2">
+                      <div className="flex items-center gap-1.5 text-xs font-black text-blue-400 pb-1.5 border-b border-slate-800">
+                        <Search className="w-3.5 h-3.5" />
+                        <span>ตัวอย่างผลการค้นหาบน Google Search:</span>
+                      </div>
+
+                      <div className="p-3 bg-white dark:bg-[#181A1B] rounded-xl border border-slate-200 dark:border-slate-800 space-y-1 font-sans text-left">
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-slate-400 truncate">
+                          {siteSettings.site_favicon_url ? (
+                            <img src={siteSettings.site_favicon_url} alt="Favicon" className="w-3.5 h-3.5 rounded-full object-contain shrink-0" />
+                          ) : (
+                            <Globe className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                          )}
+                          <span className="truncate">https://linktreethai.com</span>
+                        </div>
+                        <h5 className="text-sm font-bold text-[#1a0dab] dark:text-[#8ab4f8] hover:underline cursor-pointer leading-snug line-clamp-1">
+                          {siteSettings.site_title || 'LinkTreeThai - รวมทุกลิงก์ โซเชียล และร้านค้าดิจิทัลในแอปเดียว'}
+                        </h5>
+                        <p className="text-[11px] text-[#4d5156] dark:text-[#bdc1c6] leading-relaxed line-clamp-2">
+                          {siteSettings.site_description || 'สร้างหน้า Bio Link สวยทันสมัย สไตล์ Mobile App รวมทุกโซเชียล ขายสินค้าดิจิทัล...'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Social Share Preview (Facebook / LINE Card) */}
+                    <div className="p-4 bg-slate-950 border border-slate-800 rounded-2xl space-y-2">
+                      <div className="flex items-center gap-1.5 text-xs font-black text-purple-400 pb-1.5 border-b border-slate-800">
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>ตัวอย่างรูปพรีวิวเวลาแชร์ลิงก์ลง LINE / Facebook:</span>
+                      </div>
+
+                      <div className="rounded-xl overflow-hidden border border-slate-800 bg-[#1E293B] text-left">
+                        {siteSettings.site_og_image_url ? (
+                          <img src={siteSettings.site_og_image_url} alt="OG Preview" className="w-full h-32 object-cover" />
+                        ) : (
+                          <div className="w-full h-28 bg-gradient-to-tr from-blue-900 to-indigo-950 flex flex-col items-center justify-center text-slate-400 text-xs font-bold gap-1">
+                            <Share2 className="w-6 h-6 opacity-40 text-white" />
+                            <span>รูปภาพ Social Share (1200x630)</span>
+                          </div>
+                        )}
+                        <div className="p-3 space-y-1">
+                          <span className="text-[9px] text-slate-400 uppercase font-mono block">LINKTREETHAI.COM</span>
+                          <h6 className="font-bold text-xs text-white line-clamp-1">
+                            {siteSettings.site_title}
+                          </h6>
+                          <p className="text-[10px] text-slate-300 line-clamp-2 leading-tight">
+                            {siteSettings.site_description}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+
+                </div>
+
+                {/* Submit Button */}
+                <div className="flex justify-end pt-2 border-t border-slate-800">
+                  <button
+                    type="submit"
+                    disabled={savingSiteSettings}
+                    className="px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black rounded-2xl text-xs sm:text-sm flex items-center gap-2 shadow-xl shadow-blue-500/30 active:scale-95 transition cursor-pointer disabled:opacity-50"
+                  >
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span>{savingSiteSettings ? 'กำลังบันทึก...' : '💾 บันทึกการตั้งค่าโลโก้ & SEO ทั้งหมด'}</span>
+                  </button>
+                </div>
+              </div>
+
+            </form>
+
+          </div>
+        )}
+
         {/* TAB 5: PAYMENT SETTINGS (PROMPTPAY & PACKAGES) */}
         {activeTab === 'payment_settings' && (
           <div className="space-y-6">

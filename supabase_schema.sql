@@ -860,3 +860,16 @@ BEGIN
         ALTER TABLE public.landing_pages ADD COLUMN line_notify_token TEXT;
     END IF;
 END $$;
+
+-- ==============================================================================
+-- MIGRATION: SITE LOGO, FAVICON & GLOBAL SEO SETTINGS
+-- ==============================================================================
+INSERT INTO public.system_settings (key, value, description) VALUES
+('site_title', 'LinkTreeThai - รวมทุกลิงก์ โซเชียล และร้านค้าดิจิทัลในแอปเดียว', 'ชื่อเว็บไซต์หลัก และ Meta Title'),
+('site_description', 'สร้างหน้า Bio Link สวยทันสมัย สไตล์ Mobile App รวมทุกโซเชียล ขายสินค้าดิจิทัล ย่อลิงก์ พร้อมระบบจัดการครบวงจรด้วย LinkTreeThai', 'คำอธิบายเว็บไซต์ Meta Description สำหรับ Google Search'),
+('site_keywords', 'linktree, biolink, ขายของออนไลน์, รวมลิงก์, เซลเพจ, ย่อลิงก์, linktreethai', 'คีย์เวิร์ดสำหรับค้นหา'),
+('site_logo_url', '', 'URL รูปภาพโลโก้เว็บไซต์หลัก (Header Logo)'),
+('site_favicon_url', '', 'URL ไอคอน Favicon บนแท็บเบราว์เซอร์'),
+('site_og_image_url', '', 'URL รูปภาพสำหรับแชร์ลงโซเชียล (Facebook / LINE)'),
+('site_footer_text', '© 2026 LinkTreeThai. All rights reserved. สร้าง Bio Link & เซลเพจขายของยิงแอดครบวงจร', 'ข้อความท้ายหน้าเว็บ')
+ON CONFLICT (key) DO NOTHING;

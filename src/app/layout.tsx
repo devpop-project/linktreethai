@@ -1,5 +1,6 @@
 import './globals.css'
 import type { Metadata, Viewport } from 'next'
+import DynamicSiteHead from '@/components/DynamicSiteHead'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +36,7 @@ export default function RootLayout({
   return (
     <html lang="th">
       <body className="bg-[#F9F9FF] text-[#1E1B4B] min-h-screen antialiased selection:bg-[#A78BFA] selection:text-white">
+        <DynamicSiteHead />
         {children}
       </body>
     </html>

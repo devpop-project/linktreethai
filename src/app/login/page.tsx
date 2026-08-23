@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import SiteLogo from '@/components/SiteLogo'
 import { createClient } from '@/lib/supabase/client'
 import { Link2, LogIn, Sparkles, ArrowRight, Mail, Lock, CheckCircle2, ShieldCheck, KeyRound, X, Eye, EyeOff } from 'lucide-react'
 
@@ -74,15 +75,8 @@ export default function LoginPage() {
       <div className="absolute -bottom-32 -right-32 w-80 h-80 bg-teal-200/40 rounded-full blur-3xl pointer-events-none"></div>
 
       <div className="max-w-md w-full relative z-10">
-        <div className="text-center mb-6">
-          <Link href="/" className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-gradient-to-tr from-purple-500 to-indigo-500 p-0.5 shadow-md shadow-purple-500/20 mb-3 hover:scale-105 transition">
-            <div className="w-full h-full bg-white rounded-[22px] flex items-center justify-center text-purple-600">
-              <Link2 className="w-8 h-8" />
-            </div>
-          </Link>
-          <h1 className="text-2xl font-black text-[#1E1B4B]">
-            LinkTreeThai
-          </h1>
+        <div className="text-center mb-6 flex flex-col items-center">
+          <SiteLogo className="mb-2 justify-center" textClassName="text-2xl font-black tracking-tight text-[#1E1B4B]" />
           <p className="text-slate-500 text-xs mt-1">เข้าสู่ระบบเพื่อจัดการ Bio Link ของคุณ</p>
         </div>
 

@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background glow filter -->
+    <filter id="neonGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur1" />
+      <feGaussianBlur stdDeviation="16" result="blur2" />
+      <feMerge>
+        <feMergeNode in="blur2" />
+        <feMergeNode in="blur1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <linearGradient id="flamePurplePink" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#8B5CF6" />
+      <stop offset="50%" stop-color="#C084FC" />
+      <stop offset="100%" stop-color="#F472B6" />
+    </linearGradient>
+
+    <linearGradient id="flameCyanWhite" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="60%" stop-color="#BAE6FD" />
+      <stop offset="100%" stop-color="#FFFFFF" />
+    </linearGradient>
+
+    <linearGradient id="goldLoop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047" />
+      <stop offset="50%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+
+    <linearGradient id="circuitCyan" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#A855F7" />
+      <stop offset="50%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#7DD3FC" />
+    </linearGradient>
+
+    <linearGradient id="circuitGold" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#FDE68A" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background (Transparent or dark) -->
+  <rect width="512" height="512" rx="100" fill="#0B0F17" />
+
+  <g filter="url(#neonGlow)" transform="translate(10, 10) scale(0.96)">
+    <!-- LEFT: Outer Thai Flame / Kranok Crest -->
+    <path d="M 220 80 
+             C 170 140, 120 220, 100 290 
+             C 70 360, 110 420, 190 435 
+             C 240 445, 290 425, 330 380
+             C 280 405, 230 405, 180 385
+             C 130 365, 115 315, 130 260
+             C 145 205, 185 145, 220 80 Z" 
+          fill="none" stroke="url(#flamePurplePink)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- LEFT: Inner Cyan Flame Wave -->
+    <path d="M 215 160
+             C 175 220, 140 280, 140 330
+             C 140 375, 175 400, 220 395
+             C 260 390, 290 360, 310 320
+             C 275 340, 240 335, 215 315
+             C 185 290, 180 250, 195 210
+             C 205 185, 215 165, 215 160 Z"
+          fill="none" stroke="url(#flameCyanWhite)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- Flame Peak Accent -->
+    <path d="M 130 220 C 110 240, 95 270, 95 295 C 105 285, 120 265, 140 250 Z" 
+          fill="url(#flamePurplePink)" />
+
+    <!-- CENTER-BOTTOM: Infinity Spiral Loop (Gold Gradient) -->
+    <path d="M 175 375
+             C 210 435, 280 445, 325 405
+             C 365 370, 355 315, 310 300
+             C 260 280, 220 320, 235 365
+             C 245 395, 280 405, 305 385
+             C 330 365, 330 335, 315 320"
+          fill="none" stroke="url(#goldLoop)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- RIGHT: Circuit Tree Branch 1 (Center-most purple-cyan trunk) -->
+    <path d="M 270 380
+             C 320 370, 350 310, 350 220
+             L 350 110"
+          fill="none" stroke="url(#circuitCyan)" stroke-width="10" stroke-linecap="round" />
+    <circle cx="350" cy="110" r="12" fill="#0B0F17" stroke="url(#circuitCyan)" stroke-width="8" />
+
+    <!-- RIGHT: Circuit Tree Branch 2 (Left curve with purple node) -->
+    <path d="M 330 340
+             C 320 280, 290 260, 280 235"
+          fill="none" stroke="url(#flamePurplePink)" stroke-width="9" stroke-linecap="round" />
+    <circle cx="280" cy="235" r="10" fill="#0B0F17" stroke="url(#flamePurplePink)" stroke-width="7" />
+
+    <!-- RIGHT: Circuit Tree Branch 3 (Far Left node) -->
+    <path d="M 310 360
+             C 270 340, 270 260, 305 155"
+          fill="none" stroke="url(#flamePurplePink)" stroke-width="9" stroke-linecap="round" />
+    <circle cx="305" cy="155" r="10" fill="#0B0F17" stroke="url(#flamePurplePink)" stroke-width="7" />
+
+    <!-- RIGHT: Circuit Tree Branch 4 (Right Gold Branch) -->
+    <path d="M 345 240
+             C 370 200, 390 170, 390 140"
+          fill="none" stroke="url(#circuitGold)" stroke-width="9" stroke-linecap="round" />
+    <circle cx="390" cy="140" r="10" fill="#0B0F17" stroke="url(#circuitGold)" stroke-width="7" />
+
+    <!-- RIGHT: Circuit Tree Branch 5 (Far Right Cyan Branch) -->
+    <path d="M 350 270
+             C 390 260, 410 230, 420 210"
+          fill="none" stroke="url(#circuitCyan)" stroke-width="9" stroke-linecap="round" />
+    <circle cx="420" cy="210" r="10" fill="#0B0F17" stroke="url(#circuitCyan)" stroke-width="7" />
+
+    <!-- RIGHT: Circuit Tree Branch 6 (Bottom Right Gold Leaf/Node) -->
+    <path d="M 370 290
+             C 390 280, 400 270, 405 260"
+          fill="none" stroke="url(#circuitGold)" stroke-width="8" stroke-linecap="round" />
+    <circle cx="405" cy="260" r="8" fill="#0B0F17" stroke="url(#circuitGold)" stroke-width="6" />
+  </g>
+</svg>
