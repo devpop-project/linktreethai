@@ -4373,6 +4373,54 @@ WHERE username = 'YOUR_USERNAME';`}
                 </div>
               </div>
 
+              {/* Background Image & Theme Color (Admin Edit) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-slate-950 rounded-xl border border-slate-800">
+                <div>
+                  <label className="block font-bold mb-1 text-slate-300">ภาพพื้นหลังเซลเพจ (BG Image URL)</label>
+                  <input
+                    type="text"
+                    placeholder="https://..."
+                    value={editingLp.bg_image_url || ''}
+                    onChange={(e) => setEditingLp({ ...editingLp, bg_image_url: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg font-mono text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold mb-1 text-slate-300">สีธีมหลัก (Theme Color)</label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="color"
+                      value={editingLp.theme_color || '#EF4444'}
+                      onChange={(e) => setEditingLp({ ...editingLp, theme_color: e.target.value })}
+                      className="w-7 h-7 rounded border border-slate-800 bg-transparent cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={editingLp.theme_color || '#EF4444'}
+                      onChange={(e) => setEditingLp({ ...editingLp, theme_color: e.target.value })}
+                      className="flex-1 px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-xs font-mono text-white"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block font-bold mb-1 text-slate-300">สีพื้นหลัง (BG Color)</label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="color"
+                      value={editingLp.bg_color || '#0B0F17'}
+                      onChange={(e) => setEditingLp({ ...editingLp, bg_color: e.target.value })}
+                      className="w-7 h-7 rounded border border-slate-800 bg-transparent cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={editingLp.bg_color || '#0B0F17'}
+                      onChange={(e) => setEditingLp({ ...editingLp, bg_color: e.target.value })}
+                      className="flex-1 px-2 py-1 bg-slate-900 border border-slate-800 rounded-lg text-xs font-mono text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block font-bold mb-1 text-slate-300">ราคาโปรโมชั่น (บาท)</label>

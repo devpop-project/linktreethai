@@ -99,6 +99,7 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
   const [lightboxIndex, setLightboxIndex] = useState(0)
   const [previewPaymentMethod, setPreviewPaymentMethod] = useState<'promptpay' | 'cod'>('promptpay')
   const [previewCustomAmount, setPreviewCustomAmount] = useState<string>('')
+  const [previewQuantity, setPreviewQuantity] = useState<number>(1)
 
   const themeColor = pageData.theme_color || '#EF4444'
   const bgColor = pageData.bg_color || '#0B0F17'
@@ -615,9 +616,10 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
           const ownerPPPhone = pageData.promptpay_phone || profile?.promptpay_phone || '0909964514'
           const ownerPPName = pageData.promptpay_name || profile?.full_name || profile?.username || 'เจ้าของร้านค้า'
           const ownerPPBank = pageData.promptpay_bank || 'พร้อมเพย์ (PromptPay)'
-          const defaultPrice = pageData.offer_price ? parseFloat(String(pageData.offer_price)) : 0
+          const unitPrice = pageData.offer_price ? parseFloat(String(pageData.offer_price)) : 0
+          const defaultPrice = unitPrice
           const enteredAmt = parseFloat(previewCustomAmount)
-          const currentPayAmount = !isNaN(enteredAmt) && enteredAmt > 0 ? enteredAmt : defaultPrice
+          const currentPayAmount = !isNaN(enteredAmt) && enteredAmt > 0 ? enteredAmt : (unitPrice * Math.max(1, previewQuantity))
           const isPromptPay = previewPaymentMethod === 'promptpay'
 
           return (
@@ -636,6 +638,34 @@ export default function SalesLandingPagePreview({ pageData, profile }: SalesLand
               </div>
 
               <div className="space-y-4 text-xs font-bold">
+                {/* Quantity Selector in Preview */}
+                <div className="flex items-center justify-between p-3.5 bg-slate-950 rounded-2xl border border-slate-800">
+                  <div>
+                    <span className="font-black text-xs text-white block">จำนวนสินค้าที่ต้องการ</span>
+                    <span className="text-[10px] text-slate-400 font-medium">ราคาชุดละ ฿{unitPrice.toLocaleString()} บาท</span>
+                  </div>
+                  <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 px-2.5 py-1 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewQuantity(prev => Math.max(1, prev - 1))}
+                      disabled={previewQuantity <= 1}
+                      className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white font-black text-xs flex items-center justify-center transition active:scale-95 cursor-pointer"
+                    >
+                      -
+                    </button>
+                    <span className="font-mono font-black text-xs text-emerald-400 min-w-[20px] text-center">
+                      {previewQuantity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewQuantity(prev => prev + 1)}
+                      className="w-6 h-6 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center transition active:scale-95 cursor-pointer"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
                 {/* 1. Payment Method Switcher in Preview */}
                 <div className="space-y-1.5">
                   <label className="block text-slate-200">1. เลือกวิธีการชำระเงิน *</label>

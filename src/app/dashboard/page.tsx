@@ -10,7 +10,7 @@ import TemplateRenderer from '@/components/templates/TemplateRenderer'
 import SalesLandingPagePreview from '@/components/SalesLandingPagePreview'
 import PixelAnalyticsModal from '@/components/PixelAnalyticsModal'
 import TopUpPointsModal from '@/components/TopUpPointsModal'
-import { Link2, Radio, Mic, Volume2, ShoppingBag, Palette, ExternalLink, Activity, Rocket, Plus, Trash2, Save, LogOut, Check, Eye, Upload, Image as ImageIcon, Sparkles, Globe, Youtube, RefreshCw, Share2, LayoutTemplate, Crown, Coins, Lock, AlertCircle, Users, Download, ShieldCheck, Zap, QrCode, X, MessageCircle, Scissors, Copy, Smartphone, Menu, ChevronRight, CheckCircle2, ArrowUpRight, Clock, KeyRound, Edit2, Camera, Sun, Moon, Filter, Search, BarChart3, ChevronDown, Phone, Mail, MapPin, DollarSign, Calendar, FileText, CheckSquare, Layers, EyeOff, ArrowUpDown, UserCheck, UserX, ListOrdered, Sliders, Flame, Send, ArrowRight, CheckCircle } from 'lucide-react'
+import { Link2, Radio, Mic, Volume2, ShoppingBag, Palette, ExternalLink, Activity, Rocket, Plus, Trash2, Save, LogOut, Check, Eye, Upload, Image as ImageIcon, Sparkles, Globe, Youtube, RefreshCw, Share2, LayoutTemplate, Crown, Coins, Lock, AlertCircle, Users, Download, ShieldCheck, Zap, QrCode, X, MessageCircle, Scissors, Copy, Smartphone, Menu, ChevronRight, CheckCircle2, ArrowUpRight, Clock, KeyRound, Edit2, Camera, Sun, Moon, Filter, Search, BarChart3, ChevronDown, Phone, Mail, MapPin, DollarSign, Calendar, FileText, CheckSquare, Layers, EyeOff, ArrowUpDown, UserCheck, UserX, ListOrdered, Sliders, Flame, Send, ArrowRight, CheckCircle, ArrowLeft, Star, HelpCircle } from 'lucide-react'
 
 interface LandingPageFormData {
   slug: string
@@ -191,6 +191,8 @@ export default function DashboardPage() {
   const [previewMode, setPreviewMode] = useState<'bio' | 'landing'>('bio')
   const [unlockingLandingSlot, setUnlockingLandingSlot] = useState(false)
   const [newLandingPage, setNewLandingPage] = useState<LandingPageFormData>(DEFAULT_LANDING_PAGE_FORM)
+  const [salepageWizardStep, setSalepageWizardStep] = useState<number>(1)
+  const [salepageBuilderTab, setSalepageBuilderTab] = useState<'info' | 'reviews' | 'payment' | 'tracking'>('info')
   const [uploadingLpImg, setUploadingLpImg] = useState(false)
   const [pixelAnalyticsOpen, setPixelAnalyticsOpen] = useState(false)
   
@@ -1270,37 +1272,58 @@ export default function DashboardPage() {
 
   const handleUploadLpImage = async (e: React.ChangeEvent<HTMLInputElement>, targetField: 'hero' | 'og' | 'bg' | 'gallery' | 'review') => {
     const file = e.target.files?.[0]
-    if (!file || !user) return
+    if (!file) return
 
+    const userId = user?.id || profile?.id || 'admin'
     setUploadingLpImg(true)
+    showToast('⏳ กำลังอัปโหลดรูปภาพ...')
+
+    // 1. Show instant local preview URL
+    const localUrl = URL.createObjectURL(file)
+
     try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `lp-${user.id}-${Date.now()}.${fileExt}`
+      const fileExt = file.name.split('.').pop() || 'jpg'
+      const fileName = `lp-${userId}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}.${fileExt}`
       const filePath = `landing-pages/${fileName}`
 
-      const { error: uploadError } = await supabase.storage
+      // Upload to 'media' bucket
+      const { data, error: uploadError } = await supabase.storage
         .from('media')
         .upload(filePath, file, { upsert: true })
 
-      if (uploadError) {
-        showToast('❌ อัปโหลดรูปภาพไม่สำเร็จ: ' + uploadError.message)
-      } else {
+      let finalUrl = localUrl
+      if (!uploadError && data) {
         const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filePath)
-        if (targetField === 'hero') {
-          setNewLandingPage({ ...newLandingPage, hero_image_url: publicUrl, hero_media_url: publicUrl, hero_media_type: 'image' })
-        } else if (targetField === 'bg') {
-          setNewLandingPage({ ...newLandingPage, bg_image_url: publicUrl })
-        } else if (targetField === 'gallery') {
-          const current = newLandingPage.gallery_images_text.trim()
-          setNewLandingPage({ ...newLandingPage, gallery_images_text: current ? `${current}\n${publicUrl}` : publicUrl })
-        } else if (targetField === 'review') {
-          const current = newLandingPage.review_images_text.trim()
-          setNewLandingPage({ ...newLandingPage, review_images_text: current ? `${current}\n${publicUrl}` : publicUrl })
-        } else {
-          setNewLandingPage({ ...newLandingPage, og_image_url: publicUrl })
+        finalUrl = publicUrl
+      } else {
+        // Fallback to 'linktree-assets' bucket
+        const { data: d2, error: e2 } = await supabase.storage
+          .from('linktree-assets')
+          .upload(filePath, file, { upsert: true })
+        if (!e2 && d2) {
+          const { data: { publicUrl: p2 } } = supabase.storage.from('linktree-assets').getPublicUrl(filePath)
+          finalUrl = p2
         }
-        showToast('📸 อัปโหลดรูปภาพสำเร็จ!')
       }
+
+      if (targetField === 'hero') {
+        setNewLandingPage(prev => ({ ...prev, hero_image_url: finalUrl, hero_media_url: finalUrl, hero_media_type: 'image' }))
+      } else if (targetField === 'bg') {
+        setNewLandingPage(prev => ({ ...prev, bg_image_url: finalUrl }))
+      } else if (targetField === 'gallery') {
+        setNewLandingPage(prev => {
+          const current = (prev.gallery_images_text || '').trim()
+          return { ...prev, gallery_images_text: current ? `${current}\n${finalUrl}` : finalUrl }
+        })
+      } else if (targetField === 'review') {
+        setNewLandingPage(prev => {
+          const current = (prev.review_images_text || '').trim()
+          return { ...prev, review_images_text: current ? `${current}\n${finalUrl}` : finalUrl }
+        })
+      } else {
+        setNewLandingPage(prev => ({ ...prev, og_image_url: finalUrl }))
+      }
+      showToast('📸 อัปโหลดรูปภาพสำเร็จเรียบร้อยแล้ว!')
     } catch (err: any) {
       showToast('❌ ข้อผิดพลาด: ' + err.message)
     } finally {
@@ -1733,7 +1756,7 @@ export default function DashboardPage() {
               <Link2 className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             
-            {/* Brand Title (Hidden on Mobile screens to avoid clipping <TreeThai) */}
+            {/* Brand Title (Hidden on Mobile screens to avoid clipping text) */}
             <div className="hidden sm:block">
               <div className="flex items-center gap-2">
                 <span className="font-black text-sm sm:text-base text-[#1E1B4B] dark:text-white tracking-tight">
@@ -3358,184 +3381,557 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* Complete 6-Section & SEO Landing Page Builder Form */}
+                  {/* Complete 4-Step Interactive Wizard Form */}
                   {(!isLandingQuotaFull || profile.role === 'admin') ? (
                     <form onSubmit={handleAddLandingPage} className="space-y-6 pt-2">
-                      
-                      {/* --- SECTION 1: HERO & AD SCENT (Above the Fold) --- */}
-                      <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-4">
-                        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
-                          <span className="w-6 h-6 rounded-full bg-rose-600 text-white flex items-center justify-center text-xs font-black">1</span>
-                          <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white">Hero Section (ดึงดูดความสนใจใน 3 วินาทีแรก)</h4>
+
+                      {/* ========================================================================= */}
+                      {/* WIZARD STEPPER HEADER & PROGRESS BAR */}
+                      {/* ========================================================================= */}
+                      <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl space-y-3 shadow-inner">
+                        <div className="flex items-center justify-between text-xs font-black">
+                          <span className="text-[#1E1B4B] dark:text-white flex items-center gap-1.5">
+                            <Sparkles className="w-4 h-4 text-rose-500" />
+                            <span>ขั้นตอนที่ {salepageWizardStep} จาก 4: {
+                              salepageWizardStep === 1 ? 'ข้อมูลสินค้า, พาดหัว & ราคา' :
+                              salepageWizardStep === 2 ? 'รูปภาพสินค้า, รีวิว & FAQ' :
+                              salepageWizardStep === 3 ? 'ระบบรับเงิน PromptPay & COD' :
+                              'Tracking Pixels, LINE & ธีม'
+                            }</span>
+                          </span>
+                          <span className="text-rose-600 dark:text-rose-400 font-mono">
+                            {salepageWizardStep === 1 ? '25%' : salepageWizardStep === 2 ? '50%' : salepageWizardStep === 3 ? '75%' : '100%'}
+                          </span>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        {/* Progress Line */}
+                        <div className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-rose-500 via-purple-500 to-emerald-500 transition-all duration-300 rounded-full"
+                            style={{ width: `${(salepageWizardStep / 4) * 100}%` }}
+                          ></div>
+                        </div>
+
+                        {/* 4 Interactive Step Tabs */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs font-extrabold">
+                          {[
+                            { step: 1, label: '1. ข้อมูล & ราคา', icon: '📝' },
+                            { step: 2, label: '2. รีวิว & FAQ', icon: '📸' },
+                            { step: 3, label: '3. พร้อมเพย์ & COD', icon: '💳' },
+                            { step: 4, label: '4. Pixel & LINE', icon: '🎯' }
+                          ].map((item) => (
+                            <button
+                              key={item.step}
+                              type="button"
+                              onClick={() => setSalepageWizardStep(item.step)}
+                              className={`p-2.5 rounded-2xl border-2 transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                                salepageWizardStep === item.step
+                                  ? 'bg-white dark:bg-slate-900 border-rose-500 text-rose-600 dark:text-rose-400 shadow-md ring-2 ring-rose-500/20'
+                                  : salepageWizardStep > item.step
+                                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20'
+                                  : 'bg-white/60 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                              }`}
+                            >
+                              <span>{salepageWizardStep > item.step ? '✓' : item.icon}</span>
+                              <span className="truncate">{item.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* ========================================================================= */}
+                      {/* STEP 1: ข้อมูลสินค้า, พาดหัว, วิดีโอ, ราคา & CTA BUTTONS */}
+                      {/* ========================================================================= */}
+                      {salepageWizardStep === 1 && (
+                        <div className="p-5 sm:p-6 bg-white dark:bg-slate-900 border-2 border-rose-500/30 dark:border-rose-500/20 rounded-3xl space-y-4 shadow-sm animate-in fade-in duration-200">
+                          <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-slate-800 pb-3">
+                            <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center text-xs font-black shadow-md shadow-rose-600/20">
+                              1
+                            </div>
+                            <div>
+                              <h4 className="font-black text-sm sm:text-base text-[#1E1B4B] dark:text-white">
+                                ข้อมูลสินค้า, พาดหัว & รูปภาพหลัก (Hero Section)
+                              </h4>
+                              <p className="text-[11px] text-slate-500">กำหนดชื่อ ข้อความดึงดูด และรูปภาพสินค้าที่จะแสดงด้านบนสุดของเซลเพจ</p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            <div>
+                              <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">ชื่อเรียกเซลเพจ (Internal Title) *</label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="เช่น เซลเพจโปรโมชั่นเห็ดสกัด 8.8"
+                                value={newLandingPage.title}
+                                onChange={(e) => setNewLandingPage({ ...newLandingPage, title: e.target.value })}
+                                className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">URL Slug ที่ต้องการ *</label>
+                              <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-3 py-1 focus-within:border-rose-400">
+                                <span className="text-slate-400 text-xs font-mono select-none">linktreethai.com/p/</span>
+                                <input
+                                  type="text"
+                                  required
+                                  placeholder="deal-special"
+                                  value={newLandingPage.slug}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '') })}
+                                  className="w-full py-1.5 bg-transparent text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono font-bold"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
                           <div>
-                            <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">ชื่อเรียกเซลเพจ (Internal Title) *</label>
+                            <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">Headline (หัวข้อหลัก - ตรงกับข้อความโฆษณา Ad Scent) *</label>
                             <input
                               type="text"
                               required
-                              placeholder="เช่น เซลเพจโปรโมชั่นเห็ดสกัด 8.8"
-                              value={newLandingPage.title}
-                              onChange={(e) => setNewLandingPage({ ...newLandingPage, title: e.target.value })}
+                              placeholder="เช่น รวมลิงก์และระบบรับเงินจบในหน้าเดียว สำหรับแม่ค้าออนไลน์"
+                              value={newLandingPage.headline}
+                              onChange={(e) => setNewLandingPage({ ...newLandingPage, headline: e.target.value })}
+                              className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400 font-bold"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">Sub-headline (หัวข้อย่อย - ขยายความชีวิตดีขึ้นอย่างไร)</label>
+                            <input
+                              type="text"
+                              placeholder="เช่น จัดการทุกช่องทางการขายได้ในที่เดียว ประหยัดเวลา เพิ่มยอดขาย 300%"
+                              value={newLandingPage.subheadline}
+                              onChange={(e) => setNewLandingPage({ ...newLandingPage, subheadline: e.target.value })}
                               className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400"
                             />
                           </div>
 
-                          <div>
-                            <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">URL Slug ที่ต้องการ *</label>
-                            <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-3 py-1 focus-within:border-rose-400">
-                              <span className="text-slate-400 text-xs font-mono select-none">linktreethai.com/p/</span>
-                              <input
-                                type="text"
-                                required
-                                placeholder="deal-special"
-                                value={newLandingPage.slug}
-                                onChange={(e) => setNewLandingPage({ ...newLandingPage, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '') })}
-                                className="w-full py-1.5 bg-transparent text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono font-bold"
-                              />
+                          {/* Hero Media: Image vs YouTube Switcher */}
+                          <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
+                                รูปภาพสินค้าหลัก หรือ วิดีโอ YouTube (Hero Media)
+                              </label>
+                              <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-bold">
+                                <button
+                                  type="button"
+                                  onClick={() => setNewLandingPage({ ...newLandingPage, hero_media_type: 'image' })}
+                                  className={`px-2.5 py-1 rounded-lg transition ${newLandingPage.hero_media_type !== 'youtube' ? 'bg-rose-500 text-white font-bold' : 'text-slate-500'}`}
+                                >
+                                  🖼️ รูปภาพสินค้า
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setNewLandingPage({ ...newLandingPage, hero_media_type: 'youtube' })}
+                                  className={`px-2.5 py-1 rounded-lg transition ${newLandingPage.hero_media_type === 'youtube' ? 'bg-rose-500 text-white font-bold' : 'text-slate-500'}`}
+                                >
+                                  🎥 วิดีโอ YouTube
+                                </button>
+                              </div>
+                            </div>
+
+                            {newLandingPage.hero_media_type === 'youtube' ? (
+                              <div>
+                                <input
+                                  type="text"
+                                  placeholder="วางลิงก์ YouTube (เช่น https://www.youtube.com/watch?v=... หรือ Shorts)"
+                                  value={newLandingPage.video_url || newLandingPage.hero_media_url}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, video_url: e.target.value, hero_media_url: e.target.value })}
+                                  className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono"
+                                />
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <div className="flex flex-col sm:flex-row items-center gap-2">
+                                  <label className="w-full sm:w-auto px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition shadow">
+                                    <Upload className="w-3.5 h-3.5" />
+                                    <span>{uploadingLpImg ? 'กำลังอัปโหลด...' : '📸 + อัปโหลดรูปภาพสินค้า'}</span>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={(e) => handleUploadLpImage(e, 'hero')}
+                                    />
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="หรือวาง URL รูปภาพสินค้าที่นี่..."
+                                    value={newLandingPage.hero_image_url || newLandingPage.hero_media_url}
+                                    onChange={(e) => setNewLandingPage({ ...newLandingPage, hero_image_url: e.target.value, hero_media_url: e.target.value })}
+                                    className="w-full flex-1 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono text-[#1E1B4B] dark:text-white focus:outline-none"
+                                  />
+                                </div>
+                                {(newLandingPage.hero_image_url || newLandingPage.hero_media_url) && (
+                                  <div className="flex items-center gap-2 pt-1">
+                                    <img src={newLandingPage.hero_image_url || newLandingPage.hero_media_url} alt="Hero Preview" className="w-12 h-12 object-cover rounded-xl border border-slate-200 dark:border-slate-700" />
+                                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">✓ แนบรูปภาพสินค้าหลักแล้ว</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setNewLandingPage({ ...newLandingPage, hero_image_url: '', hero_media_url: '' })}
+                                      className="text-[11px] text-rose-500 hover:underline ml-auto"
+                                    >
+                                      ลบรูป
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Pricing & Offer Section */}
+                          <div className="p-3.5 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-2xl space-y-3">
+                            <span className="font-bold text-xs text-amber-900 dark:text-amber-300 block">
+                              💰 ราคาโปรโมชั่น & เวลานับถอยหลัง Flash Sale
+                            </span>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">ราคาพิเศษ Flash Sale (บาท) *</label>
+                                <input
+                                  type="number"
+                                  required
+                                  placeholder="990"
+                                  value={newLandingPage.offer_price}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, offer_price: e.target.value })}
+                                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold text-rose-600"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">ราคาเต็มขีดฆ่า (บาท)</label>
+                                <input
+                                  type="number"
+                                  placeholder="1990"
+                                  value={newLandingPage.original_price}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, original_price: e.target.value })}
+                                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono line-through text-slate-400"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">นับถอยหลัง (นาที)</label>
+                                <input
+                                  type="number"
+                                  placeholder="15"
+                                  value={newLandingPage.countdown_minutes}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, countdown_minutes: parseInt(e.target.value, 10) || 15 })}
+                                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 3 Call-To-Action (CTA) Conversion Buttons */}
+                          <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
+                            <span className="font-bold text-xs text-[#1E1B4B] dark:text-slate-200 block">
+                              🔘 3 ปุ่มสั่งซื้อและติดต่อด่วน (แถบปุ่มบนเซลเพจ & แถบลอยด้านล่าง)
+                            </span>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-500">ปุ่ม 1: ติดต่อสั่งซื้อด่วน (สีหลัก)</label>
+                                <input
+                                  type="text"
+                                  placeholder="ข้อความปุ่ม 1"
+                                  value={newLandingPage.sticky_btn1_text}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn1_text: e.target.value, cta_text: e.target.value })}
+                                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold"
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="ลิงก์ปุ่ม 1 (เว้นว่างไว้ = เลื่อนไปฟอร์มชำระเงิน)"
+                                  value={newLandingPage.sticky_btn1_url}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn1_url: e.target.value, cta_url: e.target.value })}
+                                  className="w-full px-3 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] font-mono"
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-500">ปุ่ม 2: ช่องทางติดต่ออื่นๆ</label>
+                                <input
+                                  type="text"
+                                  placeholder="ข้อความปุ่ม 2"
+                                  value={newLandingPage.sticky_btn2_text}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn2_text: e.target.value, cta_secondary_text: e.target.value })}
+                                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold"
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="ลิงก์ปุ่ม 2 (เช่น LINE OA / Facebook)"
+                                  value={newLandingPage.sticky_btn2_url}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn2_url: e.target.value, cta_secondary_url: e.target.value })}
+                                  className="w-full px-3 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] font-mono"
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-500">ปุ่ม 3: สั่งซื้อออนไลน์</label>
+                                <input
+                                  type="text"
+                                  placeholder="ข้อความปุ่ม 3"
+                                  value={newLandingPage.sticky_btn3_text}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn3_text: e.target.value, cta_shop_text: e.target.value })}
+                                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold"
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="ลิงก์ปุ่ม 3 (เช่น Shopee / Lazada)"
+                                  value={newLandingPage.sticky_btn3_url}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn3_url: e.target.value, cta_shop_url: e.target.value })}
+                                  className="w-full px-3 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] font-mono"
+                                />
+                              </div>
                             </div>
                           </div>
                         </div>
+                      )}
 
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">Headline (หัวข้อหลัก - ตรงกับข้อความโฆษณา Ad Scent) *</label>
-                          <input
-                            type="text"
-                            required
-                            placeholder="เช่น รวมลิงก์และระบบรับเงินจบในหน้าเดียว สำหรับแม่ค้าออนไลน์"
-                            value={newLandingPage.headline}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, headline: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400 font-bold"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">Sub-headline (หัวข้อย่อย - ขยายความชีวิตดีขึ้นอย่างไร)</label>
-                          <input
-                            type="text"
-                            placeholder="เช่น จัดการทุกช่องทางการขายได้ในที่เดียว ประหยัดเวลา เพิ่มยอดขาย 300%"
-                            value={newLandingPage.subheadline}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, subheadline: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400"
-                          />
-                        </div>
-
-                        {/* 1. SEPARATE FIELD: HERO PRODUCT IMAGE */}
-                        <div className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
-                          <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold text-[#1E1B4B] dark:text-slate-200 flex items-center gap-1.5">
-                              <ImageIcon className="w-4 h-4 text-emerald-500" />
-                              <span>1. รูปภาพสินค้าหลัก / แบนเนอร์โปรโมชั่น (Hero Image)</span>
-                            </label>
-                            <span className="text-[10px] text-slate-400">รองรับไฟล์ภาพ JPG, PNG, WebP</span>
-                          </div>
-
-                          <div className="flex flex-col sm:flex-row gap-2">
-                            <input
-                              type="text"
-                              placeholder="URL รูปภาพสินค้า หรือ กดปุ่มอัปโหลดจากมือถือ"
-                              value={newLandingPage.hero_image_url}
-                              onChange={(e) => setNewLandingPage({ ...newLandingPage, hero_image_url: e.target.value })}
-                              className="flex-1 px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400 font-mono"
-                            />
-                            
-                            {/* Direct Mobile / Camera / Gallery Upload */}
-                            <label className="px-4 py-2 bg-[#34D399] hover:bg-[#10B981] text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition shadow-md shadow-emerald-500/20 active:scale-95 flex-shrink-0">
-                              <Upload className="w-4 h-4" />
-                              <span>{uploadingLpImg ? 'กำลังอัปโหลด...' : '📸 เลือกรูปจากมือถือ'}</span>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => handleUploadLpImage(e, 'hero')}
-                              />
-                            </label>
-                          </div>
-
-                          {newLandingPage.hero_image_url && (
-                            <div className="flex items-center gap-2 pt-1">
-                              <img src={newLandingPage.hero_image_url} alt="Preview" className="w-12 h-12 object-cover rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm" />
-                              <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">✓ อัปโหลดรูปภาพสินค้าเรียบร้อยแล้ว</span>
-                              <button
-                                type="button"
-                                onClick={() => setNewLandingPage({ ...newLandingPage, hero_image_url: '' })}
-                                className="text-[11px] text-rose-500 hover:underline ml-auto"
-                              >
-                                ลบรูป
-                              </button>
+                      {/* ========================================================================= */}
+                      {/* STEP 2: รูปภาพสินค้าเพิ่มเติม, รีวิว, PAIN/BENEFITS & FAQ */}
+                      {/* ========================================================================= */}
+                      {salepageWizardStep === 2 && (
+                        <div className="p-5 sm:p-6 bg-white dark:bg-slate-900 border-2 border-purple-500/30 dark:border-purple-500/20 rounded-3xl space-y-4 shadow-sm animate-in fade-in duration-200">
+                          <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-slate-800 pb-3">
+                            <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center text-xs font-black shadow-md shadow-purple-600/20">
+                              2
                             </div>
-                          )}
-                        </div>
-
-                        {/* 2. SEPARATE FIELD: YOUTUBE VIDEO EMBED */}
-                        <div className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
-                          <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold text-[#1E1B4B] dark:text-slate-200 flex items-center gap-1.5">
-                              <Youtube className="w-4 h-4 text-red-500" />
-                              <span>2. วิดีโอโปรโมชั่น YouTube / TikTok Shorts (Video URL)</span>
-                            </label>
-                            <span className="text-[10px] text-slate-400">รองรับทั้งคลิปยาว และ Shorts</span>
-                          </div>
-
-                          <input
-                            type="text"
-                            placeholder="เช่น https://www.youtube.com/watch?v=... หรือ https://youtu.be/... หรือ Shorts"
-                            value={newLandingPage.video_url}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, video_url: e.target.value })}
-                            className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-red-400 font-mono"
-                          />
-                        </div>
-
-                        {/* 3. CUSTOM TRUST BADGES & COD TOGGLE */}
-                        <div className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
-                          <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold text-[#1E1B4B] dark:text-slate-200 flex items-center gap-1.5">
-                              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                              <span>ป้ายความมั่นใจ 3 จุด & ฟอร์มเก็บเงินปลายทาง (Trust Badges & COD)</span>
-                            </label>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                             <div>
-                              <label className="block text-[10px] font-bold text-slate-500 mb-1">ป้ายที่ 1</label>
+                              <h4 className="font-black text-sm sm:text-base text-[#1E1B4B] dark:text-white">
+                                แกลเลอรีรูปภาพ, รีวิวลูกค้า & คำถามที่พบบ่อย (Visual Proof & FAQ)
+                              </h4>
+                              <p className="text-[11px] text-slate-500">สร้างความน่าเชื่อถือด้วยรูปภาพรีวิว จุดเด่นสินค้า และตอบข้อสงสัย</p>
+                            </div>
+                          </div>
+
+                          {/* 1. ADDITIONAL PRODUCT GALLERY ALBUM */}
+                          <div className="p-4 bg-purple-50/40 dark:bg-purple-950/20 border-2 border-purple-200/80 dark:border-purple-900/40 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-black text-purple-950 dark:text-purple-300 flex items-center gap-1.5">
+                                <ImageIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                                <span>📸 รูปภาพสินค้าเพิ่มเติม (Product Gallery Album - ใส่ได้หลายรูป)</span>
+                              </label>
+                              <label className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition shadow active:scale-95">
+                                <Upload className="w-3.5 h-3.5" />
+                                <span>+ เพิ่มรูปสินค้า</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => handleUploadLpImage(e, 'gallery')}
+                                />
+                              </label>
+                            </div>
+                            <textarea
+                              rows={2}
+                              placeholder="URL รูปภาพสินค้าเพิ่มเติม (1 บรรทัด = 1 รูป หรือ กดปุ่ม + เพิ่มรูปสินค้า ด้านบน)"
+                              value={newLandingPage.gallery_images_text}
+                              onChange={(e) => setNewLandingPage({ ...newLandingPage, gallery_images_text: e.target.value })}
+                              className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-900/60 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono"
+                            />
+
+                            {/* Visual Thumbnail Grid for Product Gallery */}
+                            {(() => {
+                              const galleryUrls = (newLandingPage.gallery_images_text || '').split('\n').map(s => s.trim()).filter(s => s.startsWith('http') || s.startsWith('data:image'))
+                              if (galleryUrls.length === 0) return null
+
+                              return (
+                                <div className="pt-2 border-t border-purple-200/60 dark:border-purple-900/40 space-y-2">
+                                  <div className="flex items-center justify-between text-[11px] font-black text-purple-900 dark:text-purple-300">
+                                    <span>🖼️ รูปภาพในอัลบั้มสินค้า ({galleryUrls.length} รูป):</span>
+                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">แตะเพื่อดูรูปขยาย / กด ✕ เพื่อลบรูป</span>
+                                  </div>
+                                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
+                                    {galleryUrls.map((url, idx) => (
+                                      <div key={idx} className="relative group aspect-square rounded-2xl overflow-hidden border-2 border-purple-300 dark:border-purple-700/60 bg-black shadow-md">
+                                        <img
+                                          src={url}
+                                          alt={`Product ${idx + 1}`}
+                                          onClick={() => setZoomSlipUrl(url)}
+                                          className="w-full h-full object-cover cursor-pointer group-hover:scale-105 transition duration-150"
+                                          title="แตะเพื่อดูรูปขยาย"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const updated = galleryUrls.filter((_, i) => i !== idx).join('\n')
+                                            setNewLandingPage({ ...newLandingPage, gallery_images_text: updated })
+                                          }}
+                                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center text-[10px] font-black shadow-lg cursor-pointer transition"
+                                          title="ลบรูปนี้"
+                                        >
+                                          ✕
+                                        </button>
+                                        <span className="absolute bottom-1 left-1 bg-black/75 text-white text-[9px] px-1.5 py-0.2 rounded font-mono font-black pointer-events-none">
+                                          #{idx + 1}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )
+                            })()}
+                          </div>
+
+                          {/* 2. CUSTOMER REVIEW PHOTO ALBUM */}
+                          <div className="p-4 bg-amber-50/40 dark:bg-amber-950/20 border-2 border-amber-200/80 dark:border-amber-900/40 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                                <span className="font-black text-xs text-amber-950 dark:text-amber-300">
+                                  ⭐ อัลบั้มรูปภาพรีวิวจากลูกค้าจริง (Customer Review Photos)
+                                </span>
+                              </div>
+                              <label className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition shadow active:scale-95">
+                                <Upload className="w-3.5 h-3.5" />
+                                <span>+ เพิ่มรูปรีวิว</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => handleUploadLpImage(e, 'review')}
+                                />
+                              </label>
+                            </div>
+                            <textarea
+                              rows={2}
+                              placeholder="URL รูปภาพรีวิวจากลูกค้า (1 บรรทัด = 1 รูป หรือ กดปุ่ม + เพิ่มรูปรีวิว ด้านบน)"
+                              value={newLandingPage.review_images_text}
+                              onChange={(e) => setNewLandingPage({ ...newLandingPage, review_images_text: e.target.value })}
+                              className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/60 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono"
+                            />
+
+                            {/* Visual Thumbnail Grid for Customer Reviews */}
+                            {(() => {
+                              const reviewUrls = (newLandingPage.review_images_text || '').split('\n').map(s => s.trim()).filter(s => s.startsWith('http') || s.startsWith('data:image'))
+                              if (reviewUrls.length === 0) return null
+
+                              return (
+                                <div className="pt-2 border-t border-amber-200/60 dark:border-amber-900/40 space-y-2">
+                                  <div className="flex items-center justify-between text-[11px] font-black text-amber-950 dark:text-amber-300">
+                                    <span>⭐ รูปภาพรีวิวจากลูกค้า ({reviewUrls.length} รูป):</span>
+                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">แตะเพื่อดูรูปขยาย / กด ✕ เพื่อลบรูป</span>
+                                  </div>
+                                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
+                                    {reviewUrls.map((url, idx) => (
+                                      <div key={idx} className="relative group aspect-square rounded-2xl overflow-hidden border-2 border-amber-300 dark:border-amber-700/60 bg-black shadow-md">
+                                        <img
+                                          src={url}
+                                          alt={`Review ${idx + 1}`}
+                                          onClick={() => setZoomSlipUrl(url)}
+                                          className="w-full h-full object-cover cursor-pointer group-hover:scale-105 transition duration-150"
+                                          title="แตะเพื่อดูรูปขยาย"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const updated = reviewUrls.filter((_, i) => i !== idx).join('\n')
+                                            setNewLandingPage({ ...newLandingPage, review_images_text: updated })
+                                          }}
+                                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center text-[10px] font-black shadow-lg cursor-pointer transition"
+                                          title="ลบรูปนี้"
+                                        >
+                                          ✕
+                                        </button>
+                                        <span className="absolute bottom-1 left-1 bg-black/75 text-amber-400 text-[9px] px-1.5 py-0.2 rounded font-mono font-black pointer-events-none">
+                                          ⭐ #{idx + 1}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )
+                            })()}
+                          </div>
+
+                          {/* 3. PAIN POINTS & BENEFITS */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                            <div className="p-3.5 bg-rose-50/40 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-900/40 rounded-2xl space-y-2">
+                              <label className="block text-xs font-bold text-rose-700 dark:text-rose-300">❌ ปัญหาที่ลูกค้าเจอ (Pain Points)</label>
+                              <textarea
+                                rows={3}
+                                placeholder="1 บรรทัด = 1 ข้อความปัญหา"
+                                value={newLandingPage.pain_points_text}
+                                onChange={(e) => setNewLandingPage({ ...newLandingPage, pain_points_text: e.target.value })}
+                                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs"
+                              />
+                            </div>
+
+                            <div className="p-3.5 bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-900/40 rounded-2xl space-y-2">
+                              <label className="block text-xs font-bold text-emerald-700 dark:text-emerald-300">✓ จุดเด่นและผลลัพธ์ที่จะได้รับ (Benefits)</label>
+                              <textarea
+                                rows={3}
+                                placeholder="1 บรรทัด = 1 ประโยชน์ที่จะได้รับ"
+                                value={newLandingPage.benefits_text}
+                                onChange={(e) => setNewLandingPage({ ...newLandingPage, benefits_text: e.target.value })}
+                                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs"
+                              />
+                            </div>
+                          </div>
+
+                          {/* 4. FAQs & GUARANTEE */}
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">
+                                ❓ คำถามที่พบบ่อย (FAQs - รูปแบบ: คำถาม | คำตอบ)
+                              </label>
+                              <textarea
+                                rows={3}
+                                placeholder="มีบริการเก็บเงินปลายทางไหม? | มีครับ สามารถเลือก COD ได้เลย&#10;ส่งสินค้ากี่วันถึง? | จัดส่งด่วน 1-2 วันทำการครับ"
+                                value={newLandingPage.faqs_text}
+                                onChange={(e) => setNewLandingPage({ ...newLandingPage, faqs_text: e.target.value })}
+                                className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                               <input
                                 type="text"
-                                placeholder="ส่งฟรีด่วน"
+                                placeholder="Badge 1 (เช่น ส่งฟรีด่วน)"
                                 value={newLandingPage.trust_badge_1}
                                 onChange={(e) => setNewLandingPage({ ...newLandingPage, trust_badge_1: e.target.value })}
-                                className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none"
+                                className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-center"
                               />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 mb-1">ป้ายที่ 2</label>
                               <input
                                 type="text"
-                                placeholder="ของแท้ 100%"
+                                placeholder="Badge 2 (เช่น ของแท้ 100%)"
                                 value={newLandingPage.trust_badge_2}
                                 onChange={(e) => setNewLandingPage({ ...newLandingPage, trust_badge_2: e.target.value })}
-                                className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none"
+                                className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-center"
                               />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 mb-1">ป้ายที่ 3 (แก้ไขได้อิสระ)</label>
                               <input
                                 type="text"
-                                placeholder="ชำระเงินปลอดภัย หรือ เก็บเงินปลายทาง"
+                                placeholder="Badge 3 (เช่น ชำระเงินปลอดภัย)"
                                 value={newLandingPage.trust_badge_3}
                                 onChange={(e) => setNewLandingPage({ ...newLandingPage, trust_badge_3: e.target.value })}
-                                className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none"
+                                className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-center"
                               />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ========================================================================= */}
+                      {/* STEP 3: ระบบรับเงิน & พร้อมเพย์ (PROMPTPAY QR & COD CHECKOUT) */}
+                      {/* ========================================================================= */}
+                      {salepageWizardStep === 3 && (
+                        <div className="p-5 sm:p-6 bg-white dark:bg-slate-900 border-2 border-emerald-500/30 dark:border-emerald-500/20 rounded-3xl space-y-5 shadow-sm animate-in fade-in duration-200">
+                          <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-slate-800 pb-3">
+                            <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-xs font-black shadow-md shadow-emerald-600/20">
+                              3
+                            </div>
+                            <div>
+                              <h4 className="font-black text-sm sm:text-base text-[#1E1B4B] dark:text-white">
+                                ระบบรับเงิน & เช็กเอาต์ (PromptPay QR & เก็บเงินปลายทาง COD)
+                              </h4>
+                              <p className="text-[11px] text-slate-500">กำหนดบัญชีพร้อมเพย์และเปิดใช้งานฟอร์มสั่งซื้อพร้อมแนบสลิป</p>
                             </div>
                           </div>
 
                           {/* COD & PROMPTPAY FORM TOGGLE SWITCH */}
-                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                          <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl flex items-center justify-between">
                             <div>
                               <p className="text-xs font-extrabold text-[#1E1B4B] dark:text-white">
-                                แสดง "ฟอร์มสั่งซื้อ & ชำระเงิน (PromptPay QR + COD Form)" ด้านล่างเซลเพจ
+                                แสดง "ฟอร์มสั่งซื้อ & ชำระเงิน (PromptPay QR + COD)" ด้านล่างเซลเพจ
                               </p>
-                              <p className="text-[10px] text-slate-500">
+                              <p className="text-[11px] text-slate-500 mt-0.5">
                                 {newLandingPage.enable_cod_form 
                                   ? '✓ เปิดใช้งาน: ลูกค้าสามารถสลับชำระเงินโอนพร้อมเพย์แนบสลิป หรือ COD ได้ทันที' 
                                   : '✕ ปิดใช้งาน: ซ่อนฟอร์มสั่งซื้อ และให้ลูกค้าคลิกปุ่มสั่งซื้อผ่าน LINE OA / เว็บไซต์แทน'}
@@ -3544,7 +3940,7 @@ export default function DashboardPage() {
                             <button
                               type="button"
                               onClick={() => setNewLandingPage({ ...newLandingPage, enable_cod_form: !newLandingPage.enable_cod_form })}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                                 newLandingPage.enable_cod_form 
                                   ? 'bg-emerald-500 text-slate-950 font-black shadow' 
                                   : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
@@ -3553,999 +3949,381 @@ export default function DashboardPage() {
                               <span>{newLandingPage.enable_cod_form ? 'เปิดใช้งานฟอร์มสั่งซื้อ' : 'ปิดฟอร์มสั่งซื้อ'}</span>
                             </button>
                           </div>
-                        </div>
 
-                        {/* PROMPTPAY ACCOUNT SETTINGS FOR THIS SALEPAGE */}
-                        <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Sparkles className="w-4 h-4 text-emerald-500" />
-                              <span className="font-extrabold text-xs text-emerald-900 dark:text-emerald-300">
-                                ข้อมูลบัญชี PromptPay ประจำเซลเพจนี้ (สำหรับสร้าง QR Code ชำระเงินอัตโนมัติ)
+                          {/* PROMPTPAY ACCOUNT SETTINGS FOR THIS SALEPAGE */}
+                          <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-xs text-[#1E1B4B] dark:text-slate-200 flex items-center gap-1.5">
+                                <Sparkles className="w-4 h-4 text-emerald-500" />
+                                <span>ข้อมูลบัญชี PromptPay ประจำเซลเพจนี้ (สำหรับสร้าง QR Code อัตโนมัติ)</span>
+                              </span>
+                              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-full font-mono">
+                                Dynamic EMVCo QR
                               </span>
                             </div>
-                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-full">
-                              Dynamic QR Code
-                            </span>
-                          </div>
+                            <p className="text-[11px] text-slate-400">
+                              ระบบจะนำยอดเงินของสินค้า (หรือยอดที่ลูกค้ากรอก) ไปสร้างภาพ QR Code ตามมาตรฐานพร้อมเพย์ไทยให้ลูกค้าสแกนจ่ายได้ทันที
+                            </p>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                            <div>
-                              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                                เบอร์พร้อมเพย์ / เลขประจำตัว
-                              </label>
-                              <input
-                                type="text"
-                                placeholder="เช่น 0909964514"
-                                value={newLandingPage.promptpay_phone || ''}
-                                onChange={(e) => setNewLandingPage({ ...newLandingPage, promptpay_phone: e.target.value })}
-                                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                                ชื่อบัญชีผู้รับเงิน
-                              </label>
-                              <input
-                                type="text"
-                                placeholder="เช่น วันชนะ ขวัญแก้ว"
-                                value={newLandingPage.promptpay_name || ''}
-                                onChange={(e) => setNewLandingPage({ ...newLandingPage, promptpay_name: e.target.value })}
-                                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                                ธนาคาร
-                              </label>
-                              <input
-                                type="text"
-                                placeholder="เช่น กสิกรไทย (KBANK)"
-                                value={newLandingPage.promptpay_bank || ''}
-                                onChange={(e) => setNewLandingPage({ ...newLandingPage, promptpay_bank: e.target.value })}
-                                className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* PER-SALEPAGE LINE MESSAGING API NOTIFICATION SETTINGS */}
-                        <div className="p-4 bg-gradient-to-br from-[#06C755]/10 via-slate-900 to-slate-950 border-2 border-[#06C755]/40 rounded-2xl space-y-3 shadow-lg">
-                          <div className="flex items-center justify-between pb-1.5 border-b border-[#06C755]/20">
-                            <div className="flex items-center gap-2">
-                              <MessageCircle className="w-4 h-4 text-[#06C755]" />
-                              <span className="font-black text-xs text-[#06C755]">
-                                การตั้งค่ารับแจ้งเตือนออเดอร์เข้า LINE ประจำเซลเพจนี้ (LINE Messaging API)
-                              </span>
-                            </div>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#06C755]/20 text-[#06C755] border border-[#06C755]/40 font-mono">
-                              Real-Time Alert
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-400 leading-relaxed">
-                            กำหนดบัญชี LINE OA เพื่อรับแจ้งเตือนออเดอร์ COD และรูปสลิปโอนเงินแยกเฉพาะเซลเพจนี้ (ถ้าไม่กรอก จะใช้ค่าของโปรไฟล์หลัก)
-                          </p>
-                          <div className="space-y-2.5">
-                            <div>
-                              <label className="block text-[11px] font-bold text-slate-200 mb-1">
-                                LINE Channel Access Token (Long-lived Token จาก LINE Developers)
-                              </label>
-                              <textarea
-                                rows={2}
-                                placeholder="วาง Channel Access Token ตัวยาว (160+ ตัวอักษร) จากแท็บ Messaging API ใน LINE Developers"
-                                value={newLandingPage.line_channel_access_token || ''}
-                                onChange={(e) => setNewLandingPage({ ...newLandingPage, line_channel_access_token: e.target.value })}
-                                className="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-[#06C755]"
-                              />
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                               <div>
-                                <label className="block text-[11px] font-bold text-slate-200 mb-1">
-                                  LINE User ID ของผู้รับแจ้งเตือน (ขึ้นต้นด้วย U...)
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                  เบอร์พร้อมเพย์ / เลขประจำตัว
                                 </label>
                                 <input
                                   type="text"
-                                  placeholder="เช่น U1234567890abcdef..."
-                                  value={newLandingPage.line_user_id || ''}
-                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, line_user_id: e.target.value })}
-                                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-[#06C755]"
+                                  placeholder="เช่น 0909964514"
+                                  value={newLandingPage.promptpay_phone || ''}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, promptpay_phone: e.target.value })}
+                                  className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold"
                                 />
                               </div>
-                              <div className="flex items-end">
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    if (!newLandingPage.line_channel_access_token && !newLandingPage.line_user_id) {
-                                      showToast('⚠️ กรุณากรอก Token และ User ID ก่อนกดทดสอบครับ')
-                                      return
-                                    }
-                                    try {
-                                      const res = await fetch('/api/test-line-notify', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                          channel_access_token: newLandingPage.line_channel_access_token,
-                                          user_id: newLandingPage.line_user_id
-                                        })
-                                      })
-                                      const data = await res.json()
-                                      if (res.ok && data.success) {
-                                        showToast('✅ ' + data.message)
-                                      } else {
-                                        showToast('❌ ' + (data.error || 'ส่งข้อความทดสอบไม่สำเร็จ'))
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                  ชื่อบัญชีผู้รับเงิน
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="เช่น วันชนะ ขวัญแก้ว"
+                                  value={newLandingPage.promptpay_name || ''}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, promptpay_name: e.target.value })}
+                                  className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                                  ธนาคาร
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="เช่น กสิกรไทย (KBANK)"
+                                  value={newLandingPage.promptpay_bank || ''}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, promptpay_bank: e.target.value })}
+                                  className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ========================================================================= */}
+                      {/* STEP 4: TRACKING PIXELS, LINE NOTIFY & PRO THEME STYLING */}
+                      {/* ========================================================================= */}
+                      {salepageWizardStep === 4 && (
+                        <div className="p-5 sm:p-6 bg-white dark:bg-slate-900 border-2 border-blue-500/30 dark:border-blue-500/20 rounded-3xl space-y-5 shadow-sm animate-in fade-in duration-200">
+                          <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-slate-800 pb-3">
+                            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center text-xs font-black shadow-md shadow-blue-600/20">
+                              4
+                            </div>
+                            <div>
+                              <h4 className="font-black text-sm sm:text-base text-[#1E1B4B] dark:text-white">
+                                Tracking Pixels, แจ้งเตือน LINE & สไตล์ธีม (Marketing & Styling)
+                              </h4>
+                              <p className="text-[11px] text-slate-500">กำหนด Token รับแจ้งเตือนเข้า LINE และ Pixel ID เฉพาะสำหรับเซลเพจนี้</p>
+                            </div>
+                          </div>
+
+                          {/* LINE Messaging API Card */}
+                          <div className="p-4 bg-gradient-to-br from-[#06C755]/10 via-slate-50 to-white dark:from-[#06C755]/10 dark:via-slate-950 dark:to-slate-900 border-2 border-[#06C755]/40 rounded-2xl space-y-3 shadow-sm">
+                            <div className="flex items-center justify-between pb-1.5 border-b border-[#06C755]/20">
+                              <div className="flex items-center gap-2">
+                                <MessageCircle className="w-4 h-4 text-[#06C755]" />
+                                <span className="font-black text-xs text-[#06C755]">
+                                  การตั้งค่ารับแจ้งเตือนออเดอร์เข้า LINE ประจำเซลเพจนี้ (LINE Messaging API)
+                                </span>
+                              </div>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[#06C755]/20 text-[#06C755] border border-[#06C755]/40 font-mono">
+                                Real-Time Alert
+                              </span>
+                            </div>
+
+                            <div className="space-y-2.5">
+                              <div>
+                                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1">
+                                  LINE Channel Access Token (Long-lived Token จาก LINE Developers)
+                                </label>
+                                <textarea
+                                  rows={2}
+                                  placeholder="วาง Channel Access Token ตัวยาว (160+ ตัวอักษร) จากแท็บ Messaging API ใน LINE Developers"
+                                  value={newLandingPage.line_channel_access_token || ''}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, line_channel_access_token: e.target.value })}
+                                  className="w-full px-3 py-1.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono focus:outline-none focus:border-[#06C755]"
+                                />
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                <div>
+                                  <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1">
+                                    LINE User ID ของผู้รับแจ้งเตือน (ขึ้นต้นด้วย U...)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="เช่น U1234567890abcdef..."
+                                    value={newLandingPage.line_user_id || ''}
+                                    onChange={(e) => setNewLandingPage({ ...newLandingPage, line_user_id: e.target.value })}
+                                    className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono focus:outline-none focus:border-[#06C755]"
+                                  />
+                                </div>
+                                <div className="flex items-end">
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      if (!newLandingPage.line_channel_access_token && !newLandingPage.line_user_id) {
+                                        showToast('⚠️ กรุณากรอก Token และ User ID ก่อนกดทดสอบครับ')
+                                        return
                                       }
-                                    } catch (e) {}
-                                  }}
-                                  className="w-full py-2 bg-[#06C755] hover:bg-[#05B34C] text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 transition shadow active:scale-95 cursor-pointer"
-                                >
-                                  <Send className="w-3.5 h-3.5" />
-                                  <span>📲 ทดสอบส่งเข้า LINE เซลเพจนี้</span>
-                                </button>
+                                      try {
+                                        const res = await fetch('/api/test-line-notify', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({
+                                            channel_access_token: newLandingPage.line_channel_access_token,
+                                            user_id: newLandingPage.line_user_id
+                                          })
+                                        })
+                                        const data = await res.json()
+                                        if (res.ok && data.success) {
+                                          showToast('✅ ' + data.message)
+                                        } else {
+                                          showToast('❌ ' + (data.error || 'ส่งข้อความทดสอบไม่สำเร็จ'))
+                                        }
+                                      } catch (e) {}
+                                    }}
+                                    className="w-full py-2 bg-[#06C755] hover:bg-[#05B34C] text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 transition shadow active:scale-95 cursor-pointer"
+                                  >
+                                    <Send className="w-3.5 h-3.5" />
+                                    <span>📲 ทดสอบส่งเข้า LINE เซลเพจนี้</span>
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
 
-                        {/* 3. ADDITIONAL PRODUCT GALLERY ALBUM */}
-                        <div className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
-                          <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold text-[#1E1B4B] dark:text-slate-200 flex items-center gap-1.5">
-                              <ImageIcon className="w-4 h-4 text-purple-500" />
-                              <span>3. รูปภาพสินค้าเพิ่มเติม (Product Gallery Album - ใส่ได้หลายรูป)</span>
+                          {/* Tracking Pixels */}
+                          <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
+                            <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
+                              ฝังโค้ด Tracking Pixels ประจำเซลเพจนี้ (ทางเลือก - หากไม่กรอกจะใช้ค่าหลักอัตโนมัติ)
                             </label>
-                            <label className="px-3 py-1 bg-purple-100 dark:bg-purple-950/60 hover:bg-purple-200 text-purple-700 dark:text-purple-300 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition">
-                              <Upload className="w-3.5 h-3.5" />
-                              <span>📸 เพิ่มรูปเข้าอัลบั้ม</span>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => handleUploadLpImage(e, 'gallery')}
-                              />
-                            </label>
-                          </div>
-                          <textarea
-                            rows={2}
-                            placeholder="URL รูปภาพสินค้าเพิ่มเติม (1 บรรทัด = 1 รูป หรือ กดปุ่มเพิ่มรูปจากมือถือด้านบน)"
-                            value={newLandingPage.gallery_images_text}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, gallery_images_text: e.target.value })}
-                            className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono"
-                          />
-                        </div>
-                      </div>
-
-                      {/* --- SECTION 2: PAIN POINT & AGITATION --- */}
-                      <div className="p-4 bg-rose-50/40 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-900/40 rounded-2xl space-y-3">
-                        <div className="flex items-center gap-2 border-b border-rose-200 dark:border-rose-900/50 pb-2">
-                          <span className="w-6 h-6 rounded-full bg-rose-600 text-white flex items-center justify-center text-xs font-black">2</span>
-                          <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white">Pain Point & Agitation (ขยี้ปัญหาที่ลูกค้าเจอ)</h4>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">หัวข้อส่วนปัญหา</label>
-                          <input
-                            type="text"
-                            placeholder="คุณกำลังเจอปัญหาเหล่านี้อยู่ใช่หรือไม่?"
-                            value={newLandingPage.pain_headline}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, pain_headline: e.target.value })}
-                            className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">รายการปัญหา (1 บรรทัด = 1 ข้อความ)</label>
-                          <textarea
-                            rows={3}
-                            placeholder="❌ เบื่อไหม? ลูกค้าทักมาขอลิงก์ช้อปปิ้งทีละแอปจนตอบไม่ทัน&#10;❌ ยิงแอดไปเท่าไหร่ แต่เก็บ Data ลูกค้าไม่ได้เลยใช่ไหม?&#10;❌ ลูกค้าสับสนช่องทางชำระเงินจนเปลี่ยนใจไม่ซื้อ"
-                            value={newLandingPage.pain_points_text}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, pain_points_text: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-sans"
-                          />
-                        </div>
-                      </div>
-
-                      {/* --- SECTION 3: SOLUTION & BENEFITS --- */}
-                      <div className="p-4 bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-900/40 rounded-2xl space-y-3">
-                        <div className="flex items-center gap-2 border-b border-emerald-200 dark:border-emerald-900/50 pb-2">
-                          <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-black">3</span>
-                          <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white">Solution & Benefits (นำเสนอทางแก้และผลลัพธ์)</h4>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">หัวข้อส่วนผลประโยชน์</label>
-                          <input
-                            type="text"
-                            placeholder="ทางออกและผลลัพธ์ที่คุณจะได้รับ"
-                            value={newLandingPage.benefits_headline}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, benefits_headline: e.target.value })}
-                            className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">รายการประโยชน์ที่จะได้รับ (1 บรรทัด = 1 ประโยชน์)</label>
-                          <textarea
-                            rows={3}
-                            placeholder="✓ ฝัง Pixel ง่ายๆ ช่วยให้คุณยิงแอดตามติดลูกค้า เพิ่มยอดขาย 300%&#10;✓ รวมทุกลิงก์และระบบรับเงินจบในหน้าเดียว ลูกค้าไม่สับสน&#10;✓ ดึงยอดคนดูเข้าไลฟ์สดได้ทันทีจากทุกช่องทาง แบบ Real-time"
-                            value={newLandingPage.benefits_text}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, benefits_text: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-sans"
-                          />
-                        </div>
-                      </div>
-
-                      {/* --- SECTION: CUSTOMER REVIEW PHOTO ALBUM (อัลบั้มรูปรีวิว) --- */}
-                      <div className="p-4 bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 rounded-2xl space-y-3">
-                        <div className="flex items-center justify-between border-b border-amber-200 dark:border-amber-900/50 pb-2">
-                          <div className="flex items-center gap-2">
-                            <ImageIcon className="w-5 h-5 text-amber-500" />
-                            <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white">
-                              รูปภาพรีวิวและการใช้งานจริงจากลูกค้า (Review Photos Album)
-                            </h4>
-                          </div>
-                          <label className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer transition shadow-sm">
-                            <Upload className="w-3.5 h-3.5" />
-                            <span>📸 เพิ่มรูปรีวิวจากมือถือ</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => handleUploadLpImage(e, 'review')}
-                            />
-                          </label>
-                        </div>
-
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                          ใส่ภาพแชตรีวิวจากลูกค้า หรือภาพสินค้าขณะใช้งานจริง เพื่อให้ลูกค้าแตะดูรูปขยายแบบอัลบั้มได้
-                        </p>
-
-                        <textarea
-                          rows={2}
-                          placeholder="URL รูปภาพรีวิว (1 บรรทัด = 1 รูป หรือ กดปุ่มอัปโหลดรูปรีวิวจากมือถือด้านบน)"
-                          value={newLandingPage.review_images_text}
-                          onChange={(e) => setNewLandingPage({ ...newLandingPage, review_images_text: e.target.value })}
-                          className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono"
-                        />
-                      </div>
-
-                      {/* --- SECTION 4: SOCIAL PROOF & REVIEWS --- */}
-                      <div className="p-4 bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 rounded-2xl space-y-3">
-                        <div className="flex items-center gap-2 border-b border-amber-200 dark:border-amber-900/50 pb-2">
-                          <span className="w-6 h-6 rounded-full bg-amber-600 text-white flex items-center justify-center text-xs font-black">4</span>
-                          <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white">Social Proof & Trust (รีวิวและความมั่นใจ)</h4>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">รีวิวจากลูกค้าจริง (1 บรรทัด = 1 รีวิว)</label>
-                          <textarea
-                            rows={3}
-                            placeholder="ตั้งแต่เปลี่ยนมาใช้หน้านี้ ยอดขายจาก TikTok Ads เพิ่มขึ้น 3 เท่า ลูกค้าสั่งซื้อง่ายมาก&#10;ระบบจัดการลิงก์และเซลเพจที่ดีที่สุด ช่วยประหยัดเวลาตอบแชตได้เยอะมาก"
-                            value={newLandingPage.testimonials_text}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, testimonials_text: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">ข้อความรับประกัน (Guarantee Badge)</label>
-                          <input
-                            type="text"
-                            placeholder="🛡️ รับประกันความพึงพอใจ ของแท้ 100% ยินดีคืนเงินภายใน 7 วัน"
-                            value={newLandingPage.guarantee_text}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, guarantee_text: e.target.value })}
-                            className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      {/* --- SECTION 5: PRICING & THE OFFER (ยื่นข้อเสนอที่ปฏิเสธไม่ได้) --- */}
-                      <div className="p-4 bg-rose-50/40 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-900/40 rounded-2xl space-y-3">
-                        <div className="flex items-center gap-2 border-b border-rose-200 dark:border-rose-900/50 pb-2">
-                          <span className="w-6 h-6 rounded-full bg-rose-600 text-white flex items-center justify-center text-xs font-black">5</span>
-                          <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white">Pricing & The Offer (ข้อเสนอ, ราคา และปุ่มสั่งซื้อ)</h4>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                          <div>
-                            <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">ราคาพิเศษ Flash Sale (บาท) *</label>
-                            <input
-                              type="number"
-                              required
-                              placeholder="990"
-                              value={newLandingPage.offer_price}
-                              onChange={(e) => setNewLandingPage({ ...newLandingPage, offer_price: e.target.value })}
-                              className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400 font-mono font-bold"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">ราคาเต็มก่อนลด (บาท)</label>
-                            <input
-                              type="number"
-                              placeholder="1990"
-                              value={newLandingPage.original_price}
-                              onChange={(e) => setNewLandingPage({ ...newLandingPage, original_price: e.target.value })}
-                              className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400 font-mono"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">เวลานับถอยหลัง (นาที)</label>
-                            <input
-                              type="number"
-                              placeholder="15"
-                              value={newLandingPage.countdown_minutes}
-                              onChange={(e) => setNewLandingPage({ ...newLandingPage, countdown_minutes: parseInt(e.target.value, 10) || 15 })}
-                              className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400 font-mono"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                          <div>
-                            <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">ข้อความบนปุ่มสั่งซื้อ (CTA Button Text) *</label>
-                            <input
-                              type="text"
-                              required
-                              placeholder="สั่งซื้อโปรโมชั่นพิเศษนี้ทันที"
-                              value={newLandingPage.cta_text}
-                              onChange={(e) => setNewLandingPage({ ...newLandingPage, cta_text: e.target.value })}
-                              className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400 font-bold"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">ลิงก์ปลายทางเมื่อกดปุ่ม (LINE OA / Shopee / ฯลฯ) *</label>
-                            <input
-                              type="text"
-                              required
-                              placeholder="https://line.me/ti/p/@amth หรือ ลิงก์ร้านค้า"
-                              value={newLandingPage.cta_url}
-                              onChange={(e) => setNewLandingPage({ ...newLandingPage, cta_url: e.target.value })}
-                              className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400 font-mono"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">รายการของแถม / จุดเด่นของข้อเสนอ (1 บรรทัด = 1 ข้อ)</label>
-                          <textarea
-                            rows={3}
-                            placeholder="✓ ส่งฟรีทั่วไทย (จัดส่งด่วน 1-2 วัน)&#10;✓ มีบริการเก็บเงินปลายทาง (COD)&#10;✓ รับประกันของแท้ 100% ตรงจากผู้ผลิต"
-                            value={newLandingPage.features_text}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, features_text: e.target.value })}
-                            className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-sans"
-                          />
-                        </div>
-
-                        {/* --- SUBSECTION: 3 BOTTOM STICKY ACTION BUTTONS --- */}
-                        <div className="p-4 bg-white dark:bg-slate-900 border-2 border-rose-300/80 dark:border-rose-900/80 rounded-2xl space-y-3.5 shadow-sm mt-3">
-                          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                            <div className="flex items-center gap-2">
-                              <Flame className="w-5 h-5 text-rose-500 animate-pulse" />
-                              <h5 className="font-extrabold text-xs sm:text-sm text-[#1E1B4B] dark:text-white">
-                                🔥 ปรับแต่ง 3 ปุ่มลอยด่วนด้านล่าง (Bottom Sticky Action Buttons)
-                              </h5>
-                            </div>
-                            <span className="text-[10px] text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950/60 px-2.5 py-0.5 rounded-full border border-rose-200 dark:border-rose-900">
-                              แถบลอยติดขอบล่างหน้าจอ
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                            
-                            {/* Button 1: Red Flame Primary Button */}
-                            <div className="p-3.5 bg-rose-50/70 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl space-y-2">
-                              <div className="flex items-center gap-1.5 font-extrabold text-rose-700 dark:text-rose-300">
-                                <Flame className="w-4 h-4" />
-                                <span>ปุ่มที่ 1 (สีแดง/สีธีมหลัก)</span>
-                              </div>
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">ข้อความบนปุ่ม 1</label>
-                                <input
-                                  type="text"
-                                  placeholder="ติดต่อสั่งซื้อด่วน"
-                                  value={newLandingPage.sticky_btn1_text}
-                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn1_text: e.target.value, cta_text: e.target.value })}
-                                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800 rounded-xl font-bold text-[#1E1B4B] dark:text-white text-xs"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">URL ปลายทางปุ่ม 1</label>
-                                <input
-                                  type="text"
-                                  placeholder="https://... (หรือเว้นว่างเพื่อใช้ CTA หลัก)"
-                                  value={newLandingPage.sticky_btn1_url}
-                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn1_url: e.target.value, cta_url: e.target.value || newLandingPage.cta_url })}
-                                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800 rounded-xl font-mono text-[11px] text-[#1E1B4B] dark:text-white"
-                                />
-                              </div>
-                            </div>
-
-                            {/* Button 2: Purple Send Secondary Button */}
-                            <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2">
-                              <div className="flex items-center gap-1.5 font-extrabold text-purple-700 dark:text-purple-300">
-                                <Send className="w-4 h-4" />
-                                <span>ปุ่มที่ 2 (สีม่วง/น้ำเงิน)</span>
-                              </div>
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">ข้อความบนปุ่ม 2</label>
-                                <input
-                                  type="text"
-                                  placeholder="ช่องทางติดต่ออื่นๆ"
-                                  value={newLandingPage.sticky_btn2_text}
-                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn2_text: e.target.value, cta_secondary_text: e.target.value })}
-                                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-bold text-[#1E1B4B] dark:text-white text-xs"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">URL ปลายทางปุ่ม 2 (LINE OA / Bio)</label>
-                                <input
-                                  type="text"
-                                  placeholder="https://line.me/ti/p/@amth"
-                                  value={newLandingPage.sticky_btn2_url}
-                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn2_url: e.target.value, cta_secondary_url: e.target.value })}
-                                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl font-mono text-[11px] text-[#1E1B4B] dark:text-white"
-                                />
-                              </div>
-                            </div>
-
-                            {/* Button 3: Green Shopping Bag Shop Button */}
-                            <div className="p-3.5 bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-2xl space-y-2">
-                              <div className="flex items-center gap-1.5 font-extrabold text-emerald-700 dark:text-emerald-300">
-                                <ShoppingBag className="w-4 h-4" />
-                                <span>ปุ่มที่ 3 (สีเขียว สั่งซื้อออนไลน์)</span>
-                              </div>
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">ข้อความบนปุ่ม 3</label>
-                                <input
-                                  type="text"
-                                  placeholder="สั่งซื้อออนไลน์"
-                                  value={newLandingPage.sticky_btn3_text}
-                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn3_text: e.target.value, cta_shop_text: e.target.value })}
-                                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded-xl font-bold text-[#1E1B4B] dark:text-white text-xs"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">URL ปลายทางปุ่ม 3 (Shopee / ร้านค้า)</label>
-                                <input
-                                  type="text"
-                                  placeholder="https://shopee.co.th/..."
-                                  value={newLandingPage.sticky_btn3_url}
-                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, sticky_btn3_url: e.target.value, cta_shop_url: e.target.value })}
-                                  className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded-xl font-mono text-[11px] text-[#1E1B4B] dark:text-white"
-                                />
-                              </div>
-                            </div>
-
-                          </div>
-                        </div>
-                      </div>
-
-                      
-                      {/* --- SECTION 6: FAQS & SALES COPY --- */}
-                      <div className="p-4 bg-purple-50/40 dark:bg-purple-950/20 border border-purple-200/80 dark:border-purple-900/40 rounded-2xl space-y-3">
-                        <div className="flex items-center gap-2 border-b border-purple-200 dark:border-purple-900/50 pb-2">
-                          <span className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-black">5</span>
-                          <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white">FAQ & Content (คำถามที่พบบ่อย & รายละเอียด)</h4>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">
-                            คำถามที่พบบ่อย (รูปแบบ: คำถาม | คำตอบ)
-                          </label>
-                          <textarea
-                            rows={3}
-                            placeholder="มีบริการเก็บเงินปลายทาง (COD) ไหม? | มีครับ สามารถกรอกที่อยู่แล้วรอชำระเงินเมื่อสินค้าถึงได้เลย&#10;จัดส่งสินค้ากี่วันถึง? | จัดส่งด่วน Flash/EMS สินค้าถึงภายใน 1-2 วันทำการครับ"
-                            value={newLandingPage.faqs_text}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, faqs_text: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">เนื้อหาและรีวิวเพิ่มเติม (Sales Copy)</label>
-                          <textarea
-                            rows={3}
-                            placeholder="อธิบายสรรพคุณ วิธีใช้งาน รายละเอียดโปรโมชั่น รีวิวจากผู้ใช้..."
-                            value={newLandingPage.body_content}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, body_content: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      {/* --- SECTION 7: PRO STYLING & BACKGROUND WALLPAPER --- */}
-                      <div className="p-4 bg-indigo-50/40 dark:bg-indigo-950/20 border border-indigo-200/80 dark:border-indigo-900/40 rounded-2xl space-y-4">
-                        <div className="flex items-center gap-2 border-b border-indigo-200 dark:border-indigo-900/50 pb-2">
-                          <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-black">7</span>
-                          <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white">ปรับแต่งสี & รูปภาพพื้นหลังระดับโปร (Pro Styling)</h4>
-                        </div>
-
-                        {/* 1. Theme Color Presets */}
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1.5">
-                            ธีมสีปุ่มสั่งซื้อ & ป้าย Flash Sale (Theme Color)
-                          </label>
-                          <div className="flex flex-wrap items-center gap-2">
-                            {[
-                              { color: '#EF4444', label: 'แดง Flash Sale' },
-                              { color: '#10B981', label: 'เขียวมิ้นต์ COD' },
-                              { color: '#8B5CF6', label: 'ม่วงคอสมิก' },
-                              { color: '#F59E0B', label: 'ทองคำหรูหรา' },
-                              { color: '#2563EB', label: 'น้ำเงินพรีเมียม' },
-                              { color: '#000000', label: 'ดำคลาสสิก' }
-                            ].map((preset) => (
-                              <button
-                                key={preset.color}
-                                type="button"
-                                onClick={() => setNewLandingPage({ ...newLandingPage, theme_color: preset.color })}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
-                                  newLandingPage.theme_color === preset.color
-                                    ? 'border-indigo-600 ring-2 ring-indigo-500/30 bg-white dark:bg-slate-900 shadow-sm'
-                                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300'
-                                }`}
-                              >
-                                <span className="w-3.5 h-3.5 rounded-full shadow-inner" style={{ backgroundColor: preset.color }}></span>
-                                <span>{preset.label}</span>
-                              </button>
-                            ))}
-
-                            <div className="flex items-center gap-1.5 ml-auto">
-                              <span className="text-[11px] text-slate-400 font-bold">Custom Hex:</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               <input
                                 type="text"
-                                placeholder="#EF4444"
-                                value={newLandingPage.theme_color}
-                                onChange={(e) => setNewLandingPage({ ...newLandingPage, theme_color: e.target.value })}
-                                className="w-24 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono font-bold text-[#1E1B4B] dark:text-white focus:outline-none"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 2. Page Background Color Presets */}
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1.5">
-                            สีพื้นหลังหน้าเซลเพจ (Page Background)
-                          </label>
-                          <div className="flex flex-wrap items-center gap-2">
-                            {[
-                              { color: '#0B0F17', label: 'ดำ Obsidian' },
-                              { color: '#FFFFFF', label: 'ขาวสว่าง Clean' },
-                              { color: '#F9F9FF', label: 'พาสเทล Lavender' },
-                              { color: '#0F172A', label: 'มิดไนท์ Navy' },
-                              { color: '#18080E', label: 'แดงเบอร์กันดี' }
-                            ].map((preset) => (
-                              <button
-                                key={preset.color}
-                                type="button"
-                                onClick={() => setNewLandingPage({ ...newLandingPage, bg_color: preset.color })}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
-                                  newLandingPage.bg_color === preset.color
-                                    ? 'border-indigo-600 ring-2 ring-indigo-500/30 bg-white dark:bg-slate-900 shadow-sm'
-                                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300'
-                                }`}
-                              >
-                                <span className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shadow-inner" style={{ backgroundColor: preset.color }}></span>
-                                <span>{preset.label}</span>
-                              </button>
-                            ))}
-
-                            <div className="flex items-center gap-1.5 ml-auto">
-                              <span className="text-[11px] text-slate-400 font-bold">Custom Hex:</span>
-                              <input
-                                type="text"
-                                placeholder="#0B0F17"
-                                value={newLandingPage.bg_color}
-                                onChange={(e) => setNewLandingPage({ ...newLandingPage, bg_color: e.target.value })}
-                                className="w-24 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono font-bold text-[#1E1B4B] dark:text-white focus:outline-none"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* 3. Text & Headline Color */}
-                        <div className="space-y-2 pt-2 border-t border-indigo-200/60 dark:border-indigo-900/40">
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200">
-                            3. สีตัวหนังสือและหัวข้อในจอเล็ก (Text & Headline Color)
-                          </label>
-                          <div className="flex flex-wrap items-center gap-2">
-                            {[
-                              { color: '#FFFFFF', label: 'ขาวสว่าง (สำหรับพื้นหลังมืด)' },
-                              { color: '#0F172A', label: 'ดำเข้ม (สำหรับพื้นหลังสว่าง)' },
-                              { color: '#FCD34D', label: 'ทองอร่าม' },
-                              { color: '#F43F5E', label: 'กุหลาบชมพู' },
-                              { color: '#34D399', label: 'เขียวมิ้นต์' }
-                            ].map((preset) => (
-                              <button
-                                key={preset.color}
-                                type="button"
-                                onClick={() => setNewLandingPage({ ...newLandingPage, text_color: preset.color })}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition ${
-                                  newLandingPage.text_color === preset.color
-                                    ? 'border-indigo-600 ring-2 ring-indigo-500/30 bg-white dark:bg-slate-900 shadow-sm'
-                                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300'
-                                }`}
-                              >
-                                <span className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shadow-inner" style={{ backgroundColor: preset.color }}></span>
-                                <span>{preset.label}</span>
-                              </button>
-                            ))}
-
-                            <div className="flex items-center gap-1.5 ml-auto">
-                              <input
-                                type="color"
-                                value={newLandingPage.text_color || '#FFFFFF'}
-                                onChange={(e) => setNewLandingPage({ ...newLandingPage, text_color: e.target.value })}
-                                className="w-7 h-7 rounded-lg border border-slate-300 dark:border-slate-700 cursor-pointer p-0.5 bg-white"
+                                placeholder={profile.fb_pixel_id ? `Facebook Pixel ID (หลัก: ${profile.fb_pixel_id})` : 'Facebook Pixel ID'}
+                                value={newLandingPage.fb_pixel_id}
+                                onChange={(e) => setNewLandingPage({ ...newLandingPage, fb_pixel_id: e.target.value })}
+                                className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold"
                               />
                               <input
                                 type="text"
-                                placeholder="#FFFFFF"
-                                value={newLandingPage.text_color || '#FFFFFF'}
-                                onChange={(e) => setNewLandingPage({ ...newLandingPage, text_color: e.target.value })}
-                                className="w-24 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono font-bold text-[#1E1B4B] dark:text-white focus:outline-none"
+                                placeholder={profile.tiktok_pixel_id ? `TikTok Pixel ID (หลัก: ${profile.tiktok_pixel_id})` : 'TikTok Pixel ID'}
+                                value={newLandingPage.tiktok_pixel_id}
+                                onChange={(e) => setNewLandingPage({ ...newLandingPage, tiktok_pixel_id: e.target.value })}
+                                className="w-full px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono font-bold"
                               />
+                            </div>
+                          </div>
+
+                          {/* Pro Styling & Theme Colors */}
+                          <div className="p-5 bg-gradient-to-br from-indigo-50/60 via-purple-50/40 to-slate-50 dark:from-indigo-950/40 dark:via-purple-950/20 dark:to-slate-950 border-2 border-indigo-200 dark:border-indigo-900/60 rounded-3xl space-y-4 shadow-sm">
+                            <div className="flex items-center justify-between pb-2 border-b border-indigo-200/60 dark:border-indigo-900/50">
+                              <label className="text-xs font-black text-indigo-950 dark:text-indigo-300 flex items-center gap-2">
+                                <Palette className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                                <span>🎨 ปรับแต่งสีธีม & สีพื้นหลังเซลเพจ (Theme & Styling)</span>
+                              </label>
+                              <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-100 dark:bg-indigo-900/60 px-2.5 py-0.5 rounded-full font-mono">
+                                Design Settings
+                              </span>
+                            </div>
+
+                            {/* 1. Theme Button Color (สีปุ่ม & ส่วนเน้น) */}
+                            <div className="space-y-2">
+                              <label className="block text-xs font-black text-slate-800 dark:text-slate-200 flex items-center justify-between">
+                                <span>1. สีปุ่มกด & แถบนับเวลาถอยหลัง (Theme Accent Color)</span>
+                                <span className="text-[11px] font-mono text-slate-500 font-bold">{newLandingPage.theme_color || '#EF4444'}</span>
+                              </label>
+                              <div className="flex flex-wrap items-center gap-2">
+                                {[
+                                  { color: '#EF4444', label: 'แดง Flash Sale' },
+                                  { color: '#10B981', label: 'เขียวมิ้นต์ COD' },
+                                  { color: '#8B5CF6', label: 'ม่วงคอสมิก' },
+                                  { color: '#F59E0B', label: 'ทองคำหรูหรา' },
+                                  { color: '#2563EB', label: 'น้ำเงินพรีเมียม' },
+                                  { color: '#000000', label: 'ดำคลาสสิก' }
+                                ].map((preset) => (
+                                  <button
+                                    key={preset.color}
+                                    type="button"
+                                    onClick={() => setNewLandingPage({ ...newLandingPage, theme_color: preset.color })}
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition cursor-pointer ${
+                                      newLandingPage.theme_color === preset.color
+                                        ? 'border-indigo-600 ring-2 ring-indigo-500/30 bg-white dark:bg-slate-900 shadow-sm'
+                                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    <span className="w-3.5 h-3.5 rounded-full shadow-inner" style={{ backgroundColor: preset.color }}></span>
+                                    <span>{preset.label}</span>
+                                  </button>
+                                ))}
+                                <div className="flex items-center gap-1.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-xl shadow-xs">
+                                  <input
+                                    type="color"
+                                    value={newLandingPage.theme_color || '#EF4444'}
+                                    onChange={(e) => setNewLandingPage({ ...newLandingPage, theme_color: e.target.value })}
+                                    className="w-5 h-5 rounded cursor-pointer border-none bg-transparent"
+                                    title="เลือกสีปุ่มเอง"
+                                  />
+                                  <span className="text-[11px] font-mono font-bold text-slate-600 dark:text-slate-300">เลือกสีเอง</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 2. Salepage Background Color (สีพื้นหลังของเซลเพจ) */}
+                            <div className="space-y-2 pt-2 border-t border-indigo-200/50 dark:border-indigo-900/40">
+                              <label className="block text-xs font-black text-slate-800 dark:text-slate-200 flex items-center justify-between">
+                                <span>2. สีพื้นหลังของเซลเพจ (Salepage Background Color)</span>
+                                <span className="text-[11px] font-mono text-slate-500 font-bold">{newLandingPage.bg_color || '#0B0F17'}</span>
+                              </label>
+                              <div className="flex flex-wrap items-center gap-2">
+                                {[
+                                  { color: '#0B0F17', label: 'มืดสนิท (Dark Obsidian)' },
+                                  { color: '#0F172A', label: 'น้ำเงินเข้ม (Midnight)' },
+                                  { color: '#18181B', label: 'เทาดำ (Dark Zinc)' },
+                                  { color: '#1E1B4B', label: 'ม่วงเข้ม (Deep Indigo)' },
+                                  { color: '#FFFFFF', label: 'ขาวสว่าง (Pure White)' },
+                                  { color: '#F8FAFC', label: 'เทาสว่าง (Light Slate)' },
+                                  { color: '#FEF2F2', label: 'ชมพูอ่อน (Soft Rose)' }
+                                ].map((bgPreset) => (
+                                  <button
+                                    key={bgPreset.color}
+                                    type="button"
+                                    onClick={() => setNewLandingPage({ ...newLandingPage, bg_color: bgPreset.color })}
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition cursor-pointer ${
+                                      newLandingPage.bg_color === bgPreset.color
+                                        ? 'border-indigo-600 ring-2 ring-indigo-500/30 bg-white dark:bg-slate-900 shadow-sm'
+                                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    <span className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shadow-inner" style={{ backgroundColor: bgPreset.color }}></span>
+                                    <span>{bgPreset.label}</span>
+                                  </button>
+                                ))}
+                                <div className="flex items-center gap-1.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-xl shadow-xs">
+                                  <input
+                                    type="color"
+                                    value={newLandingPage.bg_color || '#0B0F17'}
+                                    onChange={(e) => setNewLandingPage({ ...newLandingPage, bg_color: e.target.value })}
+                                    className="w-5 h-5 rounded cursor-pointer border-none bg-transparent"
+                                    title="เลือกสีพื้นหลังเอง"
+                                  />
+                                  <span className="text-[11px] font-mono font-bold text-slate-600 dark:text-slate-300">เลือกสีเอง</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 3. Background Image Upload & Thumbnail Preview */}
+                            <div className="space-y-2 pt-2 border-t border-indigo-200/50 dark:border-indigo-900/40">
+                              <label className="block text-xs font-black text-slate-800 dark:text-slate-200">
+                                3. รูปภาพพื้นหลัง (Background Image - ทางเลือก)
+                              </label>
+                              <div className="flex flex-col sm:flex-row items-center gap-2.5">
+                                <label className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition shadow active:scale-95 flex-shrink-0">
+                                  <Upload className="w-3.5 h-3.5" />
+                                  <span>{uploadingLpImg ? 'กำลังอัปโหลด...' : '🖼️ + อัปโหลดรูปพื้นหลัง'}</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => handleUploadLpImage(e, 'bg')}
+                                  />
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="หรือวาง URL รูปภาพพื้นหลังที่นี่..."
+                                  value={newLandingPage.bg_image_url}
+                                  onChange={(e) => setNewLandingPage({ ...newLandingPage, bg_image_url: e.target.value })}
+                                  className="w-full flex-1 px-3.5 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono text-[#1E1B4B] dark:text-white focus:outline-none"
+                                />
+                              </div>
+
+                              {newLandingPage.bg_image_url && (
+                                <div className="p-2.5 bg-slate-950 rounded-2xl border border-indigo-500/40 flex items-center justify-between gap-3 shadow-inner">
+                                  <div className="flex items-center gap-2.5 truncate">
+                                    <img
+                                      src={newLandingPage.bg_image_url}
+                                      alt="Background Preview"
+                                      onClick={() => setZoomSlipUrl(newLandingPage.bg_image_url)}
+                                      className="w-12 h-12 rounded-xl object-cover border border-slate-700 shrink-0 cursor-pointer hover:opacity-90 shadow"
+                                      title="แตะเพื่อดูรูปขยาย"
+                                    />
+                                    <div className="truncate">
+                                      <span className="text-indigo-400 font-bold text-xs block">🖼️ ภาพพื้นหลังปัจจุบัน</span>
+                                      <span className="text-[10px] text-slate-400 font-mono truncate block">{newLandingPage.bg_image_url}</span>
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setNewLandingPage({ ...newLandingPage, bg_image_url: '' })}
+                                    className="px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer"
+                                  >
+                                    ลบรูป
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
+                      )}
 
-                        {/* 4. Page Background Wallpaper Image (URL & Mobile Upload) */}
-                        <div className="space-y-2 pt-1 border-t border-indigo-200/60 dark:border-indigo-900/40">
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 flex items-center gap-1.5">
-                            <ImageIcon className="w-4 h-4 text-indigo-500" />
-                            <span>ภาพวอลเปเปอร์พื้นหลังหน้าเซลเพจ (Background Image Wallpaper)</span>
-                          </label>
-                          <div className="flex flex-col sm:flex-row gap-2">
-                            <input
-                              type="text"
-                              placeholder="URL ภาพวอลเปเปอร์พื้นหลัง (ถ้ามี)"
-                              value={newLandingPage.bg_image_url}
-                              onChange={(e) => setNewLandingPage({ ...newLandingPage, bg_image_url: e.target.value })}
-                              className="flex-1 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono"
-                            />
-                            
-                            <label className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition shadow flex-shrink-0 active:scale-95">
-                              <Upload className="w-4 h-4" />
-                              <span>{uploadingLpImg ? 'กำลังอัปโหลด...' : '📸 อัปรูปพื้นหลัง'}</span>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => handleUploadLpImage(e, 'bg')}
-                              />
-                            </label>
-                          </div>
+                      {/* ========================================================================= */}
+                      {/* WIZARD BOTTOM NAVIGATION BAR */}
+                      {/* ========================================================================= */}
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                          {salepageWizardStep > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setSalepageWizardStep(prev => Math.max(1, prev - 1))}
+                              className="px-5 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-2xl text-xs transition flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <span>⬅ ย้อนกลับ</span>
+                            </button>
+                          )}
 
-                          {newLandingPage.bg_image_url && (
-                            <div className="flex items-center gap-2 pt-1">
-                              <img src={newLandingPage.bg_image_url} alt="BG Preview" className="w-12 h-12 object-cover rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm" />
-                              <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold">✓ ใช้งานภาพพื้นหลังแล้ว</span>
-                              <button
-                                type="button"
-                                onClick={() => setNewLandingPage({ ...newLandingPage, bg_image_url: '' })}
-                                className="text-[11px] text-rose-500 hover:underline ml-auto"
-                              >
-                                ลบภาพพื้นหลัง
-                              </button>
-                            </div>
+                          {salepageWizardStep < 4 && (
+                            <button
+                              type="button"
+                              onClick={() => setSalepageWizardStep(prev => Math.min(4, prev + 1))}
+                              className="px-6 py-3 bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-950 font-black rounded-2xl text-xs transition shadow flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <span>ขั้นตอนถัดไป: {
+                                salepageWizardStep === 1 ? 'รูปภาพ & รีวิว' :
+                                salepageWizardStep === 2 ? 'พร้อมเพย์ & ชำระเงิน' :
+                                'Pixel & LINE'
+                              }</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
                           )}
                         </div>
 
-                      </div>
-
-                      {/* --- SECTION 8: SEO & OPEN GRAPH SETTINGS --- */}
-                      <div className="p-4 bg-blue-50/40 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-900/40 rounded-2xl space-y-3">
-                        <div className="flex items-center gap-2 border-b border-blue-200 dark:border-blue-900/50 pb-2">
-                          <span className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-black">6</span>
-                          <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white">การตั้งค่า SEO & Social Share (Google / Facebook)</h4>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                          <div>
-                            <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">SEO Title (หัวข้อบน Google)</label>
-                            <input
-                              type="text"
-                              placeholder="เช่น ข้อเสนอพิเศษ Amanita Muscaria แท้ 100% ส่งฟรี"
-                              value={newLandingPage.seo_title}
-                              onChange={(e) => setNewLandingPage({ ...newLandingPage, seo_title: e.target.value })}
-                              className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">SEO Keywords (คีย์เวิร์ดคั่นด้วยจุลภาค)</label>
-                            <input
-                              type="text"
-                              placeholder="เช่น เห็ดสกัด, ยิงแอด, โปรโมชั่น, ส่งฟรี"
-                              value={newLandingPage.seo_keywords}
-                              onChange={(e) => setNewLandingPage({ ...newLandingPage, seo_keywords: e.target.value })}
-                              className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">SEO Description (คำบรรยายสรุปเวลาค้นหา)</label>
-                          <textarea
-                            rows={2}
-                            placeholder="เช่น โปรโมชั่นพิเศษ Flash Sale เฉพาะวันนี้ สั่งซื้อเก็บเงินปลายทาง ส่งด่วน 1-2 วันถึงบ้าน"
-                            value={newLandingPage.seo_description}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, seo_description: e.target.value })}
-                            className="w-full px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">ภาพหน้าปกเวลาแชร์ลงโซเชียล (OG Image)</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              placeholder="URL รูปภาพหน้าปกแชร์"
-                              value={newLandingPage.og_image_url}
-                              onChange={(e) => setNewLandingPage({ ...newLandingPage, og_image_url: e.target.value })}
-                              className="flex-1 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono"
-                            />
-                            <label className="px-3 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
-                              <Upload className="w-3.5 h-3.5" />
-                              <span>อัปรูป</span>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => handleUploadLpImage(e, 'og')}
-                              />
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">ชื่อเรียกเซลเพจ (Internal Title) *</label>
-                          <input
-                            type="text"
-                            required
-                            placeholder="เช่น เซลเพจโปรโมชั่นเห็ดสกัด 8.8"
-                            value={newLandingPage.title}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, title: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">URL Slug ที่ต้องการ *</label>
-                          <div className="flex items-center bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-3 py-1 focus-within:border-rose-400">
-                            <span className="text-slate-400 text-xs font-mono select-none">linktreethai.com/p/</span>
-                            <input
-                              type="text"
-                              required
-                              placeholder="deal-special"
-                              value={newLandingPage.slug}
-                              onChange={(e) => setNewLandingPage({ ...newLandingPage, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '') })}
-                              className="w-full py-1.5 bg-transparent text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono font-bold"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">หัวข้อพาดหัวขายของ (Headline) *</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="เช่น ข้อเสนอพิเศษ Amanita Muscaria แท้ 100% สกัดเข้มข้น ลด 50% วันนี้เท่านั้น!"
-                          value={newLandingPage.headline}
-                          onChange={(e) => setNewLandingPage({ ...newLandingPage, headline: e.target.value })}
-                          className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">คำบรรยายย่อย (Sub-headline)</label>
-                        <input
-                          type="text"
-                          placeholder="เช่น สัมผัสความสงบและสมาธิจากธรรมชาติ ส่งฟรีทั่วไทย มีบริการเก็บเงินปลายทาง"
-                          value={newLandingPage.subheadline}
-                          onChange={(e) => setNewLandingPage({ ...newLandingPage, subheadline: e.target.value })}
-                          className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                        <div className="sm:col-span-2">
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">รูปภาพหรือวิดีโอ YouTube ไฮไลต์</label>
-                          <input
-                            type="text"
-                            placeholder="https://www.youtube.com/watch?v=... หรือ Image URL"
-                            value={newLandingPage.hero_media_url}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, hero_media_url: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400 font-mono"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">ประเภทสื่อ</label>
-                          <select
-                            value={newLandingPage.hero_media_type}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, hero_media_type: e.target.value })}
-                            className="w-full px-3 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400"
-                          >
-                            <option value="image">🖼️ รูปภาพ (Image)</option>
-                            <option value="youtube">🎬 วิดีโอ YouTube</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">ราคาโปรโมชั่น (บาท) *</label>
-                          <input
-                            type="number"
-                            required
-                            placeholder="990"
-                            value={newLandingPage.offer_price}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, offer_price: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400 font-mono font-bold"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">ราคาเดิมก่อนลด (บาท)</label>
-                          <input
-                            type="number"
-                            placeholder="1990"
-                            value={newLandingPage.original_price}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, original_price: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400 font-mono"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">เวลานับถอยหลัง (นาที)</label>
-                          <input
-                            type="number"
-                            placeholder="15"
-                            value={newLandingPage.countdown_minutes}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, countdown_minutes: parseInt(e.target.value, 10) || 15 })}
-                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400 font-mono"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">ข้อความบนปุ่มสั่งซื้อ *</label>
-                          <input
-                            type="text"
-                            required
-                            placeholder="สั่งซื้อโปรโมชั่นพิเศษนี้ทันที"
-                            value={newLandingPage.cta_text}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, cta_text: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">ลิงก์ปลายทางเมื่อกดปุ่ม (LINE / Shopee / ฯลฯ) *</label>
-                          <input
-                            type="text"
-                            required
-                            placeholder="https://line.me/ti/p/@amth หรือ ลิงก์ร้านค้า"
-                            value={newLandingPage.cta_url}
-                            onChange={(e) => setNewLandingPage({ ...newLandingPage, cta_url: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400 font-mono"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">จุดเด่นของข้อเสนอ (1 บรรทัด = 1 ข้อ)</label>
-                        <textarea
-                          rows={3}
-                          value={newLandingPage.features_text}
-                          onChange={(e) => setNewLandingPage({ ...newLandingPage, features_text: e.target.value })}
-                          placeholder="✓ ส่งฟรีทั่วไทย\n✓ เก็บเงินปลายทาง"
-                          className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400 font-mono"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">เนื้อหาและรีวิวเพิ่มเติม (Sales Copy)</label>
-                        <textarea
-                          rows={4}
-                          value={newLandingPage.body_content}
-                          onChange={(e) => setNewLandingPage({ ...newLandingPage, body_content: e.target.value })}
-                          placeholder="อธิบายสรรพคุณ วิธีใช้งาน รายละเอียดโปรโมชั่น รีวิวจากผู้ใช้..."
-                          className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-rose-400"
-                        />
-                      </div>
-
-                      {/* Custom Pixel Settings for this specific Landing Page */}
-                      <div className="p-4 bg-purple-50/60 dark:bg-purple-950/20 border border-purple-200/80 dark:border-purple-900/40 rounded-2xl space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                          <h4 className="font-extrabold text-xs text-[#1E1B4B] dark:text-white">
-                            กำหนด Tracking Pixels เฉพาะสำหรับเซลเพจนี้ (แยกตามสินค้า / แคมเปญ)
-                          </h4>
-                        </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                          หากกรอกช่องด้านล่าง เซลเพจนี้จะใช้ Pixel ID เฉพาะสินค้านี้แทน (หากเว้นว่างไว้ ระบบจะใช้ค่าเริ่มต้นจากโปรไฟล์หลักอัตโนมัติ)
-                        </p>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                          <div>
-                            <label className="block text-[11px] font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">
-                              🔵 Facebook Pixel ID สำหรับเซลเพจนี้
-                            </label>
-                            <input
-                              type="text"
-                              placeholder={profile.fb_pixel_id ? `ใช้ค่าหลัก (${profile.fb_pixel_id})` : 'เช่น 123456789012345'}
-                              value={newLandingPage.fb_pixel_id}
-                              onChange={(e) => setNewLandingPage({ ...newLandingPage, fb_pixel_id: e.target.value })}
-                              className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[11px] font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">
-                              ⚫ TikTok Pixel ID สำหรับเซลเพจนี้
-                            </label>
-                            <input
-                              type="text"
-                              placeholder={profile.tiktok_pixel_id ? `ใช้ค่าหลัก (${profile.tiktok_pixel_id})` : 'เช่น C9A1B2C3D4...'}
-                              value={newLandingPage.tiktok_pixel_id}
-                              onChange={(e) => setNewLandingPage({ ...newLandingPage, tiktok_pixel_id: e.target.value })}
-                              className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[11px] font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">
-                              🟡 Google Tag / GA4 ID สำหรับเซลเพจนี้
-                            </label>
-                            <input
-                              type="text"
-                              placeholder={profile.google_pixel_id ? `ใช้ค่าหลัก (${profile.google_pixel_id})` : 'เช่น G-XXXXXXXXXX'}
-                              value={newLandingPage.google_pixel_id}
-                              onChange={(e) => setNewLandingPage({ ...newLandingPage, google_pixel_id: e.target.value })}
-                              className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[11px] font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">
-                              🟢 LINE Tag ID สำหรับเซลเพจนี้
-                            </label>
-                            <input
-                              type="text"
-                              placeholder={profile.line_tag_id ? `ใช้ค่าหลัก (${profile.line_tag_id})` : 'เช่น xxxxxxxx-xxxx...'}
-                              value={newLandingPage.line_tag_id}
-                              onChange={(e) => setNewLandingPage({ ...newLandingPage, line_tag_id: e.target.value })}
-                              className="w-full px-3.5 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-400 font-mono"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="submit"
-                          className="flex-1 py-4 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-extrabold rounded-2xl text-sm transition shadow-lg shadow-rose-600/30 flex items-center justify-center gap-2 active:scale-98"
-                        >
-                          <Rocket className="w-4 h-4" />
-                          <span>{editingLandingPageId ? '💾 บันทึกการแก้ไขเซลเพจ & Pixel' : '🚀 สร้างหน้าเซลเพจยิงแอดทันที'}</span>
-                        </button>
-
-                        {editingLandingPageId && (
+                        {/* Save & Publish Button (Always Available or on Step 4) */}
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
                           <button
-                            type="button"
-                            onClick={handleCancelEditLandingPage}
-                            className="px-5 py-4 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-sm transition"
+                            type="submit"
+                            className="flex-1 sm:flex-none px-7 py-3.5 bg-gradient-to-r from-rose-600 via-pink-600 to-rose-600 hover:from-rose-500 text-white font-black rounded-2xl text-xs sm:text-sm transition shadow-xl shadow-rose-600/30 flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
                           >
-                            ยกเลิกการแก้ไข
+                            <Rocket className="w-4 h-4" />
+                            <span>{editingLandingPageId ? '💾 บันทึกการแก้ไขเซลเพจ' : '🚀 สร้างและเผยแพร่เซลเพจทันที'}</span>
                           </button>
-                        )}
+
+                          {editingLandingPageId && (
+                            <button
+                              type="button"
+                              onClick={handleCancelEditLandingPage}
+                              className="px-4 py-3.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-xs transition cursor-pointer"
+                            >
+                              ยกเลิก
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </form>
                   ) : (

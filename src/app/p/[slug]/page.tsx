@@ -41,6 +41,7 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
   // Quick Order Form
   const [orderForm, setOrderForm] = useState({ name: '', phone: '', line_id: '', address: '', note: '', payment_method: 'promptpay', slip_url: '' })
   const [customAmountInput, setCustomAmountInput] = useState<string>('')
+  const [quantity, setQuantity] = useState<number>(1)
   const [uploadingSlip, setUploadingSlip] = useState(false)
   const [localSlipPreview, setLocalSlipPreview] = useState<string | null>(null)
   const [ordering, setOrdering] = useState(false)
@@ -95,6 +96,18 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
 
   const handleCtaClick = async (url?: string | null, eventName: 'PageView' | 'ViewContent' | 'ClickShopee' | 'ClickLazada' | 'ClickTikTokShop' | 'InitiateCheckout' | 'Lead' | 'Contact' | 'Purchase' = 'InitiateCheckout') => {
     if (!pageData) return
+    
+    // Smooth Scroll to Order Section if internal CTA
+    if (!url || url === '#' || url === '#order-section' || url.trim() === '') {
+      const orderEl = document.getElementById('order-section')
+      if (orderEl) {
+        orderEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        orderEl.classList.add('ring-4', 'ring-emerald-400/80', 'transition-all')
+        setTimeout(() => orderEl.classList.remove('ring-4', 'ring-emerald-400/80'), 1500)
+        return
+      }
+    }
+
     let rawTarget = url || pageData.cta_url || `/${ownerProfile?.username || ''}`
     
     // Detect marketplace
@@ -175,9 +188,10 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
     setOrdering(true)
     const isPP = orderForm.payment_method === 'promptpay'
     const orderRef = (isPP ? 'PP-' : 'COD-') + Date.now().toString().slice(-6)
-    const defaultPrice = pageData.offer_price ? parseFloat(String(pageData.offer_price)) : 0
+    const unitPrice = pageData.offer_price ? parseFloat(String(pageData.offer_price)) : 0
+          const defaultPrice = unitPrice
     const enteredAmount = parseFloat(customAmountInput)
-    const orderAmount = !isNaN(enteredAmount) && enteredAmount > 0 ? enteredAmount : defaultPrice
+    const orderAmount = !isNaN(enteredAmount) && enteredAmount > 0 ? enteredAmount : (unitPrice * Math.max(1, quantity))
 
     const formattedNote = `[${isPP ? '📱 พร้อมเพย์' : '🚚 COD'}: ${pageData.title}] ยอด: ฿${orderAmount.toLocaleString()} บาท${orderForm.line_id ? ` | LINE: ${orderForm.line_id}` : ''} | ที่อยู่จัดส่ง: ${orderForm.address || '-'}${orderForm.note ? ` | โน้ต: ${orderForm.note}` : ''}`
 
@@ -775,9 +789,10 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
           const ownerPPPhone = pageData.promptpay_phone || ownerProfile?.promptpay_phone || '0909964514'
           const ownerPPName = pageData.promptpay_name || ownerProfile?.full_name || ownerProfile?.username || 'เจ้าของร้านค้า'
           const ownerPPBank = pageData.promptpay_bank || 'พร้อมเพย์ (PromptPay)'
-          const defaultPrice = pageData.offer_price ? parseFloat(String(pageData.offer_price)) : 0
+          const unitPrice = pageData.offer_price ? parseFloat(String(pageData.offer_price)) : 0
+          const defaultPrice = unitPrice
           const enteredAmt = parseFloat(customAmountInput)
-          const currentPayAmount = !isNaN(enteredAmt) && enteredAmt > 0 ? enteredAmt : defaultPrice
+          const currentPayAmount = !isNaN(enteredAmt) && enteredAmt > 0 ? enteredAmt : (unitPrice * Math.max(1, quantity))
           const isPromptPay = orderForm.payment_method === 'promptpay'
           const canSubmit = !ordering && !uploadingSlip && (!isPromptPay || Boolean(orderForm.slip_url || localSlipPreview))
 
@@ -821,6 +836,34 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
               ) : (
                 <form onSubmit={handleOrderSubmit} className="space-y-5 text-xs sm:text-sm font-bold">
                   
+                  {/* QUANTITY SELECTOR */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-slate-950/80 rounded-2xl border border-slate-800/90 shadow-inner">
+                    <div>
+                      <span className="font-black text-xs sm:text-sm text-white block">จำนวนชุดสินค้าที่ต้องการสั่งซื้อ</span>
+                      <span className="text-[11px] text-slate-400 font-medium">ราคาโปรโมชั่นชุดละ ฿{unitPrice.toLocaleString()} บาท</span>
+                    </div>
+                    <div className="flex items-center gap-3 bg-slate-900 border border-slate-700 px-3.5 py-1.5 rounded-xl self-start sm:self-center">
+                      <button
+                        type="button"
+                        onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
+                        disabled={quantity <= 1}
+                        className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white font-black text-base flex items-center justify-center transition active:scale-95 cursor-pointer"
+                      >
+                        -
+                      </button>
+                      <span className="font-mono font-black text-sm sm:text-base text-emerald-400 min-w-[28px] text-center">
+                        {quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setQuantity(prev => prev + 1)}
+                        className="w-8 h-8 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-base flex items-center justify-center transition active:scale-95 cursor-pointer"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
                   {/* 1. PAYMENT METHOD SWITCHER CARDS */}
                   <div className="space-y-2">
                     <label className={`block font-black text-xs sm:text-sm ${isLightBg ? 'text-slate-800' : 'text-slate-200'}`}>
@@ -1034,7 +1077,13 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
                         required
                         placeholder="081-xxx-xxxx"
                         value={orderForm.phone}
-                        onChange={(e) => setOrderForm({ ...orderForm, phone: e.target.value })}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '').slice(0, 10)
+                          let formatted = val
+                          if (val.length > 6) formatted = `${val.slice(0, 3)}-${val.slice(3, 6)}-${val.slice(6)}`
+                          else if (val.length > 3) formatted = `${val.slice(0, 3)}-${val.slice(3)}`
+                          setOrderForm({ ...orderForm, phone: formatted })
+                        }}
                         className={`w-full px-4 py-3.5 rounded-2xl text-xs sm:text-sm font-mono font-medium transition focus:outline-none border-2 shadow-sm ${
                           isLightBg 
                             ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white' 
