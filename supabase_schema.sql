@@ -873,3 +873,93 @@ INSERT INTO public.system_settings (key, value, description) VALUES
 ('site_og_image_url', '', 'URL รูปภาพสำหรับแชร์ลงโซเชียล (Facebook / LINE)'),
 ('site_footer_text', '© 2026 LinkTreeThai. All rights reserved. สร้าง Bio Link & เซลเพจขายของยิงแอดครบวงจร', 'ข้อความท้ายหน้าเว็บ')
 ON CONFLICT (key) DO NOTHING;
+
+-- ==============================================================================
+-- GOOGLE OAUTH & NEW USER AUTO PROFILE INITIALIZATION TRIGGER
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+DECLARE
+    derived_username TEXT;
+    temp_username TEXT;
+    user_full_name TEXT;
+    user_avatar TEXT;
+    counter INT := 0;
+BEGIN
+    -- Extract Full Name & Avatar from OAuth Metadata if available
+    user_full_name := COALESCE(
+        NEW.raw_user_meta_data->>'full_name',
+        NEW.raw_user_meta_data->>'name',
+        split_part(NEW.email, '@', 1),
+        'User'
+    );
+
+    user_avatar := COALESCE(
+        NEW.raw_user_meta_data->>'avatar_url',
+        NEW.raw_user_meta_data->>'picture',
+        NULL
+    );
+
+    -- Derive base username from email or metadata
+    derived_username := LOWER(REGEXP_REPLACE(
+        COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1), 'user'),
+        '[^a-z0-9_]',
+        '',
+        'g'
+    ));
+
+    IF LENGTH(derived_username) < 3 THEN
+        derived_username := 'user_' || derived_username;
+    END IF;
+
+    temp_username := derived_username;
+
+    -- Ensure unique username if conflict occurs
+    WHILE EXISTS (SELECT 1 FROM public.profiles WHERE username = temp_username) LOOP
+        counter := counter + 1;
+        temp_username := derived_username || '_' || (FLOOR(RANDOM() * 900) + 100)::TEXT;
+        EXIT WHEN counter > 10;
+    END LOOP;
+
+    -- Insert into profiles table
+    INSERT INTO public.profiles (
+        id,
+        username,
+        full_name,
+        avatar_url,
+        role,
+        tier,
+        points,
+        template_id,
+        bg_color,
+        text_color,
+        created_at,
+        updated_at
+    ) VALUES (
+        NEW.id,
+        temp_username,
+        user_full_name,
+        user_avatar,
+        'user',
+        'free',
+        100,
+        'template_1',
+        '#0B0F17',
+        '#FFFFFF',
+        NOW(),
+        NOW()
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        full_name = EXCLUDED.full_name,
+        avatar_url = COALESCE(public.profiles.avatar_url, EXCLUDED.avatar_url),
+        updated_at = NOW();
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Bind trigger to auth.users table
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
