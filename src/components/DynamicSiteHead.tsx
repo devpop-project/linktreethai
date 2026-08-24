@@ -18,13 +18,17 @@ export default function DynamicSiteHead() {
           site_og_image_url
         } = data.settings
 
-        // 1. Update Document Title
-        if (site_title && (document.title.includes('LinkTreeThai') || !document.title)) {
+        const pathname = typeof window !== 'undefined' ? window.location.pathname : '/'
+        const isBioPage = pathname !== '/' && !['/login', '/register', '/dashboard', '/admin'].includes(pathname) && !pathname.startsWith('/p/')
+        const isSalepage = pathname.startsWith('/p/')
+
+        // 1. Update Document Title on Homepage, Login, Dashboard, Admin
+        if (site_title && !isBioPage && !isSalepage) {
           document.title = site_title
         }
 
-        // 2. Update Favicon Icons (Browser Tab Icon)
-        if (site_favicon_url && site_favicon_url.trim()) {
+        // 2. Update Global Favicon Icons (Browser Tab Icon)
+        if (site_favicon_url && site_favicon_url.trim() && !isBioPage && !isSalepage) {
           const updateLinkTag = (rel: string, href: string) => {
             let link = document.querySelector(`link[rel~='${rel}']`) as HTMLLinkElement
             if (!link) {

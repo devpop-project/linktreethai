@@ -60,6 +60,22 @@ export default function UserBioPage({ params }: { params: { username: string } }
 
     if (prodData) setProducts(prodData)
 
+    // Set Document Title and Favicon dynamically for this Bio Page
+    if (typeof document !== 'undefined' && profData) {
+      const bioTitle = `${profData.full_name || profData.username} (@${profData.username})`
+      document.title = bioTitle
+
+      if (profData.avatar_url) {
+        let iconLink = document.querySelector("link[rel~='icon']") as HTMLLinkElement
+        if (!iconLink) {
+          iconLink = document.createElement('link')
+          iconLink.rel = 'icon'
+          document.head.appendChild(iconLink)
+        }
+        iconLink.href = profData.avatar_url
+      }
+    }
+
     setLoading(false)
 
     // Trigger ViewContent event on profile view

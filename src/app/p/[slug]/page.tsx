@@ -85,9 +85,21 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
         await supabase.rpc('increment_landing_page_views', { page_id: page.id })
       } catch (e) {}
 
-      // Update Document Title for SEO
+      // Update Document Title and Favicon for this Salepage
       if (typeof document !== 'undefined') {
-        document.title = page.seo_title || page.headline || page.title || 'ข้อเสนอพิเศษ Flash Sale'
+        const pageTitle = page.seo_title || page.headline || page.title || 'ข้อเสนอพิเศษ Flash Sale'
+        document.title = pageTitle
+
+        const spIcon = page.og_image_url || page.hero_image_url || owner?.avatar_url
+        if (spIcon) {
+          let iconLink = document.querySelector("link[rel~='icon']") as HTMLLinkElement
+          if (!iconLink) {
+            iconLink = document.createElement('link')
+            iconLink.rel = 'icon'
+            document.head.appendChild(iconLink)
+          }
+          iconLink.href = spIcon
+        }
       }
     }
 
