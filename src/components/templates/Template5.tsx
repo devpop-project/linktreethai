@@ -32,7 +32,7 @@ export default function Template5({ profile, links, products, handleLinkClick, i
   return (
     <div className="w-full max-w-md mx-auto space-y-5 px-4 py-6 text-[#FFF8E7] font-serif antialiased relative z-10" style={{
         backgroundColor: profile.bg_color || undefined,
-        ...(profile.inner_bg_image_url ? { 
+        ...(profile.inner_bg_image_url && profile.inner_bg_image_url !== profile.bg_image_url ? { 
           backgroundImage: `url(${profile.inner_bg_image_url})`, 
           backgroundSize: 'cover', 
           backgroundPosition: 'center' 

@@ -97,7 +97,7 @@ export default function Template7({ profile, links, products, handleLinkClick, i
   return (
     <div className="w-full max-w-md mx-auto space-y-5 px-4 py-6 text-black font-sans antialiased bg-[#FEFCE8] rounded-3xl border-[3.5px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative z-10" style={{
         backgroundColor: profile.bg_color || undefined,
-        ...(profile.inner_bg_image_url ? { 
+        ...(profile.inner_bg_image_url && profile.inner_bg_image_url !== profile.bg_image_url ? { 
           backgroundImage: `url(${profile.inner_bg_image_url})`, 
           backgroundSize: 'cover', 
           backgroundPosition: 'center' 

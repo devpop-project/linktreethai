@@ -177,12 +177,29 @@ export default function UserBioPage({ params }: { params: { username: string } }
 
   return (
     <div 
-      className="min-h-screen bg-[#0b0f17] text-slate-100 relative flex flex-col items-center justify-between bg-cover bg-center bg-no-repeat transition-all duration-300 overflow-x-hidden"
+      className="min-h-screen bg-[#0b0f17] text-slate-100 relative flex flex-col items-center justify-between transition-all duration-300 overflow-x-hidden"
       style={{
-        backgroundColor: '#0B0F17',
-        ...(profile.bg_image_url ? { backgroundImage: `url(${profile.bg_image_url})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' } : {})
+        backgroundColor: profile.bg_color || '#0B0F17'
       }}
     >
+      {/* 1. SINGLE FULL-SCREEN RESPONSIVE WALLPAPER (เต็มจอ ปรับขนาดอัตโนมัติ ภาพเดียว ไม่ซ้ำ) */}
+      {profile.bg_image_url && (
+        <div 
+          className="fixed inset-0 w-full h-full pointer-events-none z-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `url(${profile.bg_image_url})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center center',
+            backgroundRepeat: 'no-repeat'
+          }}
+        />
+      )}
+
+      {/* Subtle Contrast Overlay for Readability */}
+      {profile.bg_image_url && (
+        <div className={`fixed inset-0 w-full h-full pointer-events-none z-0 ${isLightBg ? "bg-white/70" : "bg-[#0b0f17]/70"} backdrop-blur-[1px]`}></div>
+      )}
+
       {/* 1. AUTO INJECT TRACKING PIXELS (Meta FB, TikTok, Google, LINE) */}
       <TrackingPixels
         userId={profile.id}
@@ -192,11 +209,6 @@ export default function UserBioPage({ params }: { params: { username: string } }
         lineTagId={profile.line_tag_id}
         metaCapiToken={profile.meta_capi_token}
       />
-
-      {/* Background Overlay */}
-      {profile.bg_image_url && (
-        <div className={`absolute inset-0 z-0 pointer-events-none ${isLightBg ? "bg-white/80" : "bg-[#0b0f17]/75"} backdrop-blur-xs`}></div>
-      )}
 
       {/* Floating Top App Action Bar */}
       <div className="w-full max-w-md mx-auto px-4 pt-3.5 pb-1 flex items-center justify-between relative z-20">
