@@ -263,19 +263,31 @@ export default function AdminDashboardPage() {
       }
 
       if (publicUrl) {
+        const updated = { ...siteSettings }
         if (type === 'logo') {
+          updated.site_logo_url = publicUrl
           setSiteSettings(prev => ({ ...prev, site_logo_url: publicUrl }))
           showNotification('📸 อัปโหลดโลโก้เว็บไซต์สำเร็จ!')
         } else if (type === 'favicon') {
+          updated.site_favicon_url = publicUrl
           setSiteSettings(prev => ({ ...prev, site_favicon_url: publicUrl }))
-          // Live preview tab favicon
           let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement
           if (link) link.href = publicUrl
           showNotification('🌐 อัปโหลดไอคอน Favicon สำเร็จ!')
         } else if (type === 'og') {
+          updated.site_og_image_url = publicUrl
           setSiteSettings(prev => ({ ...prev, site_og_image_url: publicUrl }))
-          showNotification('🖼️ อัปโหลดรูปภาพ Social Share สำเร็จ!')
+          showNotification('🖼️ อัปโหลดรูปภาพ Social Share สำเร็จและบันทึกลงระบบแล้ว!')
         }
+
+        // Immediately auto-save to system_settings in background
+        try {
+          await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ settings: updated })
+          })
+        } catch (e) {}
       } else {
         alert('❌ อัปโหลดรูปภาพไม่สำเร็จ กรุณาลองใหม่อีกครั้ง')
       }
@@ -2312,14 +2324,29 @@ export default function AdminDashboardPage() {
                           </div>
                         )}
                         <div className="p-3 space-y-1">
-                          <span className="text-[9px] text-slate-400 uppercase font-mono block">LINKTREETHAI.COM</span>
+                          <span className="text-[9px] text-slate-400 uppercase font-mono block">LINKTREETHAI.IN.TH</span>
                           <h6 className="font-bold text-xs text-white line-clamp-1">
-                            {siteSettings.site_title}
+                            {siteSettings.site_title || 'LinkTreeThai - รวมทุกลิงก์ โซเชียล และร้านค้าดิจิทัลในแอปเดียว'}
                           </h6>
                           <p className="text-[10px] text-slate-300 line-clamp-2 leading-tight">
-                            {siteSettings.site_description}
+                            {siteSettings.site_description || 'สร้างหน้า Bio Link สวยทันสมัย สไตล์ Mobile App รวมทุกโซเชียล ขายสินค้าดิจิทัล...'}
                           </p>
                         </div>
+                      </div>
+
+                      <div className="pt-1 flex flex-col gap-1.5">
+                        <a
+                          href={`https://developers.facebook.com/tools/debug/?q=${encodeURIComponent('https://linktreethai.in.th')}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="w-full py-2 px-3 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition text-center"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>🔍 ล้างแคช & ตรวจสอบรูปบน Facebook Sharing Debugger</span>
+                        </a>
+                        <p className="text-[10px] text-slate-400 leading-tight">
+                          💡 <strong>เคล็ดลับ:</strong> เมื่อเปลี่ยนรูปใหม่แล้ว Facebook อาจยังจำรูปเก่าไว้ ให้คลิกปุ่มด้านบนแล้วกด <strong>"Scrape Again"</strong> 1 ครั้ง Facebook จะดึงรูปใหม่ที่เพิ่งลงทันทีครับ
+                        </p>
                       </div>
                     </div>
 

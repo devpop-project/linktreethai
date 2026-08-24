@@ -18,6 +18,7 @@ export default function ExamplesShowcasePage() {
   const [realSalepages, setRealSalepages] = useState<any[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [currentPage, setCurrentPage] = useState<number>(1)
+  const [currentHost, setCurrentHost] = useState<string>('linktreethai.in.th')
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('linktree_theme')
@@ -50,6 +51,9 @@ export default function ExamplesShowcasePage() {
       } catch (e) {}
       setLoading(false)
     }
+    if (typeof window !== 'undefined') {
+      setCurrentHost(window.location.host)
+    }
     loadRealData()
   }, [])
 
@@ -65,7 +69,7 @@ export default function ExamplesShowcasePage() {
     }
   }
 
-  // Combine real users & salepages
+  // Combine real users & salepages with proper cover & avatar mapping
   const combinedItems = [
     ...realUsers.map(u => ({
       id: u.id,
@@ -88,9 +92,9 @@ export default function ExamplesShowcasePage() {
       title: lp.title || lp.headline,
       username: lp.slug,
       description: lp.headline || 'เซลเพจโปรโมชั่นยิงแอด พร้อมระบบชำระเงินและแจ้งเตือนเข้า LINE',
-      templateName: 'Sales Landing Page (6-Section)',
-      avatarUrl: lp.hero_image_url || lp.profiles?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${lp.slug}`,
-      coverUrl: null,
+      templateName: '🚀 เซลเพจ Flash Sale',
+      avatarUrl: lp.profiles?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${lp.profiles?.username || lp.slug}`,
+      coverUrl: lp.hero_image_url || null,
       liveUrl: `/p/${lp.slug}`,
       role: 'salepage',
       points: 0,
@@ -225,7 +229,7 @@ export default function ExamplesShowcasePage() {
                   : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-amber-300'
               }`}
             >
-              👑 สมาชิกระดับ VIP
+              👑 สมาชิกระดับ VIP ({combinedItems.filter(i => i.role === 'admin' || i.points >= 100).length})
             </button>
           </div>
 
@@ -274,45 +278,55 @@ export default function ExamplesShowcasePage() {
               >
                 <div>
                   {/* Card Top Banner */}
-                  <div className="h-28 relative p-4 flex items-start justify-between bg-gradient-to-r from-purple-700 via-indigo-800 to-slate-950"
+                  <div className="h-28 relative p-3.5 flex items-start justify-between bg-gradient-to-br from-purple-700 via-indigo-800 to-slate-950 overflow-hidden"
                     style={item.coverUrl ? { backgroundImage: `url(${item.coverUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
                   >
-                    <span className="px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md text-white font-mono text-[10px] font-black border border-white/20">
-                      {item.isSalepage ? '🚀 เซลเพจ Flash Sale' : (item.role === 'admin' ? '👑 ADMIN' : '👤 สมาชิกจริง')}
+                    {/* Subtle Overlay for readable badges */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/40 pointer-events-none"></div>
+
+                    <span className="relative z-10 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white font-mono text-[10px] font-black border border-white/20 shadow">
+                      {item.isSalepage ? '🔥 เซลเพจ Flash Sale' : (item.role === 'admin' ? '👑 ADMIN' : '👤 สมาชิกจริง')}
                     </span>
                     
-                    <div className="flex items-center gap-1 bg-black/50 backdrop-blur-md px-2 py-0.5 rounded-full text-emerald-400 text-[10px] font-black border border-white/20">
+                    <div className="relative z-10 flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full text-emerald-400 text-[10px] font-black border border-emerald-500/30 shadow">
                       <CheckCircle2 className="w-3 h-3" />
                       <span>Verified</span>
                     </div>
                   </div>
 
-                  <div className="p-6 pt-0 space-y-4">
-                    {/* Avatar & Username */}
-                    <div className="flex items-end justify-between -mt-10 mb-2">
-                      <div className="w-20 h-20 rounded-2xl p-1 bg-white dark:bg-slate-900 shadow-lg border-2 border-purple-200 dark:border-slate-700 shrink-0">
+                  <div className="p-5 pt-0 space-y-3">
+                    {/* Classic Clean Circular Avatar & Badges */}
+                    <div className="flex items-end justify-between -mt-8 mb-1">
+                      <div className="w-16 h-16 rounded-full p-1 bg-white dark:bg-slate-900 shadow-lg border-2 border-purple-200 dark:border-slate-700 shrink-0 relative z-10">
                         <img
                           src={item.avatarUrl}
                           alt={item.title}
-                          className="w-full h-full rounded-xl object-cover bg-slate-100"
+                          className="w-full h-full rounded-full object-cover bg-slate-100"
                         />
                       </div>
                       
-                      <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-1 rounded-xl font-bold border border-purple-200 dark:border-purple-800">
-                        {item.templateName}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        {item.price && (
+                          <span className="text-[10px] font-mono font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2.5 py-1 rounded-xl border border-amber-200 dark:border-amber-800 shadow-sm">
+                            ฿{parseFloat(String(item.price)).toLocaleString()}
+                          </span>
+                        )}
+                        <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-1 rounded-xl font-bold border border-purple-200 dark:border-purple-800 shadow-sm">
+                          {item.templateName}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Title & Description */}
                     <div className="space-y-1">
-                      <h3 className="font-black text-base sm:text-lg text-[#1E1B4B] dark:text-white flex items-center gap-1.5 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition">
+                      <h3 className="font-black text-base text-[#1E1B4B] dark:text-white flex items-center gap-1.5 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition">
                         <span className="truncate">{item.title}</span>
                         <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                       </h3>
-                      <p className="text-xs text-purple-600 dark:text-purple-400 font-mono font-bold">
-                        {item.isSalepage ? `linktreethai.com/p/${item.username}` : `linktreethai.com/${item.username}`}
+                      <p className="text-xs text-purple-600 dark:text-purple-400 font-mono font-bold truncate">
+                        {currentHost ? `${currentHost}${item.liveUrl}` : item.liveUrl}
                       </p>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed pt-1 line-clamp-2">
+                      <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-2">
                         {item.description}
                       </p>
                     </div>

@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import DynamicSiteHead from '@/components/DynamicSiteHead'
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -15,11 +16,11 @@ export const viewport: Viewport = {
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://linktreethai.in.th'
 
-export async function generateMetadata(): Promise<Metadata> {
-  let title = 'LinkTreeThai - รวมทุกลิ้งก์ โซเชียล และร้านค้าดิจิทัลในแอปเดียว'
+async function getSiteSettings() {
+  let title = 'LinkTreeThai - รวมทุกลิงก์ โซเชียล และร้านค้าดิจิทัลในแอปเดียว'
   let description = 'สร้างหน้า Bio Link สวยทันสมัย สไตล์ Mobile App รวมทุกโซเชียล ขายสินค้าดิจิทัล ย่อลิงก์ พร้อมระบบจัดการครบวงจรด้วย LinkTreeThai'
   let keywords = ['LinkTreeThai', 'Bio Link', 'เซลเพจยิงแอด', 'PromptPay QR', 'COD', 'รวมลิงก์', 'ระบบย่อลิงก์', 'TikTok Shop']
-  let ogImageUrl = `${siteUrl}/og-image.png`
+  let ogImageUrl = ''
   let faviconUrl = '/favicon.ico'
 
   try {
@@ -27,23 +28,55 @@ export async function generateMetadata(): Promise<Metadata> {
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_rV42rP4GC0GQaI7eK56X9Q_ADKY96PU'
     const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } })
 
+    // 1. Fetch system_settings table configured by Admin
     const { data: sysSettings } = await supabase
       .from('system_settings')
       .select('key, value')
-      .in('key', ['site_title', 'site_description', 'site_keywords', 'site_og_image_url', 'site_favicon_url'])
+      .in('key', ['site_title', 'site_description', 'site_keywords', 'site_og_image_url', 'site_favicon_url', 'site_logo_url'])
 
     if (sysSettings && sysSettings.length > 0) {
       sysSettings.forEach((row: any) => {
         if (row.key === 'site_title' && row.value?.trim()) title = row.value.trim()
         if (row.key === 'site_description' && row.value?.trim()) description = row.value.trim()
-        if (row.key === 'site_keywords' && row.value?.trim()) keywords = row.value.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0)
+        if (row.key === 'site_keywords' && row.value?.trim()) {
+          keywords = row.value.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0)
+        }
         if (row.key === 'site_og_image_url' && row.value?.trim()) ogImageUrl = row.value.trim()
         if (row.key === 'site_favicon_url' && row.value?.trim()) faviconUrl = row.value.trim()
+        if (!ogImageUrl && row.key === 'site_logo_url' && row.value?.trim()) ogImageUrl = row.value.trim()
       })
+    }
+
+    // 2. If Admin did not set site_og_image_url, check Admin Profile (cover_url or avatar_url)
+    if (!ogImageUrl) {
+      const { data: adminProf } = await supabase
+        .from('profiles')
+        .select('cover_url, avatar_url')
+        .eq('role', 'admin')
+        .limit(1)
+        .single()
+
+      if (adminProf) {
+        if (adminProf.cover_url?.trim()) ogImageUrl = adminProf.cover_url.trim()
+        else if (adminProf.avatar_url?.trim()) ogImageUrl = adminProf.avatar_url.trim()
+      }
     }
   } catch (err) {
     console.warn('Error fetching system settings for root metadata:', err)
   }
+
+  // Ensure absolute URL for Open Graph image
+  if (!ogImageUrl) {
+    ogImageUrl = `${siteUrl}/og-image.png`
+  } else if (!ogImageUrl.startsWith('http://') && !ogImageUrl.startsWith('https://')) {
+    ogImageUrl = `${siteUrl}${ogImageUrl.startsWith('/') ? '' : '/'}${ogImageUrl}`
+  }
+
+  return { title, description, keywords, ogImageUrl, faviconUrl }
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { title, description, keywords, ogImageUrl, faviconUrl } = await getSiteSettings()
 
   return {
     metadataBase: new URL(siteUrl),
@@ -83,7 +116,6 @@ export async function generateMetadata(): Promise<Metadata> {
           width: 1200,
           height: 630,
           alt: title,
-          type: 'image/png',
         },
       ],
     },
@@ -105,42 +137,8 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  let ogImageUrl = `${siteUrl}/og-image.png`
-  let faviconUrl = '/favicon.ico'
-
-  try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dkidksohprjhkcokdbja.supabase.co'
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_rV42rP4GC0GQaI7eK56X9Q_ADKY96PU'
-    const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } })
-
-    const { data: sysSettings } = await supabase
-      .from('system_settings')
-      .select('key, value')
-      .in('key', ['site_og_image_url', 'site_favicon_url'])
-
-    if (sysSettings && sysSettings.length > 0) {
-      sysSettings.forEach((row: any) => {
-        if (row.key === 'site_og_image_url' && row.value?.trim()) ogImageUrl = row.value.trim()
-        if (row.key === 'site_favicon_url' && row.value?.trim()) faviconUrl = row.value.trim()
-      })
-    }
-  } catch (e) {}
-
   return (
     <html lang="th">
-      <head>
-        {/* Explicit Open Graph Meta Tags for Facebook Crawler fallback */}
-        <meta property="og:image" content={ogImageUrl} />
-        <meta property="og:image:secure_url" content={ogImageUrl} />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="LinkTreeThai" />
-        <meta name="twitter:image" content={ogImageUrl} />
-        <meta name="twitter:card" content="summary_large_image" />
-        <link rel="icon" href={faviconUrl} />
-        <link rel="shortcut icon" href={faviconUrl} />
-        <link rel="apple-touch-icon" href={faviconUrl} />
-      </head>
       <body className="bg-[#0B0F17] text-slate-100 min-h-screen antialiased selection:bg-[#A78BFA] selection:text-white">
         <DynamicSiteHead />
         {children}
