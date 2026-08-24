@@ -505,6 +505,9 @@ export default function AdminDashboardPage() {
         promptpay_phone: editingLp.promptpay_phone?.trim() || null,
         promptpay_name: editingLp.promptpay_name?.trim() || null,
         promptpay_bank: editingLp.promptpay_bank?.trim() || null,
+        line_channel_access_token: editingLp.line_channel_access_token?.trim() || null,
+        line_user_id: editingLp.line_user_id?.trim() || null,
+        line_webhook_url: editingLp.line_webhook_url?.trim() || null,
         updated_at: new Date().toISOString()
       }
 
@@ -1399,50 +1402,72 @@ export default function AdminDashboardPage() {
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
         
-        {/* Real-time Summary Cards */}
+        {/* Real-time Summary Metrics Cards (Perfect Contrast in Light & Dark Mode) */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <div className="bg-white border border-slate-200 p-4 rounded-2xl space-y-1 shadow-sm">
-            <p className="text-[11px] text-slate-400 font-semibold flex items-center gap-1">
-              <Users className="w-3.5 h-3.5 text-emerald-400" /> สมาชิกทั้งหมด
+          {/* Card 1: สมาชิกทั้งหมด */}
+          <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-emerald-500/30 hover:border-emerald-500/60 p-4 rounded-2xl space-y-1.5 shadow-sm dark:shadow-lg transition-all">
+            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
+              <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>สมาชิกทั้งหมด</span>
             </p>
-            <p className="text-xl font-black text-white">{usersList.length} <span className="text-xs font-normal text-slate-400">คน</span></p>
-          </div>
-
-          <div className="bg-white border border-slate-200 p-4 rounded-2xl space-y-1 shadow-sm">
-            <p className="text-[11px] text-slate-400 font-semibold flex items-center gap-1">
-              <Crown className="w-3.5 h-3.5 text-purple-400" /> สมาชิก VIP
-            </p>
-            <p className="text-xl font-black text-purple-400">
-              {usersList.filter(u => (u.master_expires_at && new Date(u.master_expires_at).getTime() > Date.now()) || (u.pro_expires_at && new Date(u.pro_expires_at).getTime() > Date.now())).length} <span className="text-xs font-normal text-slate-400">คน</span>
+            <p className="text-2xl font-black text-[#1E1B4B] dark:text-white font-mono">
+              {usersList.length} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">คน</span>
             </p>
           </div>
 
-          <div className="bg-white border border-slate-200 p-4 rounded-2xl space-y-1 shadow-sm">
-            <p className="text-[11px] text-slate-400 font-semibold flex items-center gap-1">
-              <Link2 className="w-3.5 h-3.5 text-blue-400" /> ลิ้งก์ทั้งหมด
+          {/* Card 2: สมาชิก VIP */}
+          <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-purple-500/30 hover:border-purple-500/60 p-4 rounded-2xl space-y-1.5 shadow-sm dark:shadow-lg transition-all">
+            <p className="text-[11px] text-purple-600 dark:text-purple-400 font-bold flex items-center gap-1.5">
+              <Crown className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+              <span>สมาชิก VIP</span>
             </p>
-            <p className="text-xl font-black text-blue-400">{allLinks.length} <span className="text-xs font-normal text-slate-400">รายการ</span></p>
+            <p className="text-2xl font-black text-purple-600 dark:text-purple-400 font-mono">
+              {usersList.filter(u => (u.master_expires_at && new Date(u.master_expires_at).getTime() > Date.now()) || (u.pro_expires_at && new Date(u.pro_expires_at).getTime() > Date.now())).length} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">คน</span>
+            </p>
           </div>
 
-          <div className="bg-white border border-slate-200 p-4 rounded-2xl space-y-1 shadow-sm">
-            <p className="text-[11px] text-slate-400 font-semibold flex items-center gap-1">
-              <ShoppingBag className="w-3.5 h-3.5 text-amber-400" /> สินค้าทั้งหมด
+          {/* Card 3: ลิ้งก์ทั้งหมด */}
+          <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-blue-500/30 hover:border-blue-500/60 p-4 rounded-2xl space-y-1.5 shadow-sm dark:shadow-lg transition-all">
+            <p className="text-[11px] text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1.5">
+              <Link2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <span>ลิ้งก์ทั้งหมด</span>
             </p>
-            <p className="text-xl font-black text-amber-400">{allProducts.length} <span className="text-xs font-normal text-slate-400">ชิ้น</span></p>
+            <p className="text-2xl font-black text-blue-600 dark:text-blue-400 font-mono">
+              {allLinks.length} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">รายการ</span>
+            </p>
           </div>
 
-          <div className="bg-slate-900 border border-purple-500/40 bg-purple-950/20 p-4 rounded-2xl space-y-1">
-            <p className="text-[11px] text-purple-300 font-semibold flex items-center gap-1">
-              <Scissors className="w-3.5 h-3.5 text-purple-400" /> ลิงก์ย่อทั้งหมด
+          {/* Card 4: สินค้าทั้งหมด */}
+          <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-amber-500/30 hover:border-amber-500/60 p-4 rounded-2xl space-y-1.5 shadow-sm dark:shadow-lg transition-all">
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 font-bold flex items-center gap-1.5">
+              <ShoppingBag className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <span>สินค้าทั้งหมด</span>
             </p>
-            <p className="text-xl font-black text-purple-300">{allShortLinks.length} <span className="text-xs font-normal text-slate-400">ลิงก์</span></p>
+            <p className="text-2xl font-black text-amber-600 dark:text-amber-400 font-mono">
+              {allProducts.length} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">ชิ้น</span>
+            </p>
           </div>
 
-          <div className="bg-white border border-slate-200 p-4 rounded-2xl space-y-1 shadow-sm">
-            <p className="text-[11px] text-slate-400 font-semibold flex items-center gap-1">
-              <BarChart3 className="w-3.5 h-3.5 text-emerald-400" /> ยอดคลิกลิงก์ย่อ
+          {/* Card 5: ลิงก์ย่อทั้งหมด */}
+          <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-purple-500/30 hover:border-purple-500/60 p-4 rounded-2xl space-y-1.5 shadow-sm dark:shadow-lg transition-all">
+            <p className="text-[11px] text-purple-600 dark:text-purple-400 font-bold flex items-center gap-1.5">
+              <Scissors className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+              <span>ลิงก์ย่อทั้งหมด</span>
             </p>
-            <p className="text-xl font-black text-emerald-400">{totalClicksAcrossShortLinks} <span className="text-xs font-normal text-slate-400">ครั้ง</span></p>
+            <p className="text-2xl font-black text-purple-600 dark:text-purple-400 font-mono">
+              {allShortLinks.length} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">ลิงก์</span>
+            </p>
+          </div>
+
+          {/* Card 6: ยอดคลิกลิงก์ย่อ */}
+          <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-emerald-500/30 hover:border-emerald-500/60 p-4 rounded-2xl space-y-1.5 shadow-sm dark:shadow-lg transition-all">
+            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1.5">
+              <BarChart3 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>ยอดคลิกลิงก์ย่อ</span>
+            </p>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
+              {totalClicksAcrossShortLinks} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">ครั้ง</span>
+            </p>
           </div>
         </div>
 
@@ -5071,9 +5096,11 @@ WHERE username = 'YOUR_USERNAME';`}
               </div>
 
               {/* Custom Pixels per Page (Admin Override) */}
-              <div className="p-3 bg-purple-950/30 rounded-xl border border-purple-800/60 space-y-2">
-                <h5 className="font-extrabold text-purple-300">กำหนด Tracking Pixels เฉพาะหน้านี้ (Admin)</h5>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="p-3.5 bg-purple-950/30 rounded-2xl border border-purple-800/60 space-y-2.5">
+                <h5 className="font-black text-purple-300 text-xs flex items-center gap-1.5">
+                  <Activity className="w-4 h-4" /> กำหนด Tracking Pixels ประจำเซลเพจนี้ (Admin Override)
+                </h5>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 mb-0.5">Facebook Pixel ID</label>
                     <input
@@ -5081,7 +5108,7 @@ WHERE username = 'YOUR_USERNAME';`}
                       value={editingLp.fb_pixel_id || ''}
                       onChange={(e) => setEditingLp({ ...editingLp, fb_pixel_id: e.target.value })}
                       placeholder="เช่น 1234567890..."
-                      className="w-full px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-lg font-mono text-xs text-white"
+                      className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl font-mono text-xs text-white"
                     />
                   </div>
                   <div>
@@ -5091,8 +5118,128 @@ WHERE username = 'YOUR_USERNAME';`}
                       value={editingLp.tiktok_pixel_id || ''}
                       onChange={(e) => setEditingLp({ ...editingLp, tiktok_pixel_id: e.target.value })}
                       placeholder="เช่น C9A1B2..."
-                      className="w-full px-2.5 py-1 bg-slate-950 border border-slate-800 rounded-lg font-mono text-xs text-white"
+                      className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl font-mono text-xs text-white"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-0.5">Google Analytics / Ads Tag</label>
+                    <input
+                      type="text"
+                      value={editingLp.google_pixel_id || ''}
+                      onChange={(e) => setEditingLp({ ...editingLp, google_pixel_id: e.target.value })}
+                      placeholder="เช่น G-XXXXX หรือ AW-XXXXX"
+                      className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl font-mono text-xs text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-0.5">LINE Tag ID</label>
+                    <input
+                      type="text"
+                      value={editingLp.line_tag_id || ''}
+                      onChange={(e) => setEditingLp({ ...editingLp, line_tag_id: e.target.value })}
+                      placeholder="เช่น xxxxxxxx-xxxx-..."
+                      className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl font-mono text-xs text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* PromptPay & Payment Settings per Page (Admin Edit) */}
+              <div className="p-3.5 bg-emerald-950/30 rounded-2xl border border-emerald-800/60 space-y-2.5">
+                <h5 className="font-black text-emerald-400 text-xs flex items-center gap-1.5">
+                  <CreditCard className="w-4 h-4" /> บัญชี PromptPay ประจำเซลเพจนี้
+                </h5>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-0.5">เบอร์พร้อมเพย์</label>
+                    <input
+                      type="text"
+                      value={editingLp.promptpay_phone || ''}
+                      onChange={(e) => setEditingLp({ ...editingLp, promptpay_phone: e.target.value })}
+                      placeholder="0909964514"
+                      className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl font-mono text-xs text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-0.5">ชื่อบัญชีผู้รับเงิน</label>
+                    <input
+                      type="text"
+                      value={editingLp.promptpay_name || ''}
+                      onChange={(e) => setEditingLp({ ...editingLp, promptpay_name: e.target.value })}
+                      placeholder="วันชนะ ขวัญแก้ว"
+                      className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-0.5">ธนาคาร</label>
+                    <input
+                      type="text"
+                      value={editingLp.promptpay_bank || ''}
+                      onChange={(e) => setEditingLp({ ...editingLp, promptpay_bank: e.target.value })}
+                      placeholder="กสิกรไทย (KBANK)"
+                      className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* LINE Messaging API per Page (Admin Edit) */}
+              <div className="p-3.5 bg-gradient-to-br from-[#06C755]/15 via-slate-950 to-slate-900 rounded-2xl border border-[#06C755]/40 space-y-2.5">
+                <h5 className="font-black text-[#06C755] text-xs flex items-center gap-1.5">
+                  <MessageCircle className="w-4 h-4" /> การแจ้งเตือน LINE Messaging API ประจำเซลเพจนี้
+                </h5>
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-0.5">LINE Channel Access Token</label>
+                    <textarea
+                      rows={2}
+                      value={editingLp.line_channel_access_token || ''}
+                      onChange={(e) => setEditingLp({ ...editingLp, line_channel_access_token: e.target.value })}
+                      placeholder="Channel Access Token (Long-lived)"
+                      className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl font-mono text-xs text-white focus:outline-none focus:border-[#06C755]"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 mb-0.5">LINE User ID ของผู้รับแจ้งเตือน</label>
+                      <input
+                        type="text"
+                        value={editingLp.line_user_id || ''}
+                        onChange={(e) => setEditingLp({ ...editingLp, line_user_id: e.target.value })}
+                        placeholder="เช่น Uxxxxxxxx..."
+                        className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-xl font-mono text-xs text-white"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!editingLp.line_channel_access_token && !editingLp.line_user_id) {
+                            showNotification('⚠️ กรุณากรอก Token และ User ID ก่อนทดสอบครับ')
+                            return
+                          }
+                          try {
+                            const res = await fetch('/api/test-line-notify', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                channel_access_token: editingLp.line_channel_access_token,
+                                user_id: editingLp.line_user_id
+                              })
+                            })
+                            const data = await res.json()
+                            if (res.ok && data.success) {
+                              showNotification('✅ ' + data.message)
+                            } else {
+                              showNotification('❌ ' + (data.error || 'ส่งข้อความทดสอบไม่สำเร็จ'))
+                            }
+                          } catch(e) {}
+                        }}
+                        className="w-full py-1.5 bg-[#06C755] hover:bg-[#05B34C] text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 transition shadow"
+                      >
+                        <Send className="w-3.5 h-3.5" /> <span>📲 ทดสอบส่งเข้า LINE</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
