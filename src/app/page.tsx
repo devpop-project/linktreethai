@@ -203,7 +203,7 @@ export default function HomePage() {
             <form onSubmit={handleClaimLink} className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl shadow-xl flex flex-col sm:flex-row items-center gap-2 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100 transition">
               <div className="flex items-center flex-1 w-full pl-3 sm:pl-4 py-1">
                 <span className="text-slate-400 text-xs sm:text-sm font-mono font-medium select-none">
-                  linktreethai.com/
+                  linktreethai.in.th/
                 </span>
                 <input
                   type="text"
@@ -285,7 +285,7 @@ export default function HomePage() {
                         </div>
                         <div>
                           <p className="text-xs font-bold text-[#1E1B4B]">เว็บไซต์ทางการ</p>
-                          <p className="text-[10px] text-slate-500">amanitathai.vercel.app</p>
+                          <p className="text-[10px] text-slate-500">linktreethai.in.th/amanitathailand</p>
                         </div>
                       </div>
                       <ArrowRight className="w-3.5 h-3.5 text-purple-600" />
@@ -522,44 +522,44 @@ export default function HomePage() {
               {
                 id: 'seed-amanita',
                 type: 'bio',
-                name: 'Enter The Amanita',
+                name: 'Enter The Amanita Thailand',
                 username: 'amanitathailand',
-                bio: 'ร้านค้าสมุนไพรออร์แกนิก เรซิ่นสกัดธรรมชาติ พร้อมระบบ PromptPay QR และยิงแอด CAPI',
+                bio: 'แบรนด์สมุนไพรออร์แกนิกและสารสกัดธรรมชาติอันดับ 1 ในไทย รวมทุกลิงก์และช่องทางสั่งซื้ออย่างเป็นทางการ',
                 avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=amanita',
                 category: '🌿 สมุนไพร & สุขภาพ',
-                views: '14.8k',
+                views: '18.5k',
                 rating: '5.0',
-                badge1: 'ร้านค้า 0% GP',
-                badge2: 'Meta Pixel & CAPI',
+                badge1: 'แบรนด์ทางการ Verified',
+                badge2: 'PromptPay QR + LINE',
                 url: '/amanitathailand'
               },
               {
-                id: 'seed-aroma',
+                id: 'seed-official',
                 type: 'bio',
-                name: 'Aroma Specialty Cafe',
-                username: 'aromacafe',
-                bio: 'โรงคั่วกาแฟและจำหน่ายเมล็ดกาแฟสดออนไลน์ มีระบบจัดส่งด่วน COD และพิกัดร้าน',
-                avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=aroma',
-                category: '☕ คาเฟ่ & อาหาร',
-                views: '8.2k',
-                rating: '4.9',
-                badge1: 'จัดส่ง COD',
-                badge2: 'Shopee / Lazada',
-                url: '/aromacafe'
+                name: 'LinkTreeThai Official',
+                username: 'official',
+                bio: 'ศูนย์รวมระบบ Bio Link & เซลเพจปิดการขายสัญชาติไทย ฝัง Tracking Pixels, CAPI และแจ้งเตือนเข้า LINE Real-Time',
+                avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=official',
+                category: '⭐ แพลตฟอร์มหลัก',
+                views: '42.9k',
+                rating: '5.0',
+                badge1: 'ระบบแท้ 100%',
+                badge2: 'MASTER VIP Hub',
+                url: '/official'
               },
               {
                 id: 'seed-salepage',
                 type: 'salepage',
-                name: 'Flash Sale เซลเพจยิงแอด',
-                username: 'demo-deal',
-                bio: 'หน้าเซลเพจยิงแอดแบบ 6 ส่วน พร้อมฟอร์มเช็กเอาต์ PromptPay QR ตามยอด + เก็บเงินปลายทาง',
+                name: 'โปรโมชั่น Flash Sale พิเศษ',
+                username: 'amanita-drops',
+                bio: 'หน้าเซลเพจยิงแอดความเร็วสูง พร้อมระบบสแกนจ่าย Dynamic PromptPay QR ตามยอด + เก็บเงินปลายทาง (COD)',
                 avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=salepage',
                 category: '🚀 เซลเพจปิดการขาย',
-                views: '35.2k',
+                views: '29.7k',
                 rating: '5.0',
                 badge1: 'Dynamic PromptPay',
-                badge2: 'แจ้งเตือนเข้า LINE',
-                url: '/p/demo-deal'
+                badge2: 'แจ้งเตือนสลิป LINE',
+                url: '/p/amanita-drops'
               }
             ]
 
@@ -670,7 +670,7 @@ export default function HomePage() {
                                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                               </h3>
                               <p className="text-xs text-purple-600 dark:text-purple-400 font-mono font-bold truncate">
-                                linktreethai.com/{item.username}
+                                linktreethai.in.th/{item.username}
                               </p>
                               <p className="text-xs text-slate-500 dark:text-slate-300 mt-1 line-clamp-2 leading-relaxed font-medium">
                                 {item.bio}
@@ -829,7 +829,7 @@ export default function HomePage() {
                                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                                       </h4>
                                       <p className="text-[11px] font-mono text-purple-600 dark:text-purple-400 truncate">
-                                        linktreethai.com/{item.username}
+                                        linktreethai.in.th/{item.username}
                                       </p>
                                     </div>
                                   </div>

@@ -112,7 +112,7 @@ export async function POST(request: Request) {
             {
               event_name: event_name === 'ClickShopee' || event_name === 'ClickLazada' || event_name === 'ClickTikTokShop' ? 'InitiateCheckout' : event_name,
               event_time: Math.floor(Date.now() / 1000),
-              event_source_url: url || 'https://linktreethai.com',
+              event_source_url: url || 'https://linktreethai.in.th',
               action_source: 'website',
               user_data: fbUserData,
               custom_data: {

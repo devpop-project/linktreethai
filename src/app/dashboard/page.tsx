@@ -1710,7 +1710,7 @@ export default function DashboardPage() {
   }
 
   const tier = getUserTier(profile)
-  const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://linktreethai.com'
+  const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://linktreethai.in.th'
   const publicProfileUrl = `${originUrl}/${profile.username}`
 
   // Shortener Unlock Status Logic
@@ -3030,7 +3030,7 @@ export default function DashboardPage() {
                     <div className="space-y-1 max-w-md mx-auto">
                       <h3 className="text-xl font-extrabold text-[#1E1B4B] dark:text-white">ระบบย่อลิงก์เป็นฟีเจอร์พรีเมียม</h3>
                       <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
-                        เปลี่ยนลิงก์ยาวให้เป็น URL สั้นที่คุณตั้งชื่อเองได้ เช่น <span className="text-purple-600 dark:text-purple-400 font-mono font-bold">linktreethai.com/s/promo</span> พร้อมระบบนับยอดคลิก Real-time
+                        เปลี่ยนลิงก์ยาวให้เป็น URL สั้นที่คุณตั้งชื่อเองได้ เช่น <span className="text-purple-600 dark:text-purple-400 font-mono font-bold">linktreethai.in.th/s/promo</span> พร้อมระบบนับยอดคลิก Real-time
                       </p>
                     </div>
 
@@ -3481,7 +3481,7 @@ export default function DashboardPage() {
                             <div>
                               <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">URL Slug ที่ต้องการ *</label>
                               <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-3 py-1 focus-within:border-rose-400">
-                                <span className="text-slate-400 text-xs font-mono select-none">linktreethai.com/p/</span>
+                                <span className="text-slate-400 text-xs font-mono select-none">linktreethai.in.th/p/</span>
                                 <input
                                   type="text"
                                   required
@@ -5482,7 +5482,7 @@ export default function DashboardPage() {
                   <input
                     type="text"
                     disabled
-                    value={`https://linktreethai.com/${profile.username}`}
+                    value={`https://linktreethai.in.th/${profile.username}`}
                     className="w-full px-3 py-2 bg-slate-200/60 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl font-mono text-xs text-slate-500 dark:text-slate-400 cursor-not-allowed select-all"
                   />
                 </div>
@@ -5916,7 +5916,7 @@ export default function DashboardPage() {
 
             <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-slate-700 dark:text-slate-300 text-left space-y-2">
               <p>🟢 <strong>LINE:</strong> @amth หรือ @linktreethai</p>
-              <p>✉️ <strong>Email:</strong> support@linktreethai.com</p>
+              <p>✉️ <strong>Email:</strong> support@linktreethai.in.th</p>
               <p>💬 <strong>Facebook:</strong> LinkTreeThai Support</p>
             </div>
 

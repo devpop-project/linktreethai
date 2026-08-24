@@ -32,7 +32,7 @@ function RegisterForm() {
     if (typeof window !== 'undefined') {
       return `${window.location.origin}/auth/callback`
     }
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : 'https://linktreethai.com')
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : 'https://linktreethai.in.th')
     return `${siteUrl}/auth/callback`
   }
 
@@ -208,7 +208,7 @@ function RegisterForm() {
               </div>
               <div className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-400">
                 <span>พรีวิว:</span>
-                <span className="text-purple-600 font-mono font-bold">linktreethai.com/{username || 'yourname'}</span>
+                <span className="text-purple-600 font-mono font-bold">linktreethai.in.th/{username || 'yourname'}</span>
               </div>
             </div>
 

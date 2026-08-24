@@ -172,7 +172,7 @@ export default function UserBioPage({ params }: { params: { username: string } }
     )
   }
 
-  const currentUrl = typeof window !== 'undefined' ? window.location.href : `https://linktreethai.com/${username}`
+  const currentUrl = typeof window !== 'undefined' ? window.location.href : `https://linktreethai.in.th/${username}`
   const isLightBg = profile?.bg_color === '#FFFFFF' || profile?.bg_color === '#F9F9FF' || profile?.bg_color === '#F1F5F9'
 
   return (

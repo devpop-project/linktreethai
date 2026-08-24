@@ -106,7 +106,7 @@ export async function POST(request: Request) {
       (note ? `📝 รายละเอียด: ${String(note).trim()}\n` : '') +
       `🏷️ รหัสอ้างอิง: #${orderRef}\n` +
       `━━━━━━━━━━━━━━━━━\n` +
-      `🔗 เข้าดูในแดชบอร์ด: https://linktreethai.com/admin`
+      `🔗 เข้าดูในแดชบอร์ด: https://linktreethai.in.th/admin`
 
     let channelToken = (line_channel_access_token || '').trim()
     let targetUserId = (line_user_id || '').trim()

@@ -2321,7 +2321,7 @@ export default function AdminDashboardPage() {
                           ) : (
                             <Globe className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                           )}
-                          <span className="truncate">https://linktreethai.com</span>
+                          <span className="truncate">https://linktreethai.in.th</span>
                         </div>
                         <h5 className="text-sm font-bold text-[#1a0dab] dark:text-[#8ab4f8] hover:underline cursor-pointer leading-snug line-clamp-1">
                           {siteSettings.site_title || 'LinkTreeThai - รวมทุกลิงก์ โซเชียล และร้านค้าดิจิทัลในแอปเดียว'}
