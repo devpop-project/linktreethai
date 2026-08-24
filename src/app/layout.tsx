@@ -17,10 +17,10 @@ export const viewport: Viewport = {
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://linktreethai.in.th'
 
 async function getSiteSettings() {
-  let title = 'LinkTreeThai - รวมทุกลิงก์ โซเชียล และร้านค้าดิจิทัลในแอปเดียว'
-  let description = 'สร้างหน้า Bio Link สวยทันสมัย สไตล์ Mobile App รวมทุกโซเชียล ขายสินค้าดิจิทัล ย่อลิงก์ พร้อมระบบจัดการครบวงจรด้วย LinkTreeThai'
+  let title = 'LinkTreeThai - รวมทุกลิงก์ โซเชียล และร้านค้าดิจิทัลในแอปเดียว + PromptPay ขายสินค้าดิจิทัล'
+  let description = 'สร้างหน้า Bio Link สวยทันสมัย สไตล์ Mobile App รวมทุกโซเชียล ขายสินค้าดิจิทัล ย่อลิงก์ พร้อมระบบ + PromptPay จัดการครบวงจรด้วย LinkTreeThai'
   let keywords = ['LinkTreeThai', 'Bio Link', 'เซลเพจยิงแอด', 'PromptPay QR', 'COD', 'รวมลิงก์', 'ระบบย่อลิงก์', 'TikTok Shop']
-  let ogImageUrl = ''
+  let ogImageUrl = 'https://dkidksohprjhkcokdbja.supabase.co/storage/v1/object/public/media/brand/og-1787511308304.png'
   let faviconUrl = '/favicon.ico'
 
   try {
@@ -48,7 +48,7 @@ async function getSiteSettings() {
     }
 
     // 2. If Admin did not set site_og_image_url, check Admin Profile (cover_url or avatar_url)
-    if (!ogImageUrl) {
+    if (!ogImageUrl || ogImageUrl === '/og-image.png') {
       const { data: adminProf } = await supabase
         .from('profiles')
         .select('cover_url, avatar_url')
@@ -67,7 +67,7 @@ async function getSiteSettings() {
 
   // Ensure absolute URL for Open Graph image
   if (!ogImageUrl) {
-    ogImageUrl = `${siteUrl}/og-image.png`
+    ogImageUrl = 'https://dkidksohprjhkcokdbja.supabase.co/storage/v1/object/public/media/brand/og-1787511308304.png'
   } else if (!ogImageUrl.startsWith('http://') && !ogImageUrl.startsWith('https://')) {
     ogImageUrl = `${siteUrl}${ogImageUrl.startsWith('/') ? '' : '/'}${ogImageUrl}`
   }
@@ -97,11 +97,9 @@ export async function generateMetadata(): Promise<Metadata> {
     icons: {
       icon: [
         { url: faviconUrl, sizes: 'any' },
-        { url: '/favicon.svg', type: 'image/svg+xml' },
-        { url: '/icon.png', type: 'image/png', sizes: '192x192' },
       ],
       shortcut: faviconUrl,
-      apple: faviconUrl || '/icon.png',
+      apple: faviconUrl,
     },
     openGraph: {
       title: title,
@@ -113,9 +111,11 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [
         {
           url: ogImageUrl,
+          secureUrl: ogImageUrl,
           width: 1200,
           height: 630,
           alt: title,
+          type: 'image/png'
         },
       ],
     },
@@ -137,8 +137,28 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const { title, description, ogImageUrl, faviconUrl } = await getSiteSettings()
+
   return (
     <html lang="th">
+      <head>
+        <meta charSet="utf-8" />
+        <link rel="icon" href={faviconUrl} />
+        <link rel="shortcut icon" href={faviconUrl} />
+        <link rel="apple-touch-icon" href={faviconUrl} />
+        <meta property="og:title" content={title} />
+        <meta property="og:description" content={description} />
+        <meta property="og:image" content={ogImageUrl} />
+        <meta property="og:image:secure_url" content={ogImageUrl} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={siteUrl} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={title} />
+        <meta name="twitter:description" content={description} />
+        <meta name="twitter:image" content={ogImageUrl} />
+      </head>
       <body className="bg-[#0B0F17] text-slate-100 min-h-screen antialiased selection:bg-[#A78BFA] selection:text-white">
         <DynamicSiteHead />
         {children}
