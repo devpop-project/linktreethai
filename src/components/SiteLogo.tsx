@@ -60,11 +60,11 @@ export default function SiteLogo({
           className={`${imageClassName} group-hover:scale-105 transition-transform duration-200 shrink-0 drop-shadow-md`}
         />
       ) : (
-        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-[#34D399] p-0.5 shadow-lg shadow-purple-500/25 group-hover:scale-105 transition shrink-0 flex items-center justify-center">
-          <div className="w-full h-full bg-white dark:bg-slate-900 rounded-[14px] flex items-center justify-center text-purple-600 dark:text-purple-400">
-            <Link2 className="w-6 h-6" />
-          </div>
-        </div>
+        <img
+          src="/icon.png"
+          alt={siteName}
+          className="w-10 h-10 sm:w-12 sm:h-12 object-contain group-hover:scale-105 transition shrink-0 drop-shadow-lg"
+        />
       )}
 
       {showText && (

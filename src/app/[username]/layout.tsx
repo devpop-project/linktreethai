@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: { params: { username: string 
       const displayName = profile.full_name || profile.username
       const title = `${displayName} (@${profile.username}) | LinkTreeThai`
       const desc = profile.bio || `รวมทุกลิงก์ ช่องทางติดต่อ และสินค้าของ ${displayName} (@${profile.username}) บน LinkTreeThai`
-      const imageUrl = profile.avatar_url || profile.cover_url || `${siteUrl}/og-image.png`
+      const imageUrl = profile.cover_url || profile.avatar_url || `${siteUrl}/og-image.png`
 
       return {
         title,
