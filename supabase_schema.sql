@@ -963,3 +963,118 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+
+-- ==============================================================================
+-- 11. SERVICES TABLE (ตารางข้อมูลบริการเสริมและ Services Hub CRUD)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.services (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    subtitle TEXT,
+    description TEXT,
+    category TEXT DEFAULT 'salepage', -- 'salepage' | 'ai' | 'marketing' | 'system'
+    icon_name TEXT DEFAULT 'LayoutTemplate',
+    icon_bg TEXT DEFAULT 'bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-600',
+    icon_color TEXT DEFAULT 'text-white',
+    badge TEXT DEFAULT '🔥 ยอดนิยม',
+    badge_color TEXT DEFAULT 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+    status TEXT DEFAULT 'active', -- 'active' | 'updating'
+    features JSONB DEFAULT '[]'::jsonb,
+    price_text TEXT,
+    action_label TEXT DEFAULT 'เปิดใช้งาน',
+    action_url TEXT DEFAULT '/custom-salepage',
+    position INT DEFAULT 1,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- RLS for services table
+ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public services are viewable by everyone" ON public.services;
+DROP POLICY IF EXISTS "Admins have full access to services" ON public.services;
+
+CREATE POLICY "Public services are viewable by everyone" ON public.services FOR SELECT USING (true);
+CREATE POLICY "Admins have full access to services" ON public.services FOR ALL USING (public.is_admin());
+
+-- Seed Initial 4 Services
+INSERT INTO public.services (id, title, subtitle, description, category, icon_name, icon_bg, icon_color, badge, badge_color, status, price_text, action_label, action_url, position, is_active, features)
+VALUES 
+(
+    'custom-salepage',
+    'Custom Salepage',
+    'สร้าง Salepage แบบกำหนดเอง',
+    'บริการออกแบบและจัดสร้างหน้าเซลเพจปิดการขายแบบ Custom เฉพาะแบรนด์ของคุณ ดีไซน์ระดับพรีเมียม สไตล์ Mobile-App โหลดเร็วเสี้ยววินาที พร้อมระบบชำระเงิน Dynamic PromptPay, เก็บเงินปลายทาง (COD) และเชื่อมต่อพิกเซลโฆษณาครบวงจร',
+    'salepage',
+    'LayoutTemplate',
+    'bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-600',
+    'text-white',
+    '🔥 ยอดนิยม',
+    'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+    'active',
+    'เริ่มต้น 990.- / เซลเพจ',
+    'สั่งทำเซลเพจ / ปรึกษาออกแบบ',
+    '/custom-salepage',
+    1,
+    true,
+    '["ออกแบบ UI/UX สวยหรู สไตล์ Mobile App เฉพาะเอกลักษณ์แบรนด์คุณ", "ระบบคำนวณเงิน + Dynamic PromptPay EMVCo QR ยอดตรง พร้อมแนบสลิป", "ฟอร์มสั่งซื้อเก็บเงินปลายทาง (COD) คำนวณค่าจัดส่งอัตโนมัติ", "ติดตั้ง Multi-Pixel (Meta CAPI, TikTok, Google, LINE Tag) ครบ 100%", "เชื่อมต่อระบบแจ้งเตือนออเดอร์ใหม่และสลิปเข้า LINE OA แบบ Real-time", "รองรับ Custom Domain และระบบบันทึกฐานข้อมูลลูกค้า (CRM)"]'::jsonb
+),
+(
+    'ai-copy-studio',
+    'AI Copywriting Studio',
+    'สร้างคอนเทนต์ & สคริปต์วิดีโอ',
+    'สตูดิโอปัญญาประดิษฐ์ช่วยเขียนพาดหัว Hook เปิดคลิป สคริปต์สั้นสำหรับ TikTok / Reels / Shorts และแคปชั่นปิดการขาย Facebook สไตล์ Direct Response แม่นยำตรงกลุ่มเป้าหมาย',
+    'ai',
+    'Sparkles',
+    'bg-gradient-to-br from-amber-500 via-yellow-500 to-orange-500',
+    'text-slate-950',
+    '✨ AI Studio',
+    'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+    'active',
+    'ใช้งานฟรีสำหรับสมาชิก',
+    'เปิดใช้งาน AI Studio',
+    '/ai-salepage',
+    2,
+    true,
+    '["สร้างสคริปต์ TikTok Hook 3 วินาทีแรกหยุดนิ้วคนดู", "เขียนแคปชั่น AIDA & PAS สำหรับยิงแอด Facebook", "คิดไอเดียโปรโมชั่นและข้อความ Broadcast LINE OA", "ปรับแต่งโทนเสียงของแบรนด์ (หรูหรา, อบอุ่น, กระตุ้นการตัดสินใจ)"]'::jsonb
+),
+(
+    'line-crm-hub',
+    'LINE CRM & Broadcast',
+    'เชื่อมโยงระบบ LINE OA อัตโนมัติ',
+    'ระบบเชื่อมโยงฐานข้อมูลลูกค้าจาก LinkTreeThai เข้ากับ LINE Official Account อัตโนมัติ สำหรับบรอดแคสต์โปรโมชั่นเฉพาะกลุ่มและสะสมแต้มสมาชิก',
+    'system',
+    'MessageCircle',
+    'bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-600',
+    'text-white',
+    '⚡ กำลังอัปเดต',
+    'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+    'updating',
+    'เปิดบริการเร็วๆ นี้',
+    'รับการแจ้งเตือนเมื่อเปิดบริการ',
+    'line',
+    3,
+    true,
+    '["Sync รายชื่อลูกค้าและเบอร์โทรเข้า LINE OA Tag อัตโนมัติ", "ระบบสะสมแต้มและบัตรสมาชิกดิจิทัลผ่าน LINE", "ส่งข้อความแจ้งเตือนสถานะการจัดส่งพัสดุอัตโนมัติ"]'::jsonb
+),
+(
+    'custom-domain-pro',
+    'White-Label & Domain Pro',
+    'เชื่อมต่อชื่อโดเมนส่วนตัว 100%',
+    'บริการผูกโดเมนส่วนตัวแบบ Custom Domain (.com, .co.th, .shop) พร้อมใบรับรองความปลอดภัย SSL ฟรีตลอดชีพ และลบลายน้ำทุกจุด 100%',
+    'marketing',
+    'ShieldCheck',
+    'bg-gradient-to-br from-blue-500 via-indigo-600 to-cyan-500',
+    'text-white',
+    '💎 พรีเมียม',
+    'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+    'updating',
+    'เปิดบริการเร็วๆ นี้',
+    'รับการแจ้งเตือนเมื่อเปิดบริการ',
+    'line',
+    4,
+    true,
+    '["เชื่อมต่อชื่อเว็บไซต์ของคุณได้ 100%", "ลบลายน้ำระบบเพื่อภาพลักษณ์แบรนด์ระดับพรีเมียม", "ติดตั้ง CDN ระดับ Global เพิ่มความเร็วในการโหลดสูงสุด"]'::jsonb
+)
+ON CONFLICT (id) DO NOTHING;

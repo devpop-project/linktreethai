@@ -2,12 +2,14 @@
 
 import { getPromptPayQRImageUrl } from '@/lib/promptpay'
 import SiteLogo from '@/components/SiteLogo'
+import { DEFAULT_SERVICES_LIST, ServiceItemDTO } from '@/types/services'
+import { getServiceIconComponent, ICON_MAP } from '@/components/ServicesTabContent'
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { 
-  ShieldCheck, Users, Rocket, Sun, Moon, Coins, Crown, Zap, Search, Plus, 
+  LayoutTemplate, ShieldCheck, Users, Rocket, Sun, Moon, Coins, Crown, Zap, Search, Plus, 
   Edit3, Edit2, ArrowLeft, Check, AlertCircle, Lock, RefreshCw, Eye, X, 
   Trash2, ExternalLink, Link2, ShoppingBag, Settings, Scissors, 
   Copy, BarChart3, Database, Filter, Download, CheckCircle2, 
@@ -15,10 +17,441 @@ import {
   Palette, Share2, Upload
 } from 'lucide-react'
 
-type AdminTab = 'users' | 'landing_pages' | 'pixels' | 'payments' | 'payment_settings' | 'site_settings' | 'shortlinks' | 'links' | 'products' | 'leads' | 'system'
+type AdminTab = 'users' | 'services' | 'landing_pages' | 'pixels' | 'payments' | 'payment_settings' | 'site_settings' | 'shortlinks' | 'links' | 'products' | 'leads' | 'system'
 
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true)
+  // --- ADMIN SERVICES HUB CRUD STATE ---
+  const [adminServicesList, setAdminServicesList] = useState<ServiceItemDTO[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('admin_services_list')
+      if (saved) {
+        try {
+          const p = JSON.parse(saved)
+          if (Array.isArray(p) && p.length > 0) return p
+        } catch (e) {}
+      }
+    }
+    return DEFAULT_SERVICES_LIST
+  })
+  const [loadingAdminServices, setLoadingAdminServices] = useState(false)
+  const [savingAdminServices, setSavingAdminServices] = useState(false)
+  const [serviceCategoryFilter, setServiceCategoryFilter] = useState<'all' | 'salepage' | 'ai' | 'system' | 'marketing'>('all')
+  const [serviceFormModalOpen, setServiceFormModalOpen] = useState(false)
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
+  const [serviceToDelete, setServiceToDelete] = useState<ServiceItemDTO | null>(null)
+  const [toastMsg, setToastMsg] = useState<string>('')
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg)
+    setTimeout(() => setToastMsg(''), 3500)
+  }
+
+  // Service Form Inputs
+  const [sFormTitle, setSFormTitle] = useState('')
+  const [sFormSubtitle, setSFormSubtitle] = useState('')
+  const [sFormDescription, setSFormDescription] = useState('')
+  const [sFormCategory, setSFormCategory] = useState<'salepage' | 'ai' | 'system' | 'marketing'>('salepage')
+  const [sFormIconName, setSFormIconName] = useState('LayoutTemplate')
+  const [sFormIconBg, setSFormIconBg] = useState('bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-600')
+  const [sFormIconColor, setSFormIconColor] = useState('text-white')
+  const [sFormBadge, setSFormBadge] = useState('🔥 ยอดนิยม')
+  const [sFormBadgeColor, setSFormBadgeColor] = useState('bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-800')
+  const [sFormStatus, setSFormStatus] = useState<'active' | 'updating'>('active')
+  const [sFormPriceText, setSFormPriceText] = useState('เริ่มต้น 990.- / เซลเพจ')
+  const [sFormActionLabel, setSFormActionLabel] = useState('สั่งทำเซลเพจ / ปรึกษาออกแบบ')
+  const [sFormActionUrl, setSFormActionUrl] = useState('/custom-salepage')
+  const [sFormFeatures, setSFormFeatures] = useState<string[]>([
+    'ออกแบบ UI/UX สวยหรู สไตล์ Mobile App เฉพาะเอกลักษณ์แบรนด์คุณ',
+    'ระบบคำนวณเงิน + Dynamic PromptPay EMVCo QR ยอดตรง พร้อมแนบสลิป',
+    'เชื่อมต่อระบบแจ้งเตือนออเดอร์ใหม่เข้า LINE OA แบบ Real-time'
+  ])
+  const [sFormIsActive, setSFormIsActive] = useState(true)
+
+  // Helper to convert Supabase DB row to ServiceItemDTO
+  const convertServiceRowToDTO = (row: any): ServiceItemDTO => {
+    let feats: string[] = []
+    if (Array.isArray(row.features)) {
+      feats = row.features
+    } else if (typeof row.features === 'string') {
+      try {
+        const parsed = JSON.parse(row.features)
+        if (Array.isArray(parsed)) feats = parsed
+      } catch (e) {
+        feats = row.features.split(/[,\n]/).map((s: string) => s.trim()).filter((s: string) => s.length > 0)
+      }
+    }
+
+    return {
+      id: row.id,
+      title: row.title || '',
+      subtitle: row.subtitle || '',
+      description: row.description || '',
+      category: row.category || 'salepage',
+      iconName: row.icon_name || row.iconName || 'LayoutTemplate',
+      iconBg: row.icon_bg || row.iconBg || 'bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-600',
+      iconColor: row.icon_color || row.iconColor || 'text-white',
+      badge: row.badge || '🔥 ยอดนิยม',
+      badgeColor: row.badge_color || row.badgeColor || 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+      status: row.status || 'active',
+      priceText: row.price_text || row.priceText || '',
+      actionLabel: row.action_label || row.actionLabel || 'สั่งทำเซลเพจ',
+      actionUrl: row.action_url || row.actionUrl || '/custom-salepage',
+      position: row.position !== undefined ? row.position : 1,
+      is_active: row.is_active !== false,
+      features: feats
+    }
+  }
+
+  // Fetch Services List from Supabase Database & API
+  const fetchAdminServices = async () => {
+    setLoadingAdminServices(true)
+    try {
+      // 1. Direct fetch from Supabase database table
+      const { data: dbServices, error: dbErr } = await supabase
+        .from('services')
+        .select('*')
+        .order('position', { ascending: true })
+
+      if (!dbErr && dbServices && Array.isArray(dbServices) && dbServices.length > 0) {
+        const dtoList = dbServices.map(convertServiceRowToDTO)
+        setAdminServicesList(dtoList)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('admin_services_list', JSON.stringify(dtoList))
+        }
+        return
+      }
+
+      // 2. Fallback: Seed initial defaults to database if table is empty
+      if (!dbErr && (!dbServices || dbServices.length === 0)) {
+        const seedRows = DEFAULT_SERVICES_LIST.map((s, idx) => ({
+          id: s.id,
+          title: s.title,
+          subtitle: s.subtitle,
+          description: s.description,
+          category: s.category,
+          icon_name: s.iconName,
+          icon_bg: s.iconBg,
+          icon_color: s.iconColor,
+          badge: s.badge,
+          badge_color: s.badgeColor,
+          status: s.status,
+          price_text: s.priceText || '',
+          action_label: s.actionLabel,
+          action_url: s.actionUrl || '/custom-salepage',
+          position: s.position || idx + 1,
+          is_active: s.is_active !== false,
+          features: s.features || [],
+          updated_at: new Date().toISOString()
+        }))
+        await supabase.from('services').upsert(seedRows)
+        setAdminServicesList(DEFAULT_SERVICES_LIST)
+        return
+      }
+
+      // 3. Fallback to /api/services
+      const res = await fetch('/api/services?admin=true')
+      const data = await res.json()
+      if (data.success && Array.isArray(data.services) && data.services.length > 0) {
+        setAdminServicesList(data.services)
+      }
+    } catch (e) {
+      console.warn('Error fetching admin services:', e)
+    } finally {
+      setLoadingAdminServices(false)
+    }
+  }
+
+  // Open Create Service Modal
+  const handleOpenCreateServiceModal = () => {
+    setEditingServiceId(null)
+    setSFormTitle('')
+    setSFormSubtitle('')
+    setSFormDescription('')
+    setSFormCategory('salepage')
+    setSFormIconName('LayoutTemplate')
+    setSFormIconBg('bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-600')
+    setSFormIconColor('text-white')
+    setSFormBadge('✨ บริการใหม่')
+    setSFormBadgeColor('bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-800')
+    setSFormStatus('active')
+    setSFormPriceText('เริ่มต้น 990.- / เซลเพจ')
+    setSFormActionLabel('สั่งทำเซลเพจ / ปรึกษาออกแบบ')
+    setSFormActionUrl('/custom-salepage')
+    setSFormFeatures([
+      'บริการคุณภาพระดับมืออาชีพ 100%',
+      'ส่งมอบงานรวดเร็ว พร้อมการรับประกันดูแลหลังการขาย',
+      'ปรึกษาทีมงานฟรีตลอด 24 ชั่วโมง'
+    ])
+    setSFormIsActive(true)
+    setServiceFormModalOpen(true)
+  }
+
+  // Open Edit Service Modal
+  const handleOpenEditServiceModal = (item: ServiceItemDTO) => {
+    setEditingServiceId(item.id)
+    setSFormTitle(item.title || '')
+    setSFormSubtitle(item.subtitle || '')
+    setSFormDescription(item.description || '')
+    setSFormCategory(item.category || 'salepage')
+    setSFormIconName(item.iconName || 'LayoutTemplate')
+    setSFormIconBg(item.iconBg || 'bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-600')
+    setSFormIconColor(item.iconColor || 'text-white')
+    setSFormBadge(item.badge || '🔥 ยอดนิยม')
+    setSFormBadgeColor(item.badgeColor || 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-800')
+    setSFormStatus(item.status || 'active')
+    setSFormPriceText(item.priceText || '')
+    setSFormActionLabel(item.actionLabel || 'สั่งทำเซลเพจ')
+    setSFormActionUrl(item.actionUrl || '/custom-salepage')
+    setSFormFeatures(Array.isArray(item.features) && item.features.length > 0 ? item.features : ['บริการคุณภาพมาตรฐาน 100%'])
+    setSFormIsActive(item.is_active !== false)
+    setServiceFormModalOpen(true)
+  }
+
+  // Save Service to API
+  const handleSaveServiceForm = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!sFormTitle.trim()) {
+      alert('กรุณากรอกชื่อบริการ')
+      return
+    }
+
+    setSavingAdminServices(true)
+    try {
+      const slugId = editingServiceId || (sFormTitle.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || `service-${Date.now()}`)
+      
+      const newServiceObj: ServiceItemDTO = {
+        id: slugId,
+        title: sFormTitle.trim(),
+        subtitle: sFormSubtitle.trim(),
+        description: sFormDescription.trim(),
+        category: sFormCategory,
+        iconName: sFormIconName,
+        iconBg: sFormIconBg,
+        iconColor: sFormIconColor,
+        badge: sFormBadge.trim(),
+        badgeColor: sFormBadgeColor,
+        status: sFormStatus,
+        priceText: sFormPriceText.trim(),
+        actionLabel: sFormActionLabel.trim(),
+        actionUrl: sFormActionUrl.trim(),
+        features: sFormFeatures.filter(f => f.trim().length > 0),
+        is_active: sFormIsActive,
+        position: editingServiceId ? (adminServicesList.find(s => s.id === editingServiceId)?.position || 1) : adminServicesList.length + 1
+      }
+
+      let updatedList: ServiceItemDTO[] = []
+      if (editingServiceId) {
+        updatedList = adminServicesList.map(s => s.id === editingServiceId ? newServiceObj : s)
+      } else {
+        updatedList = [...adminServicesList, newServiceObj]
+      }
+
+      // 1. Direct Supabase Database Upsert
+      const dbRow = {
+        id: slugId,
+        title: sFormTitle.trim(),
+        subtitle: sFormSubtitle.trim(),
+        description: sFormDescription.trim(),
+        category: sFormCategory,
+        icon_name: sFormIconName,
+        icon_bg: sFormIconBg,
+        icon_color: sFormIconColor,
+        badge: sFormBadge.trim(),
+        badge_color: sFormBadgeColor,
+        status: sFormStatus,
+        price_text: sFormPriceText.trim(),
+        action_label: sFormActionLabel.trim(),
+        action_url: sFormActionUrl.trim(),
+        position: newServiceObj.position,
+        is_active: sFormIsActive,
+        features: newServiceObj.features,
+        updated_at: new Date().toISOString()
+      }
+
+      const { error: dbSaveErr } = await supabase.from('services').upsert([dbRow])
+      if (dbSaveErr) {
+        console.warn('Supabase services upsert notice:', dbSaveErr.message)
+      }
+
+      // 2. Sync to /api/services
+      try {
+        await fetch('/api/services', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ services: updatedList })
+        })
+      } catch (apiErr) {}
+
+      setAdminServicesList(updatedList)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('admin_services_list', JSON.stringify(updatedList))
+      }
+
+      showToast(editingServiceId ? '✅ อัปเดตข้อมูลบริการเสริมลงฐานข้อมูลสำเร็จ' : '✅ เพิ่มบริการเสริมใหม่ลงฐานข้อมูลสำเร็จ')
+      setServiceFormModalOpen(false)
+    } catch (err: any) {
+      alert(`เกิดข้อผิดพลาด: ${err.message}`)
+    } finally {
+      setSavingAdminServices(false)
+    }
+  }
+
+  // Delete Service
+  const handleConfirmDeleteService = async () => {
+    if (!serviceToDelete) return
+    setSavingAdminServices(true)
+    try {
+      // 1. Direct Supabase Delete
+      await supabase.from('services').delete().eq('id', serviceToDelete.id)
+
+      const updatedList = adminServicesList.filter(s => s.id !== serviceToDelete.id)
+      try {
+        await fetch('/api/services', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ services: updatedList })
+        })
+      } catch (e) {}
+
+      setAdminServicesList(updatedList)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('admin_services_list', JSON.stringify(updatedList))
+      }
+
+      showToast('🗑️ ลบบริการเสริมออกจากฐานข้อมูลเรียบร้อยแล้ว')
+      setServiceToDelete(null)
+    } catch (err: any) {
+      alert(`เกิดข้อผิดพลาด: ${err.message}`)
+    } finally {
+      setSavingAdminServices(false)
+    }
+  }
+
+  // Toggle Service Active Status
+  const handleToggleServiceStatus = async (serviceId: string) => {
+
+    const target = adminServicesList.find(s => s.id === serviceId)
+    const newStatus = target ? !target.is_active : false
+    const updated = adminServicesList.map(s => s.id === serviceId ? { ...s, is_active: newStatus } : s)
+    setAdminServicesList(updated)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('admin_services_list', JSON.stringify(updated))
+    }
+
+    try {
+      // 1. Direct Supabase Database Update
+      await supabase.from('services').update({ is_active: newStatus, updated_at: new Date().toISOString() }).eq('id', serviceId)
+      
+      // 2. Sync to API
+      await fetch('/api/services', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ services: updated })
+      })
+      showToast('⚡ อัปเดตสถานะการเปิด/ปิดบริการลงฐานข้อมูลแล้ว')
+    } catch (e) {
+      showToast('⚡ อัปเดตสถานะการเปิด/ปิดบริการแล้ว')
+    }
+  }
+
+  // Move Service Position (Reorder)
+  
+  const handleToggleServiceActive = handleToggleServiceStatus
+
+  const handleMoveService = async (serviceId: string, direction: 'up' | 'down') => {
+    const idx = adminServicesList.findIndex(s => s.id === serviceId)
+    if (idx === -1) return
+    if (direction === 'up' && idx === 0) return
+    if (direction === 'down' && idx === adminServicesList.length - 1) return
+
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1
+    const newList = [...adminServicesList]
+    const temp = newList[idx]
+    newList[idx] = newList[targetIdx]
+    newList[targetIdx] = temp
+
+    // Update positions
+    const reordered = newList.map((item, pIdx) => ({ ...item, position: pIdx + 1 }))
+    setAdminServicesList(reordered)
+
+    try {
+      // Direct Supabase upsert of reordered rows
+      const dbRows = reordered.map(s => ({
+        id: s.id,
+        title: s.title,
+        subtitle: s.subtitle,
+        description: s.description,
+        category: s.category,
+        icon_name: s.iconName,
+        icon_bg: s.iconBg,
+        icon_color: s.iconColor,
+        badge: s.badge,
+        badge_color: s.badgeColor,
+        status: s.status,
+        price_text: s.priceText || '',
+        action_label: s.actionLabel,
+        action_url: s.actionUrl || '/custom-salepage',
+        position: s.position,
+        is_active: s.is_active !== false,
+        features: s.features || [],
+        updated_at: new Date().toISOString()
+      }))
+      await supabase.from('services').upsert(dbRows)
+
+      await fetch('/api/services', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ services: reordered })
+      })
+      showToast('↕️ สลับลำดับบริการลงฐานข้อมูลเรียบร้อยแล้ว')
+    } catch (e) {}
+  }
+
+  // Reset to Default 4 Services
+  const handleResetDefaultServices = async () => {
+    if (!confirm('ต้องการรีเซ็ตรายการบริการเสริมทั้งหมดกลับเป็นค่าเริ่มต้น 4 รายการลงฐานข้อมูลหรือไม่?')) return
+    setSavingAdminServices(true)
+    try {
+      const seedRows = DEFAULT_SERVICES_LIST.map((s, idx) => ({
+        id: s.id,
+        title: s.title,
+        subtitle: s.subtitle,
+        description: s.description,
+        category: s.category,
+        icon_name: s.iconName,
+        icon_bg: s.iconBg,
+        icon_color: s.iconColor,
+        badge: s.badge,
+        badge_color: s.badgeColor,
+        status: s.status,
+        price_text: s.priceText || '',
+        action_label: s.actionLabel,
+        action_url: s.actionUrl || '/custom-salepage',
+        position: s.position || idx + 1,
+        is_active: s.is_active !== false,
+        features: s.features || [],
+        updated_at: new Date().toISOString()
+      }))
+
+      await supabase.from('services').upsert(seedRows)
+      try {
+        await fetch('/api/services', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ services: DEFAULT_SERVICES_LIST })
+        })
+      } catch (e) {}
+
+      setAdminServicesList(DEFAULT_SERVICES_LIST)
+      showToast('🔄 รีเซ็ตบริการเสริมกลับเป็นค่าเริ่มต้นลงฐานข้อมูลแล้ว')
+    } catch (e: any) {
+      alert('เกิดข้อผิดพลาด: ' + e.message)
+    } finally {
+      setSavingAdminServices(false)
+    }
+  }
+
   const [activeTab, setActiveTab] = useState<AdminTab>('users')
   // Site Logo, Favicon & Global SEO Settings State
   const [siteSettings, setSiteSettings] = useState({
@@ -209,7 +642,8 @@ export default function AdminDashboardPage() {
     setAdminProfile(prof)
     await loadAllData()
     await loadPaymentSettingsAdmin()
-      setLoading(false)
+    await fetchAdminServices()
+    setLoading(false)
   }
 
     // --- ADMIN PAYMENT SETTINGS HANDLERS ---
@@ -1487,6 +1921,15 @@ export default function AdminDashboardPage() {
         {/* Admin Navigation Tabs (Complete 9 System Tabs) */}
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
           <button
+            onClick={() => { setActiveTab('services'); setSearchQuery(''); }}
+            className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
+              activeTab === 'services' ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/30' : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <LayoutTemplate className="w-4 h-4" /> <span>🛠️ จัดการบริการเสริม ({adminServicesList.length})</span>
+          </button>
+
+          <button
             onClick={() => { setActiveTab('users'); setSearchQuery(''); }}
             className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition ${
               activeTab === 'users' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-800'
@@ -2744,6 +3187,237 @@ export default function AdminDashboardPage() {
 
           </div>
         )}
+
+                {/* TAB 2: SERVICES HUB CRUD */}
+        {activeTab === 'services' && (() => {
+          const filteredServices = serviceCategoryFilter === 'all'
+            ? adminServicesList
+            : adminServicesList.filter(s => s.category === serviceCategoryFilter)
+
+          const totalServices = adminServicesList.length
+          const activeServices = adminServicesList.filter(s => s.status === 'active' && s.is_active !== false).length
+          const updatingServices = adminServicesList.filter(s => s.status === 'updating' && s.is_active !== false).length
+          const categoriesCount = new Set(adminServicesList.map(s => s.category)).size
+
+          return (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              
+              {/* Top Banner Header */}
+              <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+                <div>
+                  <h3 className="text-lg font-black text-white flex items-center gap-2">
+                    <LayoutTemplate className="w-5 h-5 text-purple-400" />
+                    <span>จัดการบริการเสริมในระบบ (Services Hub CRUD & Management)</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    เพิ่ม ลบ แก้ไข รายการบริการเสริม ปรับแต่งไอคอน ป้ายกำกับ ราคา และเนื้อหาที่แสดงใน Dashboard ของสมาชิก
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2.5 w-full md:w-auto">
+                  <button
+                    type="button"
+                    onClick={handleResetDefaultServices}
+                    disabled={savingAdminServices}
+                    className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-slate-700"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>รีเซ็ตค่าเริ่มต้น</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleOpenCreateServiceModal}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-purple-600/30 transition cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ เพิ่มบริการใหม่</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 4 Stats KPI Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+                <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-sm space-y-1">
+                  <span className="text-[11px] font-bold text-slate-400">บริการทั้งหมด</span>
+                  <p className="text-2xl font-black text-white font-mono">{totalServices} รายการ</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-900/80 border border-purple-900/40 shadow-sm space-y-1">
+                  <span className="text-[11px] font-bold text-purple-300">⚡ พร้อมสั่งทำ/ใช้งาน</span>
+                  <p className="text-2xl font-black text-purple-400 font-mono">{activeServices} บริการ</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-900/80 border border-amber-900/40 shadow-sm space-y-1">
+                  <span className="text-[11px] font-bold text-amber-300">⏳ กำลังพัฒนา (Updating)</span>
+                  <p className="text-2xl font-black text-amber-400 font-mono">{updatingServices} บริการ</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-sm space-y-1">
+                  <span className="text-[11px] font-bold text-slate-400">หมวดหมู่ทั้งหมด</span>
+                  <p className="text-2xl font-black text-emerald-400 font-mono">{categoriesCount} หมวด</p>
+                </div>
+              </div>
+
+              {/* Category Filter Pills */}
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+                {[
+                  { key: 'all', label: 'ทั้งหมด (All)' },
+                  { key: 'salepage', label: 'Salepage & ดีไซน์' },
+                  { key: 'ai', label: 'AI & คอนเทนต์' },
+                  { key: 'system', label: 'ระบบ & CRM' },
+                  { key: 'marketing', label: 'การตลาด & โดเมน' },
+                ].map((cat) => (
+                  <button
+                    key={cat.key}
+                    onClick={() => setServiceCategoryFilter(cat.key as any)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition cursor-pointer ${
+                      serviceCategoryFilter === cat.key
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'bg-slate-900 text-slate-400 border border-slate-800 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Services Interactive Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredServices.map((service, idx) => {
+                  const Icon = getServiceIconComponent(service.iconName)
+                  const isUpdating = service.status === 'updating'
+                  const isHidden = service.is_active === false
+
+                  return (
+                    <div
+                      key={service.id}
+                      className={`relative flex flex-col justify-between p-5 rounded-3xl border transition-all duration-200 ${
+                        isHidden
+                          ? 'bg-slate-950/60 border-slate-800/60 opacity-60'
+                          : isUpdating
+                          ? 'bg-slate-900/90 border-amber-500/30 shadow-sm'
+                          : 'bg-slate-900/90 border-purple-500/30 shadow-md ring-1 ring-purple-500/10'
+                      }`}
+                    >
+                      <div>
+                        {/* Top: Icon + Badge + Reorder buttons */}
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div className={`w-12 h-12 rounded-2xl ${service.iconBg || 'bg-purple-600'} ${service.iconColor || 'text-white'} flex items-center justify-center shadow-md`}>
+                            <Icon className="w-6 h-6" />
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${service.badgeColor || 'bg-purple-900/50 text-purple-300 border-purple-800'}`}>
+                              {service.badge}
+                            </span>
+
+                            {/* Move Up/Down */}
+                            <div className="flex items-center bg-slate-950 rounded-lg p-0.5 border border-slate-800">
+                              <button
+                                type="button"
+                                onClick={() => handleMoveService(service.id, 'up')}
+                                disabled={idx === 0}
+                                className="p-1 text-slate-400 hover:text-white disabled:opacity-30 cursor-pointer"
+                                title="เลื่อนขึ้น"
+                              >
+                                ⬆️
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleMoveService(service.id, 'down')}
+                                disabled={idx === filteredServices.length - 1}
+                                className="p-1 text-slate-400 hover:text-white disabled:opacity-30 cursor-pointer"
+                                title="เลื่อนลง"
+                              >
+                                ⬇️
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Title & Subtitle */}
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-black text-white">{service.title}</h4>
+                            <span className="text-[9px] font-mono text-purple-400 px-1.5 py-0.5 bg-purple-950/60 rounded border border-purple-900/60">
+                              #{service.category}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-400 font-medium line-clamp-2">{service.subtitle}</p>
+                        </div>
+
+                        {/* Description */}
+                        <p className="text-[11px] text-slate-400 font-light mt-2.5 line-clamp-3 leading-relaxed bg-slate-950/50 p-2.5 rounded-xl border border-slate-800/80">
+                          {service.description}
+                        </p>
+
+                        {/* Price Text */}
+                        {service.priceText && (
+                          <div className="mt-2.5 text-[11px] text-purple-300 font-bold flex items-center justify-between">
+                            <span>ราคา / เงื่อนไข:</span>
+                            <span className="text-white font-black">{service.priceText}</span>
+                          </div>
+                        )}
+
+                        {/* Feature bullets summary */}
+                        {service.features && service.features.length > 0 && (
+                          <div className="mt-3 space-y-1">
+                            <span className="text-[10px] text-slate-500 font-bold block">จุดเด่น ({service.features.length} ข้อ):</span>
+                            {service.features.slice(0, 2).map((feat, fIdx) => (
+                              <div key={fIdx} className="text-[10px] text-slate-400 flex items-center gap-1.5 truncate">
+                                <Check className="w-3 h-3 text-emerald-400 shrink-0" />
+                                <span className="truncate">{feat}</span>
+                              </div>
+                            ))}
+                            {service.features.length > 2 && (
+                              <span className="text-[9px] text-slate-500">+ อีก {service.features.length - 2} รายการ</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Card Footer Actions */}
+                      <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
+                        {/* Toggle Active Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleServiceActive(service.id)}
+                          className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border transition cursor-pointer ${
+                            service.is_active !== false
+                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25'
+                              : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                          }`}
+                        >
+                          {service.is_active !== false ? '🟢 แสดงในเว็บ' : '⚪ ซ่อนไว้'}
+                        </button>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditServiceModal(service)}
+                            className="p-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 transition cursor-pointer"
+                            title="แก้ไขบริการนี้"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setServiceToDelete(service)}
+                            className="p-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 transition cursor-pointer"
+                            title="ลบบริการนี้"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+            </div>
+          )
+        })()}
+
 
         {/* TAB 1: USERS */}
         {activeTab === 'users' && (
@@ -5387,6 +6061,355 @@ WHERE username = 'YOUR_USERNAME';`}
               <X className="w-5 h-5" />
             </button>
           </div>
+        </div>
+      )}
+      {/* MODAL: CREATE / EDIT SERVICE */}
+      {serviceFormModalOpen && (() => {
+        const CurrentIcon = getServiceIconComponent(sFormIconName)
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in">
+            <div className="w-full max-w-3xl bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-800 space-y-5 max-h-[90vh] overflow-y-auto no-scrollbar animate-in zoom-in-95">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-lg shadow-purple-600/30">
+                    <LayoutTemplate className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-white">
+                      {editingServiceId ? '✏️ แก้ไขข้อมูลบริการเสริม' : '✨ เพิ่มบริการเสริมใหม่ในระบบ'}
+                    </h3>
+                    <p className="text-[11px] text-slate-400 font-light">
+                      ข้อมูลจะถูกนำไปแสดงในหน้า Dashboard (บริการอื่นๆ) ของสมาชิกทุกคน
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setServiceFormModalOpen(false)}
+                  className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer transition"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Form & Live Preview Grid */}
+              <form onSubmit={handleSaveServiceForm} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  
+                  {/* Left: Input Fields */}
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 block mb-1">ชื่อบริการ (Title) *</label>
+                      <input
+                        type="text"
+                        required
+                        value={sFormTitle}
+                        onChange={(e) => setSFormTitle(e.target.value)}
+                        placeholder="เช่น Custom Salepage หรือ AI Studio"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500 font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 block mb-1">คำโปรยย่อ (Subtitle) *</label>
+                      <input
+                        type="text"
+                        required
+                        value={sFormSubtitle}
+                        onChange={(e) => setSFormSubtitle(e.target.value)}
+                        placeholder="เช่น สร้าง Salepage แบบกำหนดเอง"
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500 font-medium"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 block mb-1">หมวดหมู่ (Category)</label>
+                        <select
+                          value={sFormCategory}
+                          onChange={(e) => setSFormCategory(e.target.value as any)}
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500"
+                        >
+                          <option value="salepage">Salepage & ดีไซน์</option>
+                          <option value="ai">AI & คอนเทนต์</option>
+                          <option value="system">ระบบ & CRM</option>
+                          <option value="marketing">การตลาด & โดเมน</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 block mb-1">สถานะบริการ (Status)</label>
+                        <select
+                          value={sFormStatus}
+                          onChange={(e) => setSFormStatus(e.target.value as any)}
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500"
+                        >
+                          <option value="active">⚡ พร้อมสั่งทำ (Active)</option>
+                          <option value="updating">⏳ กำลังพัฒนา (Updating)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 block mb-1">คำอธิบายรายละเอียดบริการ (Description)</label>
+                      <textarea
+                        rows={3}
+                        value={sFormDescription}
+                        onChange={(e) => setSFormDescription(e.target.value)}
+                        placeholder="อธิบายรายละเอียด สิ่งที่ลูกค้าจะได้รับ และประโยชน์ของบริการนี้..."
+                        className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500 font-light resize-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 block mb-1">ไอคอน (Icon)</label>
+                        <select
+                          value={sFormIconName}
+                          onChange={(e) => setSFormIconName(e.target.value)}
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500"
+                        >
+                          <option value="LayoutTemplate">LayoutTemplate (เซลเพจ)</option>
+                          <option value="Sparkles">Sparkles (AI/วิเศษ)</option>
+                          <option value="Wand2">Wand2 (คทา AI)</option>
+                          <option value="MessageCircle">MessageCircle (แชท/LINE)</option>
+                          <option value="ShieldCheck">ShieldCheck (ความปลอดภัย)</option>
+                          <option value="Zap">Zap (สายฟ้า)</option>
+                          <option value="Globe">Globe (เว็บไซต์/โดเมน)</option>
+                          <option value="Coins">Coins (เหรียญ/การเงิน)</option>
+                          <option value="Rocket">Rocket (จรวด)</option>
+                          <option value="Flame">Flame (ไฟลุก)</option>
+                          <option value="Crown">Crown (มงกุฎ VIP)</option>
+                          <option value="ShoppingBag">ShoppingBag (ร้านค้า)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 block mb-1">สไตล์สีไอคอน</label>
+                        <select
+                          value={sFormIconBg}
+                          onChange={(e) => setSFormIconBg(e.target.value)}
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500"
+                        >
+                          <option value="bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-600">💜 ม่วงคราม (Purple Violet)</option>
+                          <option value="bg-gradient-to-br from-amber-500 via-yellow-500 to-orange-500">💛 ส้มทอง (Amber Gold)</option>
+                          <option value="bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-600">💚 เขียวมรกต (Emerald Teal)</option>
+                          <option value="bg-gradient-to-br from-blue-500 via-indigo-600 to-cyan-500">💙 น้ำเงินฟ้า (Blue Cyan)</option>
+                          <option value="bg-gradient-to-br from-rose-500 via-pink-600 to-red-600">❤️ ชมพูกุหลาบ (Rose Pink)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 block mb-1">ข้อความป้าย (Badge)</label>
+                        <input
+                          type="text"
+                          value={sFormBadge}
+                          onChange={(e) => setSFormBadge(e.target.value)}
+                          placeholder="เช่น 🔥 ยอดนิยม หรือ ✨ มาใหม่"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 block mb-1">ราคา / เงื่อนไข</label>
+                        <input
+                          type="text"
+                          value={sFormPriceText}
+                          onChange={(e) => setSFormPriceText(e.target.value)}
+                          placeholder="เช่น เริ่มต้น 990.- / เซลเพจ หรือ ฟรี"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 block mb-1">ข้อความปุ่ม Action</label>
+                        <input
+                          type="text"
+                          value={sFormActionLabel}
+                          onChange={(e) => setSFormActionLabel(e.target.value)}
+                          placeholder="เช่น สั่งทำเซลเพจ หรือ แชท LINE OA"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 block mb-1">ลิงก์ Action URL</label>
+                        <input
+                          type="text"
+                          value={sFormActionUrl}
+                          onChange={(e) => setSFormActionUrl(e.target.value)}
+                          placeholder="เช่น /custom-salepage หรือ line"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500 font-mono text-[11px]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: Feature Checklist & Live Card Preview */}
+                  <div className="space-y-3">
+                    
+                    {/* Live Preview Box */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold text-purple-400 block">👀 ตัวอย่างหน้าตาการ์ดแบบ Real-time:</span>
+                      <div className="p-4 rounded-3xl bg-slate-950 border border-purple-500/30 shadow-lg space-y-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className={`w-12 h-12 rounded-2xl ${sFormIconBg} ${sFormIconColor} flex items-center justify-center shadow-md`}>
+                            <CurrentIcon className="w-6 h-6" />
+                          </div>
+                          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${sFormBadgeColor}`}>
+                            {sFormBadge || 'ป้ายกำกับ'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <h4 className="text-sm font-black text-white">{sFormTitle || 'ชื่อบริการของคุณ'}</h4>
+                          <p className="text-xs text-slate-400 font-medium">{sFormSubtitle || 'คำโปรยย่อบริการ'}</p>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-[10px] font-bold">
+                          {sFormStatus === 'active' ? (
+                            <span className="text-purple-400 flex items-center gap-1">
+                              <Zap className="w-3 h-3 fill-current" /> พร้อมใช้งาน
+                            </span>
+                          ) : (
+                            <span className="text-amber-400 flex items-center gap-1">
+                              <Clock className="w-3 h-3 animate-spin" /> กำลังพัฒนา
+                            </span>
+                          )}
+                          <span className="text-purple-300 font-mono">{sFormPriceText || 'ฟรี'}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Features Checklist Editor */}
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-slate-400">รายการสิ่งที่จะได้รับ (Feature Items)</label>
+                        <button
+                          type="button"
+                          onClick={() => setSFormFeatures([...sFormFeatures, 'คุณสมบัติข้อใหม่...'])}
+                          className="text-[10px] text-purple-400 hover:text-purple-300 font-bold flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" /> เพิ่มข้อ
+                        </button>
+                      </div>
+
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto no-scrollbar">
+                        {sFormFeatures.map((feat, idx) => (
+                          <div key={idx} className="flex items-center gap-1.5">
+                            <input
+                              type="text"
+                              value={feat}
+                              onChange={(e) => {
+                                const copy = [...sFormFeatures]
+                                copy[idx] = e.target.value
+                                setSFormFeatures(copy)
+                              }}
+                              placeholder={`ข้อที่ ${idx + 1}...`}
+                              className="flex-1 px-2.5 py-1.5 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500 font-light"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setSFormFeatures(sFormFeatures.filter((_, i) => i !== idx))}
+                              className="p-1.5 rounded-lg bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                  </div>
+
+                </div>
+
+                {/* Submit Actions */}
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setServiceFormModalOpen(false)}
+                    disabled={savingAdminServices}
+                    className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingAdminServices}
+                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs shadow-lg shadow-purple-600/30 transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {savingAdminServices ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>กำลังบันทึก...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>{editingServiceId ? 'บันทึกการแก้ไขบริการ' : 'ยืนยันเพิ่มบริการใหม่'}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* MODAL: DELETE SERVICE CONFIRMATION */}
+      {serviceToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in">
+          <div className="w-full max-w-sm bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-800 space-y-4 text-center animate-in zoom-in-95">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center border border-rose-500/20">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            
+            <div className="space-y-1">
+              <h3 className="text-base font-black text-white">ยืนยันการลบบริการเสริม</h3>
+              <p className="text-xs text-slate-400 font-light">
+                คุณแน่ใจหรือไม่ว่าต้องการลบบริการ <span className="font-bold text-white">"{serviceToDelete.title}"</span> ออกจากระบบ?
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setServiceToDelete(null)}
+                disabled={savingAdminServices}
+                className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteService}
+                disabled={savingAdminServices}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs shadow-lg shadow-rose-600/30 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                {savingAdminServices ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                <span>ยืนยันลบ</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+          {/* Floating Toast Notification */}
+      {toastMsg && (
+        <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-slate-900/95 dark:bg-white/95 text-white dark:text-slate-900 font-bold text-xs shadow-2xl border border-slate-700 dark:border-slate-200 flex items-center gap-2.5 animate-in slide-in-from-bottom-5">
+          <Check className="w-4 h-4 text-emerald-400 dark:text-emerald-600 shrink-0" />
+          <span>{toastMsg}</span>
         </div>
       )}
     </div>

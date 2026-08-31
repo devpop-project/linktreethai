@@ -1,5 +1,9 @@
 'use client'
 
+import Link from 'next/link'
+
+import ServicesTabContent from '@/components/ServicesTabContent'
+
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -70,9 +74,11 @@ interface LandingPageFormData {
   line_channel_access_token: string
   line_user_id: string
   line_webhook_url: string
+  page_type?: 'p' | 'c'
 }
 
 const DEFAULT_LANDING_PAGE_FORM: LandingPageFormData = {
+  page_type: 'p',
   slug: '',
   title: '',
   headline: '',
@@ -134,7 +140,7 @@ const DEFAULT_LANDING_PAGE_FORM: LandingPageFormData = {
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'links' | 'shop' | 'appearance' | 'landing_pages' | 'shortener' | 'leads' | 'billing'>('links')
+  const [activeTab, setActiveTab] = useState<'links' | 'shop' | 'appearance' | 'landing_pages' | 'shortener' | 'leads' | 'services' | 'billing'>('links')
   const [user, setUser] = useState<any>(null)
   const [isDarkMode, setIsDarkMode] = useState(false)
   
@@ -208,6 +214,8 @@ export default function DashboardPage() {
     // --- Confirmation Modal for Spending Points ---
   const [testingLineNotify, setTestingLineNotify] = useState(false)
   const [lpExpiryDetailModal, setLpExpiryDetailModal] = useState<any>(null)
+  const [lpToDelete, setLpToDelete] = useState<any | null>(null)
+  const [isDeletingLp, setIsDeletingLp] = useState(false)
   const [confirmRedeemModal, setConfirmRedeemModal] = useState<{
     isOpen: boolean
     title: string
@@ -1199,9 +1207,24 @@ export default function DashboardPage() {
 
   // --- Landing Page Quota & Handlers ---
   const handleStartEditLandingPage = (lp: any) => {
+    const isModular =
+      lp.slug === 'enter-the-amanita-th-775' ||
+      (lp.slug && lp.slug.includes('-775')) ||
+      lp.page_type === 'c' ||
+      lp.page_type === 'custom' ||
+      lp.page_type === 'modular' ||
+      lp.template_type === 'custom' ||
+      (Array.isArray(lp.features) && lp.features.length > 0 && typeof lp.features[0] === 'object' && lp.features[0] !== null && (lp.features[0].type || lp.features[0].id))
+
+    if (isModular) {
+      router.push(`/custom-salepage?id=${lp.id}&slug=${lp.slug}`)
+      return
+    }
+
     setEditingLandingPageId(lp.id)
     setNewLandingPage({
       ...DEFAULT_LANDING_PAGE_FORM,
+      page_type: isModular ? 'c' : 'p',
       slug: lp.slug || '',
       title: lp.title || '',
       headline: lp.headline || '',
@@ -1473,7 +1496,7 @@ export default function DashboardPage() {
       if (!error && data) {
         setLandingPages(landingPages.map(p => p.id === editingLandingPageId ? data[0] : p))
         handleCancelEditLandingPage()
-        showToast('💾 บันทึกการแก้ไขเซลเพจสำเร็จ: /p/' + slug)
+        showToast('💾 บันทึกการแก้ไขเซลเพจสำเร็จ: /' + (newLandingPage.page_type === 'c' ? 'c' : 'p') + '/' + slug)
       } else if (error) {
         showToast('❌ แก้ไขไม่สำเร็จ: ' + error.message)
       }
@@ -1487,7 +1510,7 @@ export default function DashboardPage() {
       if (!error && data) {
         setLandingPages([data[0], ...landingPages])
         handleCancelEditLandingPage()
-        showToast('🚀 สร้างเซลเพจสำเร็จ: /p/' + slug)
+        showToast('🚀 สร้างเซลเพจสำเร็จ: /' + (newLandingPage.page_type === 'c' ? 'c' : 'p') + '/' + slug)
       } else if (error) {
         showToast('❌ ข้อผิดพลาด: ชื่อ URL ซ้ำ หรือไม่ถูกต้อง (' + error.message + ')')
       }
@@ -1495,10 +1518,34 @@ export default function DashboardPage() {
   }
 
   const handleDeleteLandingPage = async (id: string) => {
-    const { error } = await supabase.from('landing_pages').delete().eq('id', id)
-    if (!error) {
-      setLandingPages(landingPages.filter(p => p.id !== id))
-      showToast('🗑️ ลบเซลเพจเรียบร้อยแล้ว')
+    const targetLp = landingPages.find(p => p.id === id)
+    if (targetLp) {
+      setLpToDelete(targetLp)
+    } else {
+      const { error } = await supabase.from('landing_pages').delete().eq('id', id)
+      if (!error) {
+        setLandingPages(landingPages.filter(p => p.id !== id))
+        showToast('🗑️ ลบเซลเพจเรียบร้อยแล้ว')
+      }
+    }
+  }
+
+  const handleConfirmDeleteLandingPage = async () => {
+    if (!lpToDelete) return
+    setIsDeletingLp(true)
+    try {
+      const { error } = await supabase.from('landing_pages').delete().eq('id', lpToDelete.id)
+      if (!error) {
+        setLandingPages(prev => prev.filter(p => p.id !== lpToDelete.id))
+        showToast('🗑️ ลบเซลเพจเรียบร้อยแล้ว')
+        setLpToDelete(null)
+      } else {
+        showToast('❌ ไม่สามารถลบเซลเพจได้: ' + error.message)
+      }
+    } catch (e: any) {
+      showToast('❌ เกิดข้อผิดพลาด: ' + e.message)
+    } finally {
+      setIsDeletingLp(false)
     }
   }
 
@@ -1885,6 +1932,7 @@ export default function DashboardPage() {
                 { id: 'appearance', label: 'ข้อมูลโปรไฟล์', icon: Palette },
                 { id: 'shortener', label: 'ย่อลิงก์', icon: Scissors, count: shortLinks.length, locked: !isShortenerActive },
                 { id: 'leads', label: 'ลีด CRM', icon: Users, count: leads.length },
+                { id: 'services', label: 'บริการอื่นๆ', icon: LayoutTemplate },
                 { id: 'billing', label: 'แพ็กเกจ', icon: Crown }
               ].map((tab) => {
                 const Icon = tab.icon
@@ -3479,9 +3527,37 @@ export default function DashboardPage() {
                             </div>
 
                             <div>
-                              <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">URL Slug ที่ต้องการ *</label>
+                              <div className="mb-3">
+                              <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">เลือกประเภทระบบเซลเพจ (Route Engine)</label>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setNewLandingPage({ ...newLandingPage, page_type: 'p' })}
+                                  className={`p-2 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                                    newLandingPage.page_type !== 'c'
+                                      ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-sm'
+                                      : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <span>🏛️ /p/[sub] (Classic คลาสสิก)</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setNewLandingPage({ ...newLandingPage, page_type: 'c' })}
+                                  className={`p-2 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                                    newLandingPage.page_type === 'c'
+                                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                                      : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <span>✨ /c/[slug] (Modular โมดูลาร์)</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            <label className="block text-xs font-bold text-[#1E1B4B] dark:text-slate-200 mb-1">URL Slug ที่ต้องการ *</label>
                               <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-3 py-1 focus-within:border-rose-400">
-                                <span className="text-slate-400 text-xs font-mono select-none">linktreethai.in.th/p/</span>
+                                <span className="text-slate-400 text-xs font-mono select-none">{originUrl ? `${originUrl.replace(/^https?:\/\//, "")}/${newLandingPage.page_type === "c" ? "c" : "p"}/` : `linktreethai.in.th/${newLandingPage.page_type === "c" ? "c" : "p"}/`}</span>
                                 <input
                                   type="text"
                                   required
@@ -4365,7 +4441,18 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     landingPages.map((lp) => {
-                      const fullLandingUrl = `${originUrl}/p/${lp.slug}`
+                      const isCustomModular =
+                        lp.slug === 'enter-the-amanita-th-775' ||
+                        (lp.slug && lp.slug.includes('-775')) ||
+                        lp.page_type === 'c' ||
+                        lp.page_type === 'custom' ||
+                        lp.page_type === 'modular' ||
+                        lp.template_type === 'custom' ||
+                        lp.card_style === 'custom_modular' ||
+                        (Array.isArray(lp.features) && lp.features.length > 0 && typeof lp.features[0] === 'object' && lp.features[0] !== null && (lp.features[0].type || lp.features[0].id))
+
+                      const routePrefix = isCustomModular ? 'c' : 'p'
+                      const fullLandingUrl = `${originUrl}/${routePrefix}/${lp.slug}`
                       
                       // Accurate expiration calculation: Math.floor for precise remaining days and hours
                       const createdTime = lp.created_at ? new Date(lp.created_at).getTime() : Date.now()
@@ -4393,6 +4480,15 @@ export default function DashboardPage() {
                             <div className="min-w-0 flex-1 space-y-1.5">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <h4 className="font-extrabold text-[#1E1B4B] dark:text-white text-base truncate">{lp.title}</h4>
+                                {isCustomModular ? (
+                                  <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800 font-mono font-bold">
+                                    ✨ /c/[slug]
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800 font-mono font-bold">
+                                    🏛️ /p/[sub]
+                                  </span>
+                                )}
                                 <span className="text-[10px] bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 px-2.5 py-0.5 rounded-full border border-rose-200 dark:border-rose-900 font-bold">
                                   👁️ {lp.views || 0} วิว
                                 </span>
@@ -4454,20 +4550,30 @@ export default function DashboardPage() {
                                 <QrCode className="w-4 h-4" />
                               </button>
 
-                              <button
-                                type="button"
-                                onClick={() => handleStartEditLandingPage(lp)}
-                                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition cursor-pointer"
-                                title="แก้ไขข้อมูลเซลเพจ"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
+                              {isCustomModular ? (
+                                <Link
+                                  href={`/custom-salepage?id=${lp.id}&slug=${lp.slug}`}
+                                  className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition cursor-pointer"
+                                  title="แก้ไขใน Custom Salepage Builder (/c/[sub])"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </Link>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditLandingPage(lp)}
+                                  className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition cursor-pointer"
+                                  title="แก้ไขข้อมูลเซลเพจคลาสสิก (/p/[sub])"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                              )}
 
                               <button
                                 type="button"
-                                onClick={() => handleDeleteLandingPage(lp.id)}
+                                onClick={() => setLpToDelete(lp)}
                                 className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer"
-                                title="ลบเซลเพจ"
+                                title="ลบเซลเพจ (เปิดหน้าต่างยืนยัน)"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -4955,7 +5061,12 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* TAB 7: BILLING & PACKAGES */}
+            {/* TAB 7: OTHER SERVICES (บริการอื่นๆ) */}
+            {activeTab === 'services' && (
+              <ServicesTabContent />
+            )}
+
+            {/* TAB 8: BILLING & PACKAGES */}
             {activeTab === 'billing' && (
               <div className="space-y-6">
               {/* TOP UP POINTS PROMINENT BANNER */}
@@ -5206,6 +5317,7 @@ export default function DashboardPage() {
             { id: 'appearance', label: 'โปรไฟล์', icon: Palette },
             { id: 'shortener', label: 'ย่อลิงก์', icon: Scissors, locked: !isShortenerActive },
             { id: 'leads', label: 'ลีด', icon: Users },
+            { id: 'services', label: 'บริการ', icon: LayoutTemplate },
             { id: 'billing', label: 'แพ็กเกจ', icon: Crown }
           ].map((tab) => {
             const Icon = tab.icon
@@ -5957,6 +6069,120 @@ export default function DashboardPage() {
 
       
       
+            {/* CONFIRM DELETE LANDING PAGE MODAL */}
+      {lpToDelete && (() => {
+        const isCustomModalModular =
+          lpToDelete.slug === 'enter-the-amanita-th-775' ||
+          (lpToDelete.slug && lpToDelete.slug.includes('-775')) ||
+          lpToDelete.page_type === 'c' ||
+          lpToDelete.page_type === 'custom' ||
+          lpToDelete.page_type === 'modular' ||
+          lpToDelete.template_type === 'custom' ||
+          (Array.isArray(lpToDelete.features) && lpToDelete.features.length > 0 && typeof lpToDelete.features[0] === 'object' && lpToDelete.features[0] !== null && (lpToDelete.features[0].type || lpToDelete.features[0].id))
+
+        const modalRoutePrefix = isCustomModalModular ? 'c' : 'p'
+        const fullUrl = `${originUrl}/${modalRoutePrefix}/${lpToDelete.slug}`
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in">
+            <div className="w-full max-w-md bg-white dark:bg-[#131B2A] rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 animate-in zoom-in-95">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/20 shadow-sm">
+                    <Trash2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 dark:text-white">
+                      ยืนยันการลบเซลเพจ
+                    </h3>
+                    <p className="text-[11px] text-slate-400 font-light">
+                      ต้องการลบเซลเพจนี้ออกจากระบบหรือไม่?
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLpToDelete(null)}
+                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white flex items-center justify-center cursor-pointer transition"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Salepage Details Box */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold">ชื่อเซลเพจ:</span>
+                  <span className="font-black text-slate-900 dark:text-white truncate max-w-[220px]">
+                    {lpToDelete.title || 'เซลเพจ'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold">ประเภท:</span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono ${
+                    isCustomModalModular
+                      ? 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                      : 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                  }`}>
+                    {isCustomModalModular ? '✨ /c/[slug] (Modular)' : '🏛️ /p/[sub] (Classic)'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-200/60 dark:border-slate-800">
+                  <span className="text-slate-500 dark:text-slate-400 font-bold">ลิงก์ URL:</span>
+                  <span className="font-mono font-bold text-rose-600 dark:text-rose-400 truncate max-w-[220px]">
+                    /{modalRoutePrefix}/{lpToDelete.slug}
+                  </span>
+                </div>
+              </div>
+
+              {/* Warning Banner */}
+              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2.5">
+                <AlertCircle className="w-5 h-5 shrink-0" />
+                <span className="leading-relaxed">
+                  เมื่อลบแล้ว ผู้เข้าชมจะไม่สามารถเปิดดูหน้านี้ได้อีก และข้อมูลทั้งหมดจะถูกลบออกจากระบบอย่างถาวร
+                </span>
+              </div>
+
+              {/* Action Buttons: Confirm & Cancel */}
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setLpToDelete(null)}
+                  disabled={isDeletingLp}
+                  className="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs active:scale-95 transition cursor-pointer"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteLandingPage}
+                  disabled={isDeletingLp}
+                  className="flex-1 py-3 rounded-2xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-black text-xs shadow-xl shadow-rose-600/25 transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isDeletingLp ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>กำลังลบ...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      <span>ยืนยันลบเซลเพจ</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+            </div>
+          </div>
+        )
+      })()}
+
+
       {/* USER LANDING PAGE EXPIRATION DETAILS MODAL */}
       {lpExpiryDetailModal && (() => {
         const createdTime = lpExpiryDetailModal.created_at ? new Date(lpExpiryDetailModal.created_at).getTime() : Date.now()
@@ -5967,7 +6193,17 @@ export default function DashboardPage() {
         const hoursLeft = isExpired ? 0 : Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
         const expiryDateStr = new Date(expiryTime).toLocaleDateString('th-TH')
         const createdDateStr = new Date(createdTime).toLocaleDateString('th-TH')
-        const fullUrl = `${originUrl}/p/${lpExpiryDetailModal.slug}`
+        const isCustomModalModular =
+          lpExpiryDetailModal.slug === 'enter-the-amanita-th-775' ||
+          (lpExpiryDetailModal.slug && lpExpiryDetailModal.slug.includes('-775')) ||
+          lpExpiryDetailModal.page_type === 'c' ||
+          lpExpiryDetailModal.page_type === 'custom' ||
+          lpExpiryDetailModal.page_type === 'modular' ||
+          lpExpiryDetailModal.template_type === 'custom' ||
+          (Array.isArray(lpExpiryDetailModal.features) && lpExpiryDetailModal.features.length > 0 && typeof lpExpiryDetailModal.features[0] === 'object' && lpExpiryDetailModal.features[0] !== null && (lpExpiryDetailModal.features[0].type || lpExpiryDetailModal.features[0].id))
+
+        const modalRoutePrefix = isCustomModalModular ? 'c' : 'p'
+        const fullUrl = `${originUrl}/${modalRoutePrefix}/${lpExpiryDetailModal.slug}`
 
         const remainingStr = isExpired
           ? '🔴 หมดอายุแล้ว (หน้าเว็บถูกล็อค)'
@@ -6009,7 +6245,7 @@ export default function DashboardPage() {
               <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2.5 text-xs font-bold">
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 dark:text-slate-400 font-normal">ลิงก์ URL เซลเพจ:</span>
-                  <span className="font-mono text-purple-600 dark:text-purple-400">/p/{lpExpiryDetailModal.slug}</span>
+                  <span className="font-mono text-purple-600 dark:text-purple-400">/{modalRoutePrefix}/{lpExpiryDetailModal.slug}</span>
                 </div>
                 
                 <div className="flex justify-between items-center">
