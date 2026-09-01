@@ -50,9 +50,10 @@ export default function TopUpPointsModal({
   const supabase = createClient()
 
   const packages = [
-    { points: 100, price: 100, desc: 'ปลดล็อกย่อลิงก์ / Tracking Pixels 30 วัน', tag: 'STARTER' },
-    { points: 300, price: 299, desc: 'ปลดล็อก PRO VIP 30 วัน (ทุกลิงก์ไม่จำกัด + 10 สินค้า)', tag: 'PRO' },
-    { points: 600, price: 599, desc: 'ปลดล็อก MASTER VIP 30 วัน (ครบทุกฟังก์ชัน + ฟรีเซลเพจ 1 URL)', tag: 'HOT • POPULAR' },
+    { points: 100, price: 100, desc: 'ปลดล็อกย่อลิงก์ Shortlinks / Tracking Pixels 30 วัน', tag: 'STARTER' },
+    { points: 300, price: 299, desc: 'ปลดล็อก PRO VIP 30 วัน (ทุกลิงก์ไม่จำกัด + 10 สินค้า + ซ่อนลายน้ำ)', tag: 'PRO' },
+    { points: 600, price: 599, desc: 'ปลดล็อก MASTER VIP 30 วัน (ครบทุกฟังก์ชัน + เซลเพจคลาสสิก 1 URL)', tag: 'HOT • POPULAR' },
+    { points: 990, price: 990, desc: '🚀 ปลดล็อกสร้างเซลเพจ 13 บล็อกด้วย AI Vision / Custom Salepage +1 URL ทันที', tag: '✨ แนะนำยิงแอด' },
     { points: 1800, price: 1599, desc: 'MASTER VIP 3 เดือน (ประหยัด 200 บาท • เฉลี่ยเดือนละ 533 บ.)', tag: 'คุ้มค่า' },
     { points: 7200, price: 5990, desc: 'MASTER VIP รายปี 12 เดือน (คุ้มค่าที่สุด • ประหยัดกว่า 1,198 บ.)', tag: 'BEST VALUE' }
   ]

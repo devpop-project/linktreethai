@@ -9,6 +9,12 @@ export async function POST(request: Request) {
     const { 
       user_id, 
       landing_page_id,
+      package_name,
+      customer_name,
+      customer_phone,
+      customer_line,
+      shipping_address,
+      order_note,
       name, 
       phone, 
       email, 
@@ -92,21 +98,30 @@ export async function POST(request: Request) {
     }
 
     // Construct Clean Human-Readable Notification Message
+    const custName = String(name || customer_name || 'ลูกค้า').trim()
+    const custPhone = String(phone || customer_phone || '-').trim()
+    const custLine = String(line_id || customer_line || '-').trim()
+    const custAddress = String(address || shipping_address || '').trim()
+    const custNote = String(note || order_note || '').trim()
+    const pkgName = package_name ? String(package_name).trim() : null
+
     let linePushMessage = `${headerTitle}\n` +
       `━━━━━━━━━━━━━━━━━\n` +
-      `👤 ลูกค้า: ${String(name).trim()}\n` +
-      `📱 เบอร์โทร: ${phone ? String(phone).trim() : '-'}\n` +
-      `🟢 LINE ID: ${line_id ? String(line_id).trim() : '-'}\n` +
+      (pkgName ? `📦 รายการ: ${pkgName}\n` : '') +
+      `👤 ลูกค้า: ${custName}\n` +
+      `📱 เบอร์โทร: ${custPhone}\n` +
+      (custLine !== '-' ? `🟢 LINE ID: ${custLine}\n` : '') +
       (email ? `✉️ อีเมล: ${String(email).trim()}\n` : '') +
-      (address ? `🏠 ที่อยู่จัดส่ง: ${String(address).trim()}\n` : '') +
-      (amount ? `💰 ยอดเงิน: ฿${parseFloat(String(amount)).toLocaleString()} บาท\n` : '') +
-      `💳 การชำระเงิน: ${isPromptPay ? 'โอนเงินผ่านพร้อมเพย์ (แนบสลิป)' : (isCOD ? 'เก็บเงินปลายทาง (COD)' : 'ชำระเงินออนไลน์')}\n` +
-      (finalSlipUrl ? `🧾 ลิงก์สลิปโอนเงิน: ${finalSlipUrl}\n` : '') +
-      (utm?.utm_source ? `🎯 แหล่งที่มา (UTM): ${utm.utm_source}${utm.utm_campaign ? ` / ${utm.utm_campaign}` : ''}\n` : '') +
-      (note ? `📝 รายละเอียด: ${String(note).trim()}\n` : '') +
+      (custAddress ? `🏠 ที่อยู่จัดส่ง: ${custAddress}\n` : '') +
+      (amount ? `💰 ยอดชำระ: ฿${parseFloat(String(amount)).toLocaleString()} บาท\n` : '') +
+      `💳 วิธีชำระเงิน: ${isPromptPay ? 'โอนเงินผ่านพร้อมเพย์ (แนบสลิปเรียบร้อย)' : (isCOD ? 'เก็บเงินปลายทาง (COD)' : 'ชำระเงินออนไลน์')}\n` +
+      (finalSlipUrl ? `🧾 สลิปโอนเงิน: ${finalSlipUrl}\n` : '') +
+      (utm?.utm_source ? `🎯 แหล่งที่มา: ${utm.utm_source}${utm.utm_campaign ? ` / ${utm.utm_campaign}` : ''}\n` : '') +
+      (custNote ? `📝 บันทึกเพิ่มเติม: ${custNote}\n` : '') +
+      `⏰ วันที่: ${new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })}\n` +
       `🏷️ รหัสอ้างอิง: #${orderRef}\n` +
       `━━━━━━━━━━━━━━━━━\n` +
-      `🔗 เข้าดูในแดชบอร์ด: https://linktreethai.in.th/admin`
+      `🔗 ดูรายการออเดอร์ในระบบ: https://linktreethai.in.th/admin`
 
     let channelToken = (line_channel_access_token || '').trim()
     let targetUserId = (line_user_id || '').trim()

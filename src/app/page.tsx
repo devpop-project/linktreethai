@@ -409,7 +409,33 @@ export default function HomePage() {
             <p className="text-slate-500 text-xs sm:text-sm mt-2">เริ่มต้นฟรี และอัปเกรดเพื่อปลดล็อกฟังก์ชันขั้นสูงด้วยแต้มสะสม</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          {/* Highlight Banner: AI Vision Salepage Builder */}
+          <div className="max-w-5xl mx-auto mb-8 p-6 rounded-3xl bg-gradient-to-r from-purple-950/60 via-slate-900 to-amber-950/60 border-2 border-amber-500/40 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="space-y-2 text-center md:text-left">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-black">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>✨ ฟีเจอร์ใหม่ล่าสุด: AI Vision Salepage Studio (/c/[slug])</span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-white">
+                สร้างเซลเพจ 13 บล็อกระดับมืออาชีพ ด้วย AI สแกนจากรูปภาพสินค้าจริง
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-300 font-light max-w-2xl leading-relaxed">
+                อัปโหลดรูปภาพสินค้า AI Vision จะวิเคราะห์ชื่อสินค้า พาดหัว จุดเด่น รีวิวลูกค้า 5 ดาว และจัดเซ็ตโปรโมชั่น 3 ระดับ พร้อมระบบเช็กเอาต์ QR Code โอนเงินตรง + ปลายทาง COD ให้อัตโนมัติ (เพียง 990 แต้ม / 1 เซลเพจ)
+              </p>
+            </div>
+            <div className="shrink-0 flex flex-col items-center gap-2">
+              <Link
+                href="/custom-salepage"
+                className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-xs sm:text-sm shadow-xl shadow-amber-500/20 active:scale-95 transition flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>ลองสร้างเซลเพจ AI ↗</span>
+              </Link>
+              <span className="text-[10px] text-amber-400/80 font-mono font-bold">ใช้เพียง 990 แต้ม / บันทึก</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-6xl mx-auto">
             
             {/* Free Plan */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl space-y-4 shadow-sm flex flex-col justify-between">
@@ -479,6 +505,30 @@ export default function HomePage() {
               </div>
               <Link href="/register" className="w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black rounded-2xl text-xs flex items-center justify-center transition shadow-lg shadow-amber-500/25 mt-4">
                 เลือก MASTER VIP
+              </Link>
+            </div>
+
+            {/* Custom Salepage & AI Vision Plan */}
+            <div className="bg-gradient-to-br from-amber-50/80 via-orange-50/50 to-purple-50/60 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-purple-950/40 border-2 border-amber-400 dark:border-amber-600 p-6 rounded-3xl space-y-4 shadow-lg relative flex flex-col justify-between">
+              <div className="absolute top-4 right-4 text-[10px] font-black bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 px-3 py-1 rounded-full shadow">
+                ✨ AI VISION • ยิงแอด
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-900 dark:text-white">Custom Salepage + AI</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">เซลเพจ 13 บล็อกสไตล์ Mobile-App</p>
+                </div>
+                <div className="text-3xl font-black text-amber-600 dark:text-amber-400">990 แต้ม <span className="text-xs font-normal text-slate-500">/ 1 เซลเพจ (+1 โควตา)</span></div>
+                <ul className="text-xs text-slate-700 dark:text-slate-200 space-y-2.5 pt-3 border-t border-amber-200/60 dark:border-amber-900/60 font-medium">
+                  <li className="flex items-center gap-2 text-amber-700 dark:text-amber-300 font-bold"><Check className="w-4 h-4 text-amber-600" /> วิเคราะห์ภาพสินค้าด้วย AI Vision อัตโนมัติ</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-amber-600" /> 13 บล็อกพรีเมียม (Hero, รีวิว 5 ดาว, แชท LINE, ตารางราคา)</li>
+                  <li className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold"><Check className="w-4 h-4 text-emerald-600" /> PromptPay Dynamic QR + ปลายทาง COD</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-amber-600" /> Multi-Pixel (Meta CAPI, TikTok, Google, LINE Tag)</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-amber-600" /> เพิ่มโควตาเซลเพจ +1 ช่อง/URL ทันที</li>
+                </ul>
+              </div>
+              <Link href="/custom-salepage" className="w-full py-3 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black rounded-2xl text-xs flex items-center justify-center transition shadow-lg shadow-amber-500/25 mt-4">
+                สร้างเซลเพจด้วย AI (990 แต้ม)
               </Link>
             </div>
 

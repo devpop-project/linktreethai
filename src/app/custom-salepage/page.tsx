@@ -10,6 +10,7 @@ import SalepageSectionRenderer, { PageSection } from '@/components/salepage/Sale
 import ImageUploaderBox from '@/components/salepage/ImageUploaderBox'
 import LayoutOptionCard from '@/components/salepage/LayoutOptionCard'
 import {
+  Target,
   LayoutTemplate,
   Key,
   Sparkles,
@@ -179,6 +180,15 @@ export default function WixCustomSalepageBuilderPage() {
   const [sections, setSections] = useState<PageSection[]>([])
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
   const [isConfirmSaveModalOpen, setIsConfirmSaveModalOpen] = useState(false)
+  const [isSaveSuccessModalOpen, setIsSaveSuccessModalOpen] = useState(false)
+  const [saveSuccessData, setSaveSuccessData] = useState<{ slug: string; points: number; quota: number } | null>(null)
+  const [testingLineApi, setTestingLineApi] = useState(false)
+  const [lineTestResult, setLineTestResult] = useState<{ success: boolean; msg: string } | null>(null)
+  const [saveSuccessModalData, setSaveSuccessModalData] = useState<{
+    slug: string
+    newPoints: number
+    newQuota: number
+  } | null>(null)
   const [confirmingPoints, setConfirmingPoints] = useState<number>(0)
   const [confirmingSlots, setConfirmingSlots] = useState<number>(0)
   const [isAddBlockModalOpen, setIsAddBlockModalOpen] = useState(false)
@@ -188,6 +198,8 @@ export default function WixCustomSalepageBuilderPage() {
   const [geminiApiKeyInput, setGeminiApiKeyInput] = useState('')
   const [isGlobalSettingsOpen, setIsGlobalSettingsOpen] = useState(false)
   const [isApiSettingsOpen, setIsApiSettingsOpen] = useState(false)
+  const [isPixelModalOpen, setIsPixelModalOpen] = useState(false)
+  const [saveSuccessSlug, setSaveSuccessSlug] = useState<string | null>(null)
 
   // Live Interactive Preview State
   const [activeMobileTab, setActiveMobileTab] = useState<SalepageMobileTab>('editor')
@@ -1076,6 +1088,43 @@ export default function WixCustomSalepageBuilderPage() {
     }
   }
 
+  // Test LINE Messaging API Push Notification in Real Time
+  const handleTestLineMessagingApi = async () => {
+    const token = lineChannelToken.trim()
+    const uid = lineUserId.trim()
+
+    if (!token && !uid && !lineNotifyToken) {
+      alert('กรุณากรอก LINE Channel Access Token และ LINE User ID ก่อนกดทดสอบ')
+      return
+    }
+
+    setTestingLineApi(true)
+    setLineTestResult(null)
+
+    try {
+      const res = await fetch('/api/test-line-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel_access_token: token,
+          user_id: uid,
+          token: lineNotifyToken.trim()
+        })
+      })
+
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setLineTestResult({ success: true, msg: '✅ ส่งข้อความทดสอบเข้า LINE OA เรียบร้อยแล้ว! ตรวจสอบห้องแชต LINE ของคุณได้เลยครับ' })
+      } else {
+        setLineTestResult({ success: false, msg: `❌ ${data.error || 'ไม่สามารถส่งข้อความได้ กรุณาตรวจสอบ Channel Access Token และ User ID'}` })
+      }
+    } catch (e: any) {
+      setLineTestResult({ success: false, msg: `❌ เกิดข้อผิดพลาด: ${e.message}` })
+    } finally {
+      setTestingLineApi(false)
+    }
+  }
+
   // 1. Open Points Confirmation Modal
   const handleSaveSalepage = async () => {
     if (!pageTitle || !pageSlug) {
@@ -1234,6 +1283,7 @@ export default function WixCustomSalepageBuilderPage() {
       if (res.error) throw res.error
 
       setPublishedSlug(cleanSlug)
+      setSaveSuccessSlug(cleanSlug)
       setIsConfirmSaveModalOpen(false)
       setSaveSuccess(true)
 
@@ -1272,24 +1322,24 @@ export default function WixCustomSalepageBuilderPage() {
       
       {/* TOP BUILDER APP BAR (CLEAN, PROPORTIONAL, RESPONSIVE) */}
       <header className="sticky top-0 z-50 bg-white/95 dark:bg-[#131B2A]/95 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 h-16 flex items-center justify-between gap-2 sm:gap-3">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-3">
           
           {/* Left: Back Arrow + Page Title */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
             <Link
               href="/dashboard?tab=services"
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:scale-105 active:scale-95 transition shadow-xs shrink-0"
+              className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:scale-105 active:scale-95 transition shadow-xs shrink-0"
               title="กลับสู่แดชบอร์ด"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </Link>
 
-            <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
               <div
                 style={{ backgroundColor: globalThemeColor }}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl text-white flex items-center justify-center shadow-md transition-colors shrink-0 hidden xs:flex"
+                className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl text-white flex items-center justify-center shadow-md transition-colors shrink-0 hidden md:flex"
               >
-                <Wand2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                <Wand2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
               <div className="min-w-0 flex-1">
                 <input
@@ -1299,7 +1349,7 @@ export default function WixCustomSalepageBuilderPage() {
                   placeholder="ชื่อเซลเพจของคุณ..."
                   className="w-full text-xs sm:text-sm font-black text-slate-900 dark:text-white bg-transparent focus:outline-none focus:bg-slate-100 dark:focus:bg-slate-800 px-1 rounded-lg transition truncate"
                 />
-                <div className="flex items-center gap-1 text-[10px] text-slate-400 font-mono">
+                <div className="flex items-center gap-0.5 text-[9px] sm:text-[10px] text-slate-400 font-mono">
                   <span className="shrink-0">/c/</span>
                   <input
                     type="text"
@@ -1307,27 +1357,24 @@ export default function WixCustomSalepageBuilderPage() {
                     onChange={(e) => setPageSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ''))}
                     placeholder="my-slug"
                     style={{ color: globalThemeColor }}
-                    className="bg-transparent font-bold focus:outline-none truncate max-w-[120px] sm:max-w-[200px]"
+                    className="bg-transparent font-bold focus:outline-none truncate w-full max-w-[90px] xs:max-w-[130px] sm:max-w-[180px]"
                   />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Right: Quick Actions + Save */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Right: Quick Actions + Save (Balanced, Responsive, Compact on Mobile) */}
+          <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 shrink-0 flex-nowrap">
             
-                        {/* AI Auto Salepage Studio Bridge */}
-            
-
             {/* AI Vision Analysis & Generator Button */}
             <button
               type="button"
               onClick={() => setIsAiAnalyzeModalOpen(true)}
-              className="px-2.5 sm:px-3.5 py-1.5 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 text-xs font-black flex items-center gap-1.5 shadow-md shadow-amber-500/20 active:scale-95 transition cursor-pointer"
+              className="px-2 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 text-xs font-black flex items-center gap-1 shadow-sm shadow-amber-500/20 active:scale-95 transition cursor-pointer shrink-0"
               title="วิเคราะห์รูปภาพสินค้า & สร้างเนื้อหาเซลเพจด้วย AI"
             >
-              <Sparkles className="w-4 h-4 text-slate-950 animate-pulse" />
+              <Sparkles className="w-3.5 h-3.5 text-slate-950" />
               <span className="hidden sm:inline">วิเคราะห์ด้วย AI</span>
               <span className="sm:hidden">AI</span>
             </button>
@@ -1336,9 +1383,10 @@ export default function WixCustomSalepageBuilderPage() {
             <button
               onClick={() => setIsAddBlockModalOpen(true)}
               style={{ backgroundColor: globalThemeColor }}
-              className="px-2.5 sm:px-3.5 py-1.5 rounded-2xl text-white text-xs font-black flex items-center gap-1 shadow-md active:scale-95 transition cursor-pointer"
+              className="px-2 sm:px-3 py-1.5 rounded-xl text-white text-xs font-black flex items-center gap-1 shadow-sm active:scale-95 transition cursor-pointer shrink-0"
+              title="เพิ่มส่วนประกอบในเซลเพจ"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               <span className="hidden md:inline">เพิ่มส่วนประกอบ</span>
               <span className="md:hidden">เพิ่ม</span>
             </button>
@@ -1346,72 +1394,61 @@ export default function WixCustomSalepageBuilderPage() {
             {/* Theme & Background Drawer */}
             <button
               onClick={() => setIsGlobalSettingsOpen(!isGlobalSettingsOpen)}
-              className={`p-2 sm:px-3 sm:py-1.5 rounded-2xl border text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+              className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1 transition cursor-pointer shrink-0 ${
                 isGlobalSettingsOpen
                   ? 'bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-950 dark:text-purple-300'
                   : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
               }`}
               title="ธีม & สีพื้นหลัง"
             >
-              <Palette className="w-4 h-4 text-purple-500" />
+              <Palette className="w-3.5 h-3.5 text-purple-500" />
               <span className="hidden lg:inline">ธีม & สี</span>
             </button>
 
-            {/* API Settings Drawer */}
+            {/* API Settings Drawer (Hidden on very small screens, visible from xs up) */}
             <button
               onClick={() => setIsApiSettingsOpen(!isApiSettingsOpen)}
-              className={`p-2 sm:px-3 sm:py-1.5 rounded-2xl border text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+              className={`hidden xs:flex p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs font-bold items-center gap-1 transition cursor-pointer shrink-0 ${
                 isApiSettingsOpen
                   ? 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300'
                   : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
               }`}
               title="LINE & Pixels"
             >
-              <BellRing className="w-4 h-4 text-emerald-500" />
+              <BellRing className="w-3.5 h-3.5 text-emerald-500" />
               <span className="hidden lg:inline">LINE & Pixel</span>
-            </button>
-
-            {/* AI Salepage Auditor & Optimizer Button */}
-            <button
-              type="button"
-              onClick={handleRunAiAudit}
-              className="p-2 sm:px-3 sm:py-1.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-black flex items-center gap-1.5 shadow-lg active:scale-95 transition cursor-pointer"
-              title="ใช้ AI วิเคราะห์และตรวจสอบหน้าเซลเพจ"
-            >
-              <Sparkles className="w-4 h-4 text-amber-300 animate-spin" />
-              <span className="hidden md:inline">🤖 AI วิเคราะห์เพจ</span>
-              <span className="md:hidden">AI</span>
             </button>
 
             {/* Fullscreen Live Preview Simulator Button */}
             <button
               onClick={() => setIsLivePreviewModalOpen(true)}
-              className="p-2 sm:px-3 sm:py-1.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-purple-950/80 dark:hover:bg-purple-900 border border-purple-500/40 text-xs font-black flex items-center gap-1.5 shadow-md active:scale-95 transition cursor-pointer"
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-purple-950/80 dark:hover:bg-purple-900 border border-purple-500/40 text-xs font-black flex items-center gap-1 shadow-sm active:scale-95 transition cursor-pointer shrink-0"
               title="ดูหน้าเว็บจริงทดลองก่อน"
             >
-              <Eye className="w-4 h-4 text-purple-400 animate-pulse" />
+              <Eye className="w-3.5 h-3.5 text-purple-400" />
               <span className="hidden sm:inline">ดูเว็บจริง</span>
             </button>
 
             {/* Theme Mode Toggle */}
             <button
               onClick={toggleTheme}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:scale-105 active:scale-95 transition shadow-xs cursor-pointer"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:scale-105 active:scale-95 transition shadow-xs cursor-pointer shrink-0"
               title="สลับธีม สว่าง/มืด"
             >
-              {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
+              {isDarkMode ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-slate-600" />}
             </button>
 
-            {/* Save & Publish Button */}
+            {/* Save & Publish Button (Opens Confirmation Modal) */}
             <button
               onClick={handleSaveSalepage}
               disabled={saving}
               style={{ backgroundColor: globalThemeColor }}
-              className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl text-white text-xs font-black flex items-center gap-1 shadow-lg active:scale-95 transition disabled:opacity-50 cursor-pointer shrink-0"
+              className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-white text-xs font-black flex items-center gap-1 shadow-md active:scale-95 transition disabled:opacity-50 cursor-pointer shrink-0"
+              title="บันทึกและเผยแพร่เซลเพจ"
             >
-              {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               <span className="hidden sm:inline">{saving ? 'กำลังบันทึก...' : 'บันทึก & เผยแพร่'}</span>
-              <span className="sm:hidden">{saving ? 'บันทึก...' : 'บันทึก'}</span>
+              <span className="sm:hidden">{saving ? '...' : 'บันทึก'}</span>
             </button>
 
           </div>
@@ -1828,49 +1865,155 @@ export default function WixCustomSalepageBuilderPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">LINE Channel Access Token</label>
-                <input
-                  type="password"
-                  value={lineChannelToken}
-                  onChange={(e) => setLineChannelToken(e.target.value)}
-                  placeholder="Token จาก LINE Developers"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono"
-                />
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <span>🟢 LINE Channel Access Token (Long-lived)</span>
+                    </label>
+                    <a
+                      href="https://developers.line.biz/console/"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[9px] text-purple-600 dark:text-purple-400 hover:underline"
+                    >
+                      รับจาก LINE Dev ↗
+                    </a>
+                  </div>
+                  <input
+                    type="password"
+                    value={lineChannelToken}
+                    onChange={(e) => setLineChannelToken(e.target.value)}
+                    placeholder="Channel Access Token (160+ ตัวอักษร)"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-xs focus:border-emerald-500 focus:outline-none"
+                  />
+                  <p className="text-[9px] text-slate-400 mt-1">คัดลอกจาก LINE Developers แท็บ Messaging API</p>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                      <span>🟢 LINE User ID (ผู้รับแจ้งเตือน)</span>
+                    </label>
+                  </div>
+                  <input
+                    type="text"
+                    value={lineUserId}
+                    onChange={(e) => setLineUserId(e.target.value)}
+                    placeholder="U1234567890abcdef..."
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-xs focus:border-emerald-500 focus:outline-none"
+                  />
+                  <p className="text-[9px] text-slate-400 mt-1">ดูได้ที่ Basic settings &gt; Your user ID (ขึ้นต้นด้วย U)</p>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                      <span>🔔 LINE Notify Token (สำรอง)</span>
+                    </label>
+                  </div>
+                  <input
+                    type="password"
+                    value={lineNotifyToken}
+                    onChange={(e) => setLineNotifyToken(e.target.value)}
+                    placeholder="Token LINE Notify"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-xs focus:outline-none"
+                  />
+                  <p className="text-[9px] text-slate-400 mt-1">สำหรับระบบแจ้งเตือนสำรองแบบกลุ่ม</p>
+                </div>
               </div>
 
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">LINE User ID / Channel ID</label>
-                <input
-                  type="text"
-                  value={lineUserId}
-                  onChange={(e) => setLineUserId(e.target.value)}
-                  placeholder="U123456789..."
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono"
-                />
+              {/* LINE Messaging API Test Action Button */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
+                <div className="text-xs">
+                  <span className="font-bold text-emerald-700 dark:text-emerald-300 block">
+                    ⚡ ทดสอบส่งข้อความแจ้งเตือนคำสั่งซื้อเข้า LINE OA
+                  </span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                    เมื่อลูกค้าโอนเงิน แนบสลิป หรือเลือกเก็บเงินปลายทาง (COD) ระบบจะส่ง Push แจ้งเตือนเข้า LINE ทันที
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleTestLineMessagingApi}
+                  disabled={testingLineApi || (!lineChannelToken && !lineUserId && !lineNotifyToken)}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md active:scale-95 transition cursor-pointer flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+                >
+                  {testingLineApi ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>กำลังส่งทดสอบ...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      <span>ทดสอบส่งเข้า LINE OA</span>
+                    </>
+                  )}
+                </button>
               </div>
 
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">Meta / Facebook Pixel ID</label>
-                <input
-                  type="text"
-                  value={fbPixelId}
-                  onChange={(e) => setFbPixelId(e.target.value)}
-                  placeholder="123456789..."
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono"
-                />
-              </div>
+              {/* LINE Test Result Notification */}
+              {lineTestResult && (
+                <div className={`p-3 rounded-2xl text-xs font-bold flex items-center gap-2 ${
+                  lineTestResult.success
+                    ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400'
+                }`}>
+                  {lineTestResult.success ? <Check className="w-4 h-4 shrink-0 text-emerald-500" /> : <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />}
+                  <span>{lineTestResult.msg}</span>
+                </div>
+              )}
 
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 block mb-1">TikTok Pixel ID</label>
-                <input
-                  type="text"
-                  value={tiktokPixelId}
-                  onChange={(e) => setTiktokPixelId(e.target.value)}
-                  placeholder="C123456..."
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono"
-                />
+              {/* Pixel Tracking Section */}
+              <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800">
+                <span className="text-[11px] font-black text-slate-700 dark:text-slate-300 block mb-2">🎯 Tracking Pixels & Web Analytics</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 block mb-1">Meta / Facebook Pixel ID</label>
+                    <input
+                      type="text"
+                      value={fbPixelId}
+                      onChange={(e) => setFbPixelId(e.target.value)}
+                      placeholder="123456789..."
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 block mb-1">TikTok Pixel ID</label>
+                    <input
+                      type="text"
+                      value={tiktokPixelId}
+                      onChange={(e) => setTiktokPixelId(e.target.value)}
+                      placeholder="C123456..."
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 block mb-1">Google Analytics / Ads Pixel</label>
+                    <input
+                      type="text"
+                      value={googlePixelId}
+                      onChange={(e) => setGooglePixelId(e.target.value)}
+                      placeholder="G-XXXXX หรือ AW-XXXXX"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 block mb-1">LINE Tag ID</label>
+                    <input
+                      type="text"
+                      value={lineTagId}
+                      onChange={(e) => setLineTagId(e.target.value)}
+                      placeholder="xxxx-xxxx-xxxx"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1950,40 +2093,50 @@ export default function WixCustomSalepageBuilderPage() {
               <span suppressHydrationWarning className="truncate">
                 🔗 ลิงก์จริง: <span suppressHydrationWarning className="font-bold text-emerald-600 dark:text-emerald-400">{mounted && originUrl ? `${originUrl}/c/${pageSlug || 'your-sub'}` : `/c/${pageSlug || 'your-sub'}`}</span>
               </span>
-              <button
-                type="button"
-                onClick={() => {
-                  const fullUrl = `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/c/${pageSlug}`
-                  if (typeof navigator !== 'undefined' && navigator.clipboard) {
-                    navigator.clipboard.writeText(fullUrl)
-                    alert('คัดลอกลิงก์ /c/' + pageSlug + ' เรียบร้อยแล้ว!')
-                  }
-                }}
-                className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold shrink-0 transition"
-              >
-                คัดลอกลิงก์
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsPixelModalOpen(true)}
+                  className="px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 font-bold text-[10px] hover:bg-rose-500/20 transition flex items-center gap-1 cursor-pointer"
+                  title="ติดตั้ง Tracking Pixels สำหรับยิงแอด"
+                >
+                  <Target className="w-3 h-3" />
+                  <span>พิกเซลยิงแอด</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const fullUrl = `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/c/${pageSlug}`
+                    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                      navigator.clipboard.writeText(fullUrl)
+                      alert('คัดลอกลิงก์ /c/' + pageSlug + ' เรียบร้อยแล้ว!')
+                    }
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-[10px] transition cursor-pointer"
+                >
+                  คัดลอก
+                </button>
+              </div>
             </div>
           </div>
           
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-purple-600" />
-              <h2 className="text-sm font-black text-slate-900 dark:text-white">
-                โครงสร้างส่วนประกอบของหน้า ({sections.length} Blocks)
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Layers className="w-4 h-4 text-purple-600 shrink-0" />
+              <h2 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
+                โครงสร้างหน้าเว็บ ({sections.length} บล็อก)
               </h2>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setIsAddBlockModalOpen(true)}
-                style={{ backgroundColor: globalThemeColor }}
-                className="px-3 py-1.5 rounded-xl text-white text-xs font-bold flex items-center gap-1 shadow-sm transition cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>เพิ่มส่วนประกอบ</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setIsAddBlockModalOpen(true)}
+              style={{ backgroundColor: globalThemeColor }}
+              className="px-2.5 py-1.5 rounded-xl text-white text-[11px] sm:text-xs font-bold flex items-center gap-1 shadow-sm transition cursor-pointer shrink-0 active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>เพิ่มส่วนประกอบ</span>
+            </button>
           </div>
 
           {/* EMPTY CANVAS STATE */}
@@ -4363,7 +4516,252 @@ export default function WixCustomSalepageBuilderPage() {
       )}
 
 
-            {/* BEAUTIFUL CONFIRMATION MODAL: 990 POINTS DEDUCTION & PUBLISH */}
+                  {/* SAVE SUCCESS NOTIFICATION MODAL (BEAUTIFUL IN-APP UI) */}
+      {saveSuccessModalData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in">
+          <div className="w-full max-w-md bg-white dark:bg-[#131B2A] rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 text-center animate-in zoom-in-95">
+            
+            <div className="w-16 h-16 rounded-3xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+              <CheckCircle2 className="w-9 h-9" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                บันทึกและเผยแพร่เซลเพจสำเร็จ! 🎉
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-light">
+                เซลเพจของคุณออนไลน์พร้อมใช้งานและรับออเดอร์แล้ว
+              </p>
+            </div>
+
+            {/* Summary Details Box */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2.5 text-xs text-left">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">⚡ หักแต้มบริการ:</span>
+                <span className="font-mono font-bold text-amber-600 dark:text-amber-400">-990 แต้ม</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-medium">🪙 แต้มคงเหลือ:</span>
+                <span className="font-mono font-black text-emerald-600 dark:text-emerald-400">{saveSuccessModalData.newPoints.toLocaleString()} แต้ม</span>
+              </div>
+              <div className="flex justify-between items-center border-t border-slate-200/60 dark:border-slate-800 pt-2">
+                <span className="text-slate-500 font-medium">📦 โควตาเซลเพจ:</span>
+                <span className="font-mono font-bold text-purple-600 dark:text-purple-400">+{1} ช่อง (รวม {saveSuccessModalData.newQuota} ช่อง)</span>
+              </div>
+              <div className="flex justify-between items-center border-t border-slate-200/60 dark:border-slate-800 pt-2">
+                <span className="text-slate-500 font-medium">🔗 ลิงก์ URL:</span>
+                <span className="font-mono font-bold text-slate-900 dark:text-white truncate max-w-[180px]">/c/{saveSuccessModalData.slug}</span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-3 pt-1">
+              <a
+                href={`/c/${saveSuccessModalData.slug}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ backgroundColor: globalThemeColor }}
+                className="flex-1 py-3 rounded-2xl text-white font-black text-xs shadow-lg hover:opacity-90 active:scale-95 transition flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <span>เปิดดูหน้าจริง ↗</span>
+              </a>
+              <button
+                type="button"
+                onClick={() => setSaveSuccessModalData(null)}
+                className="px-5 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer"
+              >
+                ตกลง / ปิด
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+            {/* DEDICATED FULL TRACKING PIXELS & AD CONVERSION MODAL */}
+      {isPixelModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in">
+          <div className="w-full max-w-xl bg-white dark:bg-[#131B2A] rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 max-h-[90vh] overflow-y-auto no-scrollbar animate-in zoom-in-95">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 text-white flex items-center justify-center shadow-lg shadow-rose-500/20">
+                  <Target className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>ติดตั้ง Tracking Pixels สำหรับยิงแอด</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400 font-light">
+                    ฝังพิกเซลวัดผลคอนเวอร์ชัน Facebook, TikTok, Google และ LINE Tag ในหน้าเซลเพจนี้
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPixelModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white flex items-center justify-center cursor-pointer transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Pixel Status Overview */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-[10px] font-bold font-mono">
+              <div className={`p-2 rounded-xl border ${fbPixelId ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400' : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400'}`}>
+                <span>Meta: {fbPixelId ? '🟢 Active' : '⚪ ว่าง'}</span>
+              </div>
+              <div className={`p-2 rounded-xl border ${tiktokPixelId ? 'bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400' : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400'}`}>
+                <span>TikTok: {tiktokPixelId ? '🟢 Active' : '⚪ ว่าง'}</span>
+              </div>
+              <div className={`p-2 rounded-xl border ${googlePixelId ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400' : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400'}`}>
+                <span>Google: {googlePixelId ? '🟢 Active' : '⚪ ว่าง'}</span>
+              </div>
+              <div className={`p-2 rounded-xl border ${lineTagId ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400'}`}>
+                <span>LINE: {lineTagId ? '🟢 Active' : '⚪ ว่าง'}</span>
+              </div>
+            </div>
+
+            {/* Pixels Input Fields */}
+            <div className="space-y-3.5">
+              
+              {/* 1. Meta / Facebook Pixel */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                    <span>1. Meta / Facebook Pixel ID</span>
+                  </label>
+                  <a
+                    href="https://adsmanager.facebook.com/events_manager2"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5 font-bold"
+                  >
+                    <span>เปิด Events Manager</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <input
+                  type="text"
+                  value={fbPixelId}
+                  onChange={(e) => setFbPixelId(e.target.value.trim())}
+                  placeholder="เช่น 28637642995822833 (ตัวเลข 15-16 หลัก)"
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:border-blue-500"
+                />
+                <p className="text-[10px] text-slate-400">
+                  ระบบจะยิง Event อัตโนมัติ: <code className="text-purple-500 font-mono font-bold">PageView</code>, <code className="text-purple-500 font-mono font-bold">ViewContent</code>, <code className="text-purple-500 font-mono font-bold">InitiateCheckout</code>, <code className="text-purple-500 font-mono font-bold">Purchase / Lead</code>
+                </p>
+              </div>
+
+              {/* 2. TikTok Pixel */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                    <span>2. TikTok Pixel ID</span>
+                  </label>
+                  <a
+                    href="https://ads.tiktok.com/marketing_api/docs"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[10px] text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-0.5 font-bold"
+                  >
+                    <span>TikTok Events Manager</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <input
+                  type="text"
+                  value={tiktokPixelId}
+                  onChange={(e) => setTiktokPixelId(e.target.value.trim())}
+                  placeholder="เช่น C1234567890 (รหัสขึ้นต้นด้วย C)"
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:border-rose-500"
+                />
+                <p className="text-[10px] text-slate-400">
+                  รองรับการแทร็ก TikTok Ads Events: <code className="text-rose-500 font-mono font-bold">Pageview</code>, <code className="text-rose-500 font-mono font-bold">InitiateCheckout</code>, <code className="text-rose-500 font-mono font-bold">CompletePayment / PlaceAnOrder</code>
+                </p>
+              </div>
+
+              {/* 3. Google Analytics 4 / Google Ads Pixel */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span>3. Google Analytics 4 (GA4) / Google Ads ID</span>
+                  </label>
+                  <a
+                    href="https://analytics.google.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[10px] text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-0.5 font-bold"
+                  >
+                    <span>Google Analytics</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <input
+                  type="text"
+                  value={googlePixelId}
+                  onChange={(e) => setGooglePixelId(e.target.value.trim())}
+                  placeholder="เช่น G-XXXXXXXXXX หรือ AW-XXXXXXXXXX"
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+                />
+                <p className="text-[10px] text-slate-400">
+                  ยิง Event เข้า Google: <code className="text-amber-500 font-mono font-bold">page_view</code>, <code className="text-amber-500 font-mono font-bold">begin_checkout</code>, <code className="text-amber-500 font-mono font-bold">purchase / generate_lead</code>
+                </p>
+              </div>
+
+              {/* 4. LINE Tag ID */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>4. LINE Tag Base Code ID</span>
+                  </label>
+                  <a
+                    href="https://admanager.line.biz"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-0.5 font-bold"
+                  >
+                    <span>LINE Ads Manager</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <input
+                  type="text"
+                  value={lineTagId}
+                  onChange={(e) => setLineTagId(e.target.value.trim())}
+                  placeholder="เช่น 12345678-abcd-1234-abcd-1234567890ab"
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500"
+                />
+                <p className="text-[10px] text-slate-400">
+                  ยิง Event เข้า LINE Tag: <code className="text-emerald-500 font-mono font-bold">PageView</code>, <code className="text-emerald-500 font-mono font-bold">Conversion</code>
+                </p>
+              </div>
+
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsPixelModalOpen(false)}
+                className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black text-xs shadow-lg shadow-purple-600/20 active:scale-95 transition cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Check className="w-4 h-4" />
+                <span>บันทึกการตั้งค่า Pixels</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+
+      {/* BEAUTIFUL CONFIRMATION MODAL: 990 POINTS DEDUCTION & PUBLISH */}
       {isConfirmSaveModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in">
           <div className="w-full max-w-md bg-white dark:bg-[#131B2A] rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 animate-in zoom-in-95">

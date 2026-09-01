@@ -5077,7 +5077,7 @@ export default function DashboardPage() {
                     <span className="font-bold text-xs bg-white px-2 py-0.5 rounded-full">PromptPay QR</span>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-black">เติมแต้มสะสมเพื่อปลดล็อกฟังก์ชัน VIP ทันที</h3>
-                  <p className="text-xs opacity-90">100 แต้ม = 100 บ. | 300 แต้ม = 299 บ. (PRO VIP) | 600 แต้ม = 599 บ. (MASTER VIP)</p>
+                  <p className="text-xs opacity-90">100 แต้ม = 100 บ. | 300 แต้ม = 299 บ. (PRO VIP) | 600 แต้ม = 599 บ. (MASTER VIP) | 990 แต้ม = 990 บ. (AI Vision Salepage)</p>
                 </div>
 
                 <button
@@ -5128,7 +5128,7 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Package Cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
                     <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl space-y-3">
                       <h4 className="font-bold text-sm text-[#1E1B4B] dark:text-white">Free Plan</h4>
                       <div className="text-2xl font-black text-[#1E1B4B] dark:text-white">ฟรีตลอดชีพ</div>
@@ -5203,6 +5203,33 @@ export default function DashboardPage() {
                       >
                         {redeemingTier === 'master' ? 'กำลังแลก...' : '👑 แลก MASTER VIP (599 แต้ม)'}
                       </button>
+                    </div>
+
+                    {/* AI Vision & Custom Salepage Card */}
+                    <div className="bg-gradient-to-br from-amber-500/15 via-orange-500/10 to-purple-500/15 border-2 border-amber-500/50 dark:border-amber-500/40 p-5 rounded-3xl space-y-3 relative overflow-hidden flex flex-col justify-between shadow-md">
+                      <div className="space-y-3">
+                        <div className="text-[9px] font-black bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 px-2.5 py-0.5 rounded-full w-fit shadow-xs flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" />
+                          <span>AI VISION • ยิงแอด</span>
+                        </div>
+                        <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Custom Salepage + AI</h4>
+                        <div className="text-2xl font-black text-amber-600 dark:text-amber-400">990 แต้ม <span className="text-xs font-normal text-slate-500">/ 1 เซลเพจ (+1 โควตา)</span></div>
+                        <ul className="text-xs text-slate-700 dark:text-slate-300 space-y-1.5 font-medium">
+                          <li>✓ สร้างเซลเพจ 13 บล็อก สไตล์ Mobile App</li>
+                          <li>✓ สแกน & วิเคราะห์ภาพสินค้าด้วย AI Vision</li>
+                          <li>✓ เขียนพาดหัว รีวิว 5 ดาว และจัดเซ็ตราคาอัตโนมัติ</li>
+                          <li>✓ PromptPay Dynamic QR + ปลายทาง COD</li>
+                          <li>✓ Multi-Pixel (Meta CAPI, TikTok, Google, Line)</li>
+                          <li>✓ เพิ่มโควตาเซลเพจ +1 ช่อง/URL ทันที</li>
+                        </ul>
+                      </div>
+                      <Link
+                        href="/custom-salepage"
+                        className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 text-slate-950 font-black rounded-xl text-xs transition shadow-md shadow-amber-500/20 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>สร้างเซลเพจด้วย AI (990 แต้ม)</span>
+                      </Link>
                     </div>
                   </div>
                 </div>
