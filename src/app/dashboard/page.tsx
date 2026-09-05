@@ -15,7 +15,7 @@ import SalesLandingPagePreview from '@/components/SalesLandingPagePreview'
 import PixelAnalyticsModal from '@/components/PixelAnalyticsModal'
 import TopUpPointsModal from '@/components/TopUpPointsModal'
 import SiteLogo from '@/components/SiteLogo'
-import { Link2, Radio, Mic, Volume2, ShoppingBag, Palette, ExternalLink, Activity, Rocket, Plus, Trash2, Save, LogOut, Check, Eye, Upload, Image as ImageIcon, Sparkles, Globe, Youtube, RefreshCw, Share2, LayoutTemplate, Crown, Coins, Lock, AlertCircle, Users, Download, ShieldCheck, Zap, QrCode, X, MessageCircle, Scissors, Copy, Smartphone, Menu, ChevronRight, CheckCircle2, ArrowUpRight, Clock, KeyRound, Edit2, Camera, Sun, Moon, Filter, Search, BarChart3, ChevronDown, Phone, Mail, MapPin, DollarSign, Calendar, FileText, CheckSquare, Layers, EyeOff, ArrowUpDown, UserCheck, UserX, ListOrdered, Sliders, Flame, Send, ArrowRight, CheckCircle, ArrowLeft, Star, HelpCircle } from 'lucide-react'
+import { Loader2, Link2, Radio, Mic, Volume2, ShoppingBag, Palette, ExternalLink, Activity, Rocket, Plus, Trash2, Save, LogOut, Check, Eye, Upload, Image as ImageIcon, Sparkles, Globe, Youtube, RefreshCw, Share2, LayoutTemplate, Crown, Coins, Lock, AlertCircle, Users, Download, ShieldCheck, Zap, QrCode, X, MessageCircle, Scissors, Copy, Smartphone, Menu, ChevronRight, CheckCircle2, ArrowUpRight, Clock, KeyRound, Edit2, Camera, Sun, Moon, Filter, Search, BarChart3, ChevronDown, Phone, Mail, MapPin, DollarSign, Calendar, FileText, CheckSquare, Layers, EyeOff, ArrowUpDown, UserCheck, UserX, ListOrdered, Sliders, Flame, Send, ArrowRight, CheckCircle, ArrowLeft, Star, HelpCircle } from 'lucide-react'
 
 interface LandingPageFormData {
   slug: string
@@ -214,6 +214,9 @@ export default function DashboardPage() {
     // --- Confirmation Modal for Spending Points ---
   const [testingLineNotify, setTestingLineNotify] = useState(false)
   const [lpExpiryDetailModal, setLpExpiryDetailModal] = useState<any>(null)
+  const [confirmSaveLpModal, setConfirmSaveLpModal] = useState<boolean>(false)
+  const [saveSuccessLp, setSaveSuccessLp] = useState<any | null>(null)
+  const [isSavingLandingPage, setIsSavingLandingPage] = useState<boolean>(false)
   const [lpToDelete, setLpToDelete] = useState<any | null>(null)
   const [isDeletingLp, setIsDeletingLp] = useState(false)
   const [confirmRedeemModal, setConfirmRedeemModal] = useState<{
@@ -1407,113 +1410,163 @@ export default function DashboardPage() {
     }
   }
 
-    const handleAddLandingPage = async (e: React.FormEvent) => {
+    const handlePreSaveLandingPage = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newLandingPage.title || !newLandingPage.headline || !newLandingPage.cta_url || !user) return
-
+    if (!user) {
+      showToast('❌ กรุณาเข้าสู่ระบบก่อนดำเนินการ')
+      return
+    }
     if (!editingLandingPageId && isLandingQuotaFull) {
       showToast('❌ โควตาเซลเพจของคุณเต็มแล้ว กรุณาใช้ 350 แต้มเพื่อปลดล็อกเพิ่ม')
       return
     }
 
-    let slug = newLandingPage.slug.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '')
-    if (!slug) {
-      slug = 'deal-' + Math.random().toString(36).substring(2, 7)
+    const finalTitle = newLandingPage.title?.trim() || newLandingPage.headline?.trim()
+    if (!finalTitle) {
+      showToast('❌ กรุณากรอกชื่อเซลเพจหรือพาดหัวในขั้นตอนที่ 1')
+      setSalepageWizardStep(1)
+      return
     }
 
-    let rawCtaUrl = newLandingPage.cta_url.trim()
-    if (!rawCtaUrl.startsWith('http://') && !rawCtaUrl.startsWith('https://')) {
-      rawCtaUrl = 'https://' + rawCtaUrl
+    setConfirmSaveLpModal(true)
+  }
+
+  const executeSaveLandingPage = async () => {
+    if (!user) {
+      showToast('❌ กรุณาเข้าสู่ระบบก่อนดำเนินการ')
+      setConfirmSaveLpModal(false)
+      return
+    }
+    if (!editingLandingPageId && isLandingQuotaFull) {
+      showToast('❌ โควตาเซลเพจของคุณเต็มแล้ว กรุณาใช้ 350 แต้มเพื่อปลดล็อกเพิ่ม')
+      setConfirmSaveLpModal(false)
+      return
     }
 
-    const payload = {
-      slug,
-      title: newLandingPage.title.trim(),
-      headline: newLandingPage.headline.trim(),
-      subheadline: newLandingPage.subheadline.trim() || null,
-      hero_image_url: newLandingPage.hero_image_url.trim() || newLandingPage.hero_media_url.trim() || null,
-      video_url: newLandingPage.video_url.trim() || null,
-      hero_media_url: newLandingPage.hero_image_url.trim() || newLandingPage.hero_media_url.trim() || newLandingPage.video_url.trim() || null,
-      hero_media_type: newLandingPage.video_url ? 'youtube' : 'image',
-      offer_price: parseFloat(newLandingPage.offer_price) || 0,
-      original_price: parseFloat(newLandingPage.original_price) || null,
-      cta_text: newLandingPage.cta_text.trim() || 'สั่งซื้อโปรโมชั่นพิเศษนี้ทันที',
-      cta_url: rawCtaUrl,
-      sticky_btn1_text: newLandingPage.sticky_btn1_text?.trim() || newLandingPage.cta_text?.trim() || 'ติดต่อสั่งซื้อด่วน',
-      sticky_btn1_url: newLandingPage.sticky_btn1_url?.trim() || rawCtaUrl,
-      sticky_btn2_text: newLandingPage.sticky_btn2_text?.trim() || newLandingPage.cta_secondary_text?.trim() || 'ช่องทางติดต่ออื่นๆ',
-      sticky_btn2_url: newLandingPage.sticky_btn2_url?.trim() || newLandingPage.cta_secondary_url?.trim() || null,
-      sticky_btn3_text: newLandingPage.sticky_btn3_text?.trim() || newLandingPage.cta_shop_text?.trim() || 'สั่งซื้อออนไลน์',
-      sticky_btn3_url: newLandingPage.sticky_btn3_url?.trim() || newLandingPage.cta_shop_url?.trim() || null,
-      cta_secondary_text: newLandingPage.sticky_btn2_text?.trim() || newLandingPage.cta_secondary_text?.trim() || 'ช่องทางติดต่ออื่นๆ',
-      cta_secondary_url: newLandingPage.sticky_btn2_url?.trim() || newLandingPage.cta_secondary_url?.trim() || null,
-      cta_shop_text: newLandingPage.sticky_btn3_text?.trim() || newLandingPage.cta_shop_text?.trim() || 'สั่งซื้อออนไลน์',
-      cta_shop_url: newLandingPage.sticky_btn3_url?.trim() || newLandingPage.cta_shop_url?.trim() || null,
-      countdown_minutes: parseInt(String(newLandingPage.countdown_minutes), 10) || 15,
-      features: newLandingPage.features_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
-      gallery_images: newLandingPage.gallery_images_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
-      review_images: newLandingPage.review_images_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
-      pain_headline: newLandingPage.pain_headline.trim() || 'คุณกำลังเจอปัญหาเหล่านี้อยู่ใช่หรือไม่?',
-      pain_points: newLandingPage.pain_points_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
-      benefits_headline: newLandingPage.benefits_headline.trim() || 'ทางออกและผลลัพธ์ที่คุณจะได้รับ',
-      benefits: newLandingPage.benefits_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
-      testimonials: newLandingPage.testimonials_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
-      faqs: newLandingPage.faqs_text.split('\n').map(s => s.trim()).filter(s => s.length > 0),
-      guarantee_text: newLandingPage.guarantee_text.trim() || null,
-      trust_badge_1: newLandingPage.trust_badge_1.trim() || 'ส่งฟรีด่วน',
-      trust_badge_2: newLandingPage.trust_badge_2.trim() || 'ของแท้ 100%',
-      trust_badge_3: newLandingPage.trust_badge_3.trim() || 'ชำระเงินปลอดภัย',
-      enable_cod_form: newLandingPage.enable_cod_form,
-      seo_title: newLandingPage.seo_title.trim() || null,
-      seo_description: newLandingPage.seo_description.trim() || null,
-      seo_keywords: newLandingPage.seo_keywords.trim() || null,
-      og_image_url: newLandingPage.og_image_url.trim() || null,
-      body_content: newLandingPage.body_content.trim() || null,
-      theme_color: newLandingPage.theme_color || '#EF4444',
-      bg_color: newLandingPage.bg_color || '#0B0F17',
-      bg_image_url: newLandingPage.bg_image_url.trim() || null,
-      card_style: newLandingPage.card_style || 'glass',
-      fb_pixel_id: newLandingPage.fb_pixel_id.trim() || null,
-      tiktok_pixel_id: newLandingPage.tiktok_pixel_id.trim() || null,
-      google_pixel_id: newLandingPage.google_pixel_id.trim() || null,
-      line_tag_id: newLandingPage.line_tag_id.trim() || null,
-      promptpay_phone: newLandingPage.promptpay_phone.trim() || null,
-      promptpay_name: newLandingPage.promptpay_name.trim() || null,
-      promptpay_bank: newLandingPage.promptpay_bank.trim() || null,
-      line_channel_access_token: newLandingPage.line_channel_access_token.trim() || null,
-      line_user_id: newLandingPage.line_user_id.trim() || null,
-      line_webhook_url: newLandingPage.line_webhook_url.trim() || null
-    }
+    setIsSavingLandingPage(true)
+    try {
+      const finalTitle = newLandingPage.title?.trim() || newLandingPage.headline?.trim() || 'เซลเพจโปรโมชั่น'
+      const finalHeadline = newLandingPage.headline?.trim() || finalTitle || 'ข้อเสนอพิเศษสุดสำหรับคุณ'
 
-    if (editingLandingPageId) {
-      // Update existing Landing Page
-      const { data, error } = await supabase
-        .from('landing_pages')
-        .update(payload)
-        .eq('id', editingLandingPageId)
-        .select()
-
-      if (!error && data) {
-        setLandingPages(landingPages.map(p => p.id === editingLandingPageId ? data[0] : p))
-        handleCancelEditLandingPage()
-        showToast('💾 บันทึกการแก้ไขเซลเพจสำเร็จ: /' + (newLandingPage.page_type === 'c' ? 'c' : 'p') + '/' + slug)
-      } else if (error) {
-        showToast('❌ แก้ไขไม่สำเร็จ: ' + error.message)
+      let slug = newLandingPage.slug?.trim()?.toLowerCase()?.replace(/[^a-z0-9-_]/g, '') || ''
+      if (!slug) {
+        slug = 'deal-' + Math.random().toString(36).substring(2, 7)
       }
-    } else {
-      // Create new Landing Page
-      const { data, error } = await supabase
-        .from('landing_pages')
-        .insert([{ ...payload, user_id: user.id }])
-        .select()
 
-      if (!error && data) {
-        setLandingPages([data[0], ...landingPages])
-        handleCancelEditLandingPage()
-        showToast('🚀 สร้างเซลเพจสำเร็จ: /' + (newLandingPage.page_type === 'c' ? 'c' : 'p') + '/' + slug)
-      } else if (error) {
-        showToast('❌ ข้อผิดพลาด: ชื่อ URL ซ้ำ หรือไม่ถูกต้อง (' + error.message + ')')
+      let rawCtaUrl = (newLandingPage.cta_url?.trim() || newLandingPage.sticky_btn1_url?.trim() || '#order-form')
+      if (!rawCtaUrl.startsWith('http://') && !rawCtaUrl.startsWith('https://') && !rawCtaUrl.startsWith('#')) {
+        rawCtaUrl = 'https://' + rawCtaUrl
       }
+
+      const payload: any = {
+        slug,
+        title: finalTitle,
+        headline: finalHeadline,
+        subheadline: newLandingPage.subheadline?.trim() || null,
+        hero_image_url: newLandingPage.hero_image_url?.trim() || newLandingPage.hero_media_url?.trim() || null,
+        video_url: newLandingPage.video_url?.trim() || null,
+        hero_media_url: newLandingPage.hero_image_url?.trim() || newLandingPage.hero_media_url?.trim() || newLandingPage.video_url?.trim() || null,
+        hero_media_type: newLandingPage.video_url ? 'youtube' : 'image',
+        offer_price: parseFloat(newLandingPage.offer_price) || 0,
+        original_price: parseFloat(newLandingPage.original_price) || null,
+        cta_text: newLandingPage.cta_text?.trim() || 'สั่งซื้อโปรโมชั่นพิเศษนี้ทันที',
+        cta_url: rawCtaUrl,
+        sticky_btn1_text: newLandingPage.sticky_btn1_text?.trim() || newLandingPage.cta_text?.trim() || 'ติดต่อสั่งซื้อด่วน',
+        sticky_btn1_url: newLandingPage.sticky_btn1_url?.trim() || rawCtaUrl,
+        sticky_btn2_text: newLandingPage.sticky_btn2_text?.trim() || newLandingPage.cta_secondary_text?.trim() || 'ช่องทางติดต่ออื่นๆ',
+        sticky_btn2_url: newLandingPage.sticky_btn2_url?.trim() || newLandingPage.cta_secondary_url?.trim() || null,
+        sticky_btn3_text: newLandingPage.sticky_btn3_text?.trim() || newLandingPage.cta_shop_text?.trim() || 'สั่งซื้อออนไลน์',
+        sticky_btn3_url: newLandingPage.sticky_btn3_url?.trim() || newLandingPage.cta_shop_url?.trim() || null,
+        cta_secondary_text: newLandingPage.sticky_btn2_text?.trim() || newLandingPage.cta_secondary_text?.trim() || 'ช่องทางติดต่ออื่นๆ',
+        cta_secondary_url: newLandingPage.sticky_btn2_url?.trim() || newLandingPage.cta_secondary_url?.trim() || null,
+        cta_shop_text: newLandingPage.sticky_btn3_text?.trim() || newLandingPage.cta_shop_text?.trim() || 'สั่งซื้อออนไลน์',
+        cta_shop_url: newLandingPage.sticky_btn3_url?.trim() || newLandingPage.cta_shop_url?.trim() || null,
+        countdown_minutes: parseInt(String(newLandingPage.countdown_minutes), 10) || 15,
+        features: (newLandingPage.features_text || '').split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 0),
+        gallery_images: (newLandingPage.gallery_images_text || '').split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 0),
+        review_images: (newLandingPage.review_images_text || '').split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 0),
+        pain_headline: newLandingPage.pain_headline?.trim() || 'คุณกำลังเจอปัญหาเหล่านี้อยู่ใช่หรือไม่?',
+        pain_points: (newLandingPage.pain_points_text || '').split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 0),
+        benefits_headline: newLandingPage.benefits_headline?.trim() || 'ทางออกและผลลัพธ์ที่คุณจะได้รับ',
+        benefits: (newLandingPage.benefits_text || '').split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 0),
+        testimonials: (newLandingPage.testimonials_text || '').split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 0),
+        faqs: (newLandingPage.faqs_text || '').split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 0),
+        guarantee_text: newLandingPage.guarantee_text?.trim() || null,
+        trust_badge_1: newLandingPage.trust_badge_1?.trim() || 'ส่งฟรีด่วน',
+        trust_badge_2: newLandingPage.trust_badge_2?.trim() || 'ของแท้ 100%',
+        trust_badge_3: newLandingPage.trust_badge_3?.trim() || 'ชำระเงินปลอดภัย',
+        enable_cod_form: newLandingPage.enable_cod_form,
+        seo_title: newLandingPage.seo_title?.trim() || null,
+        seo_description: newLandingPage.seo_description?.trim() || null,
+        seo_keywords: newLandingPage.seo_keywords?.trim() || null,
+        og_image_url: newLandingPage.og_image_url?.trim() || null,
+        body_content: newLandingPage.body_content?.trim() || null,
+        theme_color: newLandingPage.theme_color || '#EF4444',
+        bg_color: newLandingPage.bg_color || '#0B0F17',
+        bg_image_url: newLandingPage.bg_image_url?.trim() || null,
+        card_style: newLandingPage.page_type === 'c' ? 'custom_modular' : (newLandingPage.card_style || 'glass'),
+        fb_pixel_id: newLandingPage.fb_pixel_id?.trim() || null,
+        tiktok_pixel_id: newLandingPage.tiktok_pixel_id?.trim() || null,
+        google_pixel_id: newLandingPage.google_pixel_id?.trim() || null,
+        line_tag_id: newLandingPage.line_tag_id?.trim() || null,
+        promptpay_phone: newLandingPage.promptpay_phone?.trim() || null,
+        promptpay_name: newLandingPage.promptpay_name?.trim() || null,
+        promptpay_bank: newLandingPage.promptpay_bank?.trim() || null,
+        line_channel_access_token: newLandingPage.line_channel_access_token?.trim() || null,
+        line_user_id: newLandingPage.line_user_id?.trim() || null,
+        line_webhook_url: newLandingPage.line_webhook_url?.trim() || null
+      }
+
+      const pathPrefix = newLandingPage.page_type === 'c' ? 'c' : 'p'
+      const fullUrl = `${originUrl || ''}/${pathPrefix}/${slug}`
+
+      if (editingLandingPageId) {
+        const { data, error } = await supabase
+          .from('landing_pages')
+          .update(payload)
+          .eq('id', editingLandingPageId)
+          .select()
+
+        if (error) {
+          console.error('Update LP error:', error)
+          showToast('❌ แก้ไขไม่สำเร็จ: ' + error.message)
+        } else if (data && data.length > 0) {
+          setLandingPages(landingPages.map(p => p.id === editingLandingPageId ? data[0] : p))
+          handleCancelEditLandingPage()
+          setConfirmSaveLpModal(false)
+          setSaveSuccessLp({ ...data[0], fullUrl, pathPrefix, slug })
+          showToast('💾 บันทึกการแก้ไขเซลเพจสำเร็จ: /' + pathPrefix + '/' + slug)
+        }
+      } else {
+        const { data, error } = await supabase
+          .from('landing_pages')
+          .insert([{ ...payload, user_id: user.id }])
+          .select()
+
+        if (error) {
+          console.error('Insert LP error:', error)
+          if (error.code === '23505' || error.message.includes('unique') || error.message.includes('duplicate')) {
+            showToast('❌ ชื่อ URL นี้ซ้ำกับที่มีอยู่แล้ว กรุณาเปลี่ยนชื่อ URL ใหม่')
+          } else {
+            showToast('❌ ข้อผิดพลาด: ' + error.message)
+          }
+        } else if (data && data.length > 0) {
+          setLandingPages([data[0], ...landingPages])
+          handleCancelEditLandingPage()
+          setConfirmSaveLpModal(false)
+          setSaveSuccessLp({ ...data[0], fullUrl, pathPrefix, slug })
+          showToast('🚀 สร้างเซลเพจสำเร็จ: /' + pathPrefix + '/' + slug)
+          setTimeout(() => {
+            const listEl = document.getElementById('my-landing-pages-section')
+            if (listEl) listEl.scrollIntoView({ behavior: 'smooth' })
+          }, 350)
+        }
+      }
+    } catch (err: any) {
+      console.error('Execute save landing page error:', err)
+      showToast('❌ เกิดข้อผิดพลาด: ' + (err?.message || 'ไม่สามารถบันทึกได้'))
+    } finally {
+      setIsSavingLandingPage(false)
     }
   }
 
@@ -2166,7 +2219,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Links List Cards */}
-                <div className="space-y-3">
+                <div id="my-landing-pages-section" className="space-y-3">
                   <h4 className="text-xs font-extrabold text-[#1E1B4B] dark:text-slate-300 uppercase tracking-wider px-1">
                     ลิ้งก์ทั้งหมดของคุณ ({links.length})
                   </h4>
@@ -2401,7 +2454,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Products List */}
-                <div className="space-y-3">
+                <div id="my-landing-pages-section" className="space-y-3">
                   <h4 className="text-xs font-extrabold text-[#1E1B4B] dark:text-slate-300 uppercase tracking-wider px-1">
                     สินค้าทั้งหมด ({products.length})
                   </h4>
@@ -3440,7 +3493,7 @@ export default function DashboardPage() {
 
                   {/* Complete 4-Step Interactive Wizard Form */}
                   {(!isLandingQuotaFull || profile.role === 'admin') ? (
-                    <form onSubmit={handleAddLandingPage} className="space-y-6 pt-2">
+                    <form onSubmit={handlePreSaveLandingPage} noValidate className="space-y-6 pt-2">
 
                       {/* ========================================================================= */}
                       {/* WIZARD STEPPER HEADER & PROGRESS BAR */}
@@ -4393,10 +4446,20 @@ export default function DashboardPage() {
                         <div className="flex items-center gap-2 w-full sm:w-auto">
                           <button
                             type="submit"
-                            className="flex-1 sm:flex-none px-7 py-3.5 bg-gradient-to-r from-rose-600 via-pink-600 to-rose-600 hover:from-rose-500 text-white font-black rounded-2xl text-xs sm:text-sm transition shadow-xl shadow-rose-600/30 flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
+                            disabled={isSavingLandingPage}
+                            className="flex-1 sm:flex-none px-7 py-3.5 bg-gradient-to-r from-rose-600 via-pink-600 to-rose-600 hover:from-rose-500 text-white font-black rounded-2xl text-xs sm:text-sm transition shadow-xl shadow-rose-600/30 flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer disabled:opacity-60"
                           >
-                            <Rocket className="w-4 h-4" />
-                            <span>{editingLandingPageId ? '💾 บันทึกการแก้ไขเซลเพจ' : '🚀 สร้างและเผยแพร่เซลเพจทันที'}</span>
+                            {isSavingLandingPage ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>กำลังบันทึกและเผยแพร่...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Rocket className="w-4 h-4" />
+                                <span>{editingLandingPageId ? '💾 บันทึกการแก้ไขเซลเพจ' : '🚀 สร้างและเผยแพร่เซลเพจทันที'}</span>
+                              </>
+                            )}
                           </button>
 
                           {editingLandingPageId && (
@@ -4430,7 +4493,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* List of Created Landing Pages */}
-                <div className="space-y-3">
+                <div id="my-landing-pages-section" className="space-y-3">
                   <h4 className="text-xs font-extrabold text-[#1E1B4B] dark:text-slate-300 uppercase tracking-wider px-1">
                     หน้าเซลเพจทั้งหมดของคุณ ({landingPages.length})
                   </h4>
@@ -7378,6 +7441,140 @@ export default function DashboardPage() {
         </div>
       )}
 
-    </div>
+    
+      {/* ========================================================================= */}
+      {/* CONFIRM SAVE LANDING PAGE MODAL */}
+      {/* ========================================================================= */}
+      {confirmSaveLpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in">
+          <div className="w-full max-w-md bg-white dark:bg-[#131B2A] rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 animate-in zoom-in-95">
+            <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="w-10 h-10 rounded-2xl bg-rose-600/10 text-rose-600 flex items-center justify-center font-black text-base shrink-0 border border-rose-600/20">
+                🚀
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-black text-sm sm:text-base text-[#1E1B4B] dark:text-white truncate">
+                  {editingLandingPageId ? 'ยืนยันการบันทึกการแก้ไขเซลเพจ' : 'ยืนยันการสร้างและเผยแพร่เซลเพจ'}
+                </h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  ตรวจสอบความถูกต้องก่อนเริ่มเผยแพร่หน้าสู่สาธารณะ
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-900/60 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 space-y-2.5 text-xs font-medium">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 dark:text-slate-400 font-bold">ชื่อเซลเพจ:</span>
+                <span className="font-black text-slate-800 dark:text-white truncate max-w-[210px]">
+                  {newLandingPage.title || newLandingPage.headline || 'เซลเพจโปรโมชั่น'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 dark:text-slate-400 font-bold">ประเภทระบบ:</span>
+                <span className="px-2 py-0.5 rounded-lg text-[10px] font-black bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                  {newLandingPage.page_type === 'c' ? '✨ /c/[slug] (Modular)' : '🏛️ /p/[sub] (Classic)'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 dark:text-slate-400 font-bold">ลิงก์ URL ปลายทาง:</span>
+                <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 truncate max-w-[210px]">
+                  /{newLandingPage.page_type === 'c' ? 'c' : 'p'}/{newLandingPage.slug || 'deal-auto'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 dark:text-slate-400 font-bold">ราคาโปรโมชั่น:</span>
+                <span className="font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
+                  ฿{newLandingPage.offer_price || '0'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmSaveLpModal(false)}
+                disabled={isSavingLandingPage}
+                className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-2xl text-xs transition cursor-pointer text-center"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={executeSaveLandingPage}
+                disabled={isSavingLandingPage}
+                className="flex-1 py-3 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white font-black rounded-2xl text-xs transition shadow-lg shadow-rose-600/30 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+              >
+                {isSavingLandingPage ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>กำลังบันทึก...</span>
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="w-3.5 h-3.5" />
+                    <span>🚀 ยืนยันบันทึก & เผยแพร่</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SAVE SUCCESS NOTIFICATION MODAL */}
+      {/* ========================================================================= */}
+      {saveSuccessLp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in">
+          <div className="w-full max-w-md bg-white dark:bg-[#131B2A] rounded-3xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-5 animate-in zoom-in-95 text-center">
+            <div className="w-14 h-14 rounded-3xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center font-black text-2xl mx-auto shadow-inner">
+              🎉
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="font-black text-base text-[#1E1B4B] dark:text-white">
+                สร้างและเผยแพร่เซลเพจสำเร็จแล้ว!
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                หน้าเซลเพจของคุณออนไลน์พร้อมใช้งาน และถูกเพิ่มเข้าสู่รายการเซลเพจแล้ว
+              </p>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 break-all select-all">
+              {saveSuccessLp.fullUrl}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(saveSuccessLp.fullUrl)
+                  showToast('📋 คัดลอกลิงก์เรียบร้อยแล้ว!')
+                }}
+                className="py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Copy className="w-3.5 h-3.5" /> คัดลอกลิงก์
+              </button>
+              <a
+                href={saveSuccessLp.fullUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/20"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> เปิดดูหน้าจริง ↗
+              </a>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSaveSuccessLp(null)}
+              className="w-full py-2.5 bg-slate-200/70 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-2xl text-xs transition cursor-pointer"
+            >
+              ตกลง / ปิดหน้าต่างนี้
+            </button>
+          </div>
+        </div>
+      )}
+</div>
   )
 }
