@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import {
   LayoutTemplate,
+  FileCode,
   Sparkles,
   Clock,
   CheckCircle2,
@@ -32,6 +33,7 @@ import {
 // Icon resolver helper
 export const ICON_MAP: Record<string, any> = {
   LayoutTemplate,
+  FileCode,
   Sparkles,
   Wand2,
   MessageCircle,
@@ -76,6 +78,30 @@ export interface ServiceItem {
 }
 
 export const DEFAULT_FALLBACK_SERVICES: ServiceItem[] = [
+  {
+    id: 'upload-index-html',
+    title: 'Upload Index.html',
+    subtitle: 'นำเข้าหน้าเว็บ HTML ส่วนตัว (Master Pro)',
+    description: 'นำเข้าและโฮสต์ไฟล์ index.html ของคุณเองเป็นหน้าเว็บส่วนตัวบนระบบ LinkTreeThai แสดงผลที่เส้นทาง /u/[ชื่อindex] รองรับการติดตั้ง Multi-Tracking Pixels ครบวงจร แก้ไขได้ตลอดชีพ',
+    category: 'salepage',
+    iconName: 'FileCode',
+    icon: FileCode,
+    iconBg: 'bg-gradient-to-br from-amber-500 via-orange-600 to-rose-600',
+    iconColor: 'text-white',
+    badge: '👑 Master Pro',
+    badgeColor: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+    status: 'active',
+    priceText: '599 แต้ม / หน้า (แก้ไขฟรีตลอดชีพ)',
+    actionLabel: 'อัปโหลด index.html ทันที',
+    actionUrl: '/uploadindex',
+    features: [
+      'อัปโหลดไฟล์ index.html ขึ้นโฮสต์เป็นหน้าเว็บส่วนตัวทันที',
+      'เข้าถึงผ่านเส้นทางสวยงาม https://linktreethai.in.th/u/[ชื่อindex]',
+      'ติดตั้ง Facebook Pixel, TikTok Pixel, Google Analytics, LINE Tag อัตโนมัติ',
+      'สำหรับสมาชิกระดับ PRO VIP และ MASTER VIP (ใช้ 599 แต้มต่อการสร้าง 1 หน้า)',
+      'ระบบจัดการหลังบ้าน ดูข้อมูล แก้ไขโค้ด หรือลบหน้าที่เคยสร้างได้ตลอดชีพ',
+    ],
+  },
   {
     id: 'custom-salepage',
     title: 'Custom Salepage',
@@ -231,7 +257,11 @@ export default function ServicesTabContent() {
               badge: s.badge || '🔥 ยอดนิยม',
               badgeColor: s.badge_color || s.badgeColor || 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
               status: s.status || 'active',
-              priceText: s.price_text || s.priceText || '',
+              priceText: s.id === 'upload-index-html' && siteSettings?.points_cost_upload_index 
+                ? `${siteSettings.points_cost_upload_index} แต้ม / หน้า (แก้ไขฟรีตลอดชีพ)`
+                : s.id === 'custom-salepage' && siteSettings?.points_cost_custom_salepage
+                ? `เริ่มต้น ${siteSettings.points_cost_custom_salepage} แต้ม / เซลเพจ`
+                : (s.price_text || s.priceText || ''),
               actionLabel: s.action_label || s.actionLabel || 'สั่งทำเซลเพจ',
               actionUrl: s.action_url || s.actionUrl || '/custom-salepage',
               position: s.position !== undefined ? s.position : 1,
@@ -314,8 +344,8 @@ export default function ServicesTabContent() {
         ))}
       </div>
 
-      {/* App-Style Square Cards Grid (2 cols on mobile, 3 cols on desktop) */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5 sm:gap-4">
+      {/* Standard Rectangular Density Grid (3-4 cols desktop, 2 cols mobile) */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {filtered.map((service) => {
           const Icon = service.icon || getServiceIconComponent(service.iconName)
           const isUpdating = service.status === 'updating'
@@ -328,49 +358,53 @@ export default function ServicesTabContent() {
                 setServiceOrderFormOpen(false)
                 setServiceOrderSubmitted(false)
               }}
-              className={`group relative flex flex-col justify-between p-4 sm:p-5 rounded-3xl cursor-pointer transition-all duration-200 select-none ${
+              className={`group relative flex flex-col justify-between p-4 sm:p-5 rounded-3xl cursor-pointer transition-all duration-200 select-none min-h-[220px] sm:min-h-[240px] ${
                 isUpdating
-                  ? 'bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800/90 shadow-sm hover:shadow-md hover:border-amber-400/60 active:scale-95'
-                  : 'bg-white dark:bg-slate-900 border border-purple-200/90 dark:border-purple-900/60 shadow-md shadow-purple-500/5 hover:shadow-xl hover:shadow-purple-500/15 hover:border-purple-500 active:scale-95 ring-1 ring-purple-500/10'
+                  ? 'bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800/90 shadow-sm hover:shadow-md hover:border-amber-400/60 active:scale-98'
+                  : 'bg-white dark:bg-slate-900 border border-purple-200/90 dark:border-purple-900/60 shadow-md shadow-purple-500/5 hover:shadow-xl hover:shadow-purple-500/15 hover:border-purple-500 active:scale-98 ring-1 ring-purple-500/10'
               }`}
             >
-              {/* Top Row: Square App Icon + Status Badge */}
-              <div className="flex items-start justify-between gap-1.5 mb-3">
-                <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl ${service.iconBg || 'bg-purple-600'} ${service.iconColor || 'text-white'} flex items-center justify-center shadow-md transition-transform group-hover:scale-105 duration-200`}>
-                  <Icon className="w-6 h-6 sm:w-7 sm:h-7" />
+              {/* Top Row: Left Icon & Right Badge (Never Overlapping) */}
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl ${service.iconBg || 'bg-purple-600'} ${service.iconColor || 'text-white'} flex items-center justify-center shadow-md transition-transform group-hover:scale-105 duration-200 shrink-0`}>
+                  <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
 
-                <span className={`text-[9px] sm:text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${service.badgeColor || 'bg-purple-100 text-purple-700 border-purple-200'} whitespace-nowrap shadow-2xs`}>
+                <span className={`text-[9px] sm:text-[10px] font-black px-2.5 py-1 rounded-full border ${service.badgeColor || 'bg-purple-100 text-purple-700 border-purple-200'} whitespace-nowrap shrink-0 max-w-[130px] truncate text-right shadow-2xs`}>
                   {service.badge}
                 </span>
               </div>
 
-              {/* Service Details */}
-              <div className="space-y-1">
+              {/* Middle Body: Service Title & Description */}
+              <div className="flex-1 my-1 space-y-1.5">
                 <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white line-clamp-1 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
                   {service.title}
                 </h3>
                 <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium line-clamp-2 leading-relaxed">
                   {service.subtitle}
                 </p>
+                {service.priceText && (
+                  <p className="text-[10px] sm:text-[11px] font-bold text-amber-600 dark:text-amber-400 font-mono line-clamp-1 pt-0.5">
+                    {service.priceText}
+                  </p>
+                )}
               </div>
 
-              {/* Bottom Card Footer */}
+              {/* Bottom Card Footer: Pinned at Bottom (Flexbox justify-between) */}
               <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] font-bold">
-                {
-                  isUpdating ? (
+                {isUpdating ? (
                   <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
                     <Clock className="w-3 h-3 animate-spin" />
                     <span>กำลังพัฒนา</span>
                   </span>
                 ) : (
-                  <span className="text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                  <span className="text-purple-600 dark:text-purple-400 flex items-center gap-1 font-black">
                     <Zap className="w-3 h-3 fill-current" />
                     <span>พร้อมใช้งาน</span>
                   </span>
                 )}
-                <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:text-purple-600 dark:group-hover:text-white transition-colors">
-                  <ChevronRight className="w-3 h-3" />
+                <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-purple-600 group-hover:text-white transition-all shadow-xs">
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </div>
               </div>
             </div>

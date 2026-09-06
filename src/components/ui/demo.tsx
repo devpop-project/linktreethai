@@ -1,0 +1,8 @@
+"use client"
+
+import React from "react"
+import ShaderDemo_ATC from "@/components/ui/atc-shader"
+
+export default function Demo() {
+  return <ShaderDemo_ATC />
+}

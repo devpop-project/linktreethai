@@ -1078,3 +1078,75 @@ VALUES
     '["เชื่อมต่อชื่อเว็บไซต์ของคุณได้ 100%", "ลบลายน้ำระบบเพื่อภาพลักษณ์แบรนด์ระดับพรีเมียม", "ติดตั้ง CDN ระดับ Global เพิ่มความเร็วในการโหลดสูงสุด"]'::jsonb
 )
 ON CONFLICT (id) DO NOTHING;
+
+-- ==============================================================================
+-- 11. UPLOADED INDEX PAGES (ระบบโฮสต์ index.html ส่วนตัว Master Pro /u/[slug])
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.uploaded_index_pages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    slug TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    html_content TEXT NOT NULL,
+    fb_pixel_id TEXT,
+    tiktok_pixel_id TEXT,
+    google_pixel_id TEXT,
+    line_tag_id TEXT,
+    views INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Index สำหรับค้นหา slug และ user_id
+CREATE INDEX IF NOT EXISTS idx_uploaded_index_pages_slug ON public.uploaded_index_pages(slug);
+CREATE INDEX IF NOT EXISTS idx_uploaded_index_pages_user_id ON public.uploaded_index_pages(user_id);
+
+-- เปิดใช้งานระบบความปลอดภัย Row Level Security (RLS)
+ALTER TABLE public.uploaded_index_pages ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public can view active uploaded index pages" ON public.uploaded_index_pages;
+CREATE POLICY "Public can view active uploaded index pages" ON public.uploaded_index_pages 
+    FOR SELECT USING (is_active = true);
+
+DROP POLICY IF EXISTS "Users can manage own uploaded index pages" ON public.uploaded_index_pages;
+CREATE POLICY "Users can manage own uploaded index pages" ON public.uploaded_index_pages 
+    FOR ALL USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admins have full access to uploaded index pages" ON public.uploaded_index_pages;
+CREATE POLICY "Admins have full access to uploaded index pages" ON public.uploaded_index_pages 
+    FOR ALL USING (public.is_admin());
+
+-- ==============================================================================
+-- 13. SEED DYNAMIC PRICING & POINTS IN SYSTEM SETTINGS
+-- ==============================================================================
+INSERT INTO public.system_settings (key, value, description)
+VALUES 
+    ('price_pro_thb', '299', 'ราคาแพ็กเกจ PRO VIP (บาท)'),
+    ('points_cost_pro', '299', 'แต้มที่ใช้แลก PRO VIP (แต้ม)'),
+    ('duration_pro_days', '30', 'ระยะเวลาใช้งาน PRO VIP (วัน)'),
+    ('price_master_thb', '599', 'ราคาแพ็กเกจ MASTER VIP (บาท)'),
+    ('points_cost_master', '599', 'แต้มที่ใช้แลก MASTER VIP (แต้ม)'),
+    ('duration_master_days', '30', 'ระยะเวลาใช้งาน MASTER VIP (วัน)'),
+    ('points_cost_upload_index', '599', 'แต้มสร้างหน้าเว็บ index.html ส่วนตัว (/uploadindex)'),
+    ('points_cost_custom_salepage', '990', 'แต้มสร้างเซลเพจ Custom / AI Vision Salepage'),
+    ('points_cost_extra_landing_slot', '350', 'แต้มปลดล็อกโควตาเซลเพจเพิ่ม +1 ช่อง'),
+    ('points_cost_renew_landing', '350', 'แต้มต่ออายุหน้าเซลเพจ 30 วัน'),
+    ('points_cost_shortener', '100', 'แต้มปลดล็อกระบบย่อลิงก์สั้น 30 วัน'),
+    ('points_cost_pixels', '100', 'แต้มปลดล็อกระบบฝัง Pixels 30 วัน')
+ON CONFLICT (key) DO NOTHING;
+
+-- ==============================================================================
+-- 14. ADD META_CAPI_TOKEN TO UPLOADED_INDEX_PAGES
+-- ==============================================================================
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+          AND table_name = 'uploaded_index_pages' 
+          AND column_name = 'meta_capi_token'
+    ) THEN
+        ALTER TABLE public.uploaded_index_pages ADD COLUMN meta_capi_token TEXT;
+    END IF;
+END $$;

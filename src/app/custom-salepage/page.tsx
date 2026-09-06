@@ -132,6 +132,7 @@ export default function WixCustomSalepageBuilderPage() {
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
+  const [customSalepagePointsCost, setCustomSalepagePointsCost] = useState<number>(990)
     // AI Vision & API Key States
   const [isAiAnalyzeModalOpen, setIsAiAnalyzeModalOpen] = useState(false)
   const [userAiApiKey, setUserAiApiKey] = useState('')
@@ -534,6 +535,25 @@ export default function WixCustomSalepageBuilderPage() {
   // Load User & Existing Salepage
   useEffect(() => {
     setMounted(true)
+    // Direct SQL fetch from system_settings
+    const supabaseClient = createClient()
+    supabaseClient.from('system_settings').select('key, value').then(({ data: rows }) => {
+      if (rows && rows.length > 0) {
+        const row = rows.find((r: any) => r.key === 'points_cost_custom_salepage')
+        if (row?.value) {
+          setCustomSalepagePointsCost(parseInt(row.value, 10) || 990)
+        }
+      }
+    }).catch(() => {})
+
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.settings?.points_cost_custom_salepage) {
+          setCustomSalepagePointsCost(parseInt(data.settings.points_cost_custom_salepage, 10) || 990)
+        }
+      })
+      .catch(() => {})
     if (typeof window !== 'undefined') {
       setOriginUrl(window.location.origin)
     }
@@ -1180,14 +1200,14 @@ export default function WixCustomSalepageBuilderPage() {
       const currentSlots = freshProf?.extra_landing_page_slots !== undefined ? freshProf.extra_landing_page_slots : (profile?.extra_landing_page_slots ?? 0)
 
       // Require 990 points
-      if (currentPoints < 990) {
-        alert(`❌ แต้มของคุณไม่เพียงพอสำหรับการบันทึกเซลเพจ\n\n• ต้องการ: 990 แต้ม\n• แต้มของคุณปัจจุบัน: ${currentPoints.toLocaleString()} แต้ม\n\nกรุณาเติมแต้มในแดชบอร์ดก่อนดำเนินการบันทึก`)
+      if (currentPoints < customSalepagePointsCost) {
+        alert(`❌ แต้มของคุณไม่เพียงพอสำหรับการบันทึกเซลเพจ\n\n• ต้องการ: ${customSalepagePointsCost.toLocaleString()} แต้ม\n• แต้มของคุณปัจจุบัน: ${currentPoints.toLocaleString()} แต้ม\n\nกรุณาเติมแต้มในแดชบอร์ดก่อนดำเนินการบันทึก`)
         setSaving(false)
         return
       }
 
       // Deduct 990 points and increment extra_landing_page_slots (+1)
-      const newPoints = Math.max(0, currentPoints - 990)
+      const newPoints = Math.max(0, currentPoints - customSalepagePointsCost)
       const newSlots = currentSlots + 1
 
       const { error: updateProfErr } = await supabase
@@ -4538,7 +4558,7 @@ export default function WixCustomSalepageBuilderPage() {
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2.5 text-xs text-left">
               <div className="flex justify-between items-center">
                 <span className="text-slate-500 font-medium">⚡ หักแต้มบริการ:</span>
-                <span className="font-mono font-bold text-amber-600 dark:text-amber-400">-990 แต้ม</span>
+                <span className="font-mono font-bold text-amber-600 dark:text-amber-400">-{customSalepagePointsCost.toLocaleString()} แต้ม</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-500 font-medium">🪙 แต้มคงเหลือ:</span>
@@ -4811,13 +4831,13 @@ export default function WixCustomSalepageBuilderPage() {
               
               <div className="flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400">
                 <span>⚡ ค่าบริการบันทึกเซลเพจ:</span>
-                <span className="font-mono font-black text-sm">-990 แต้ม</span>
+                <span className="font-mono font-black text-sm">-{customSalepagePointsCost.toLocaleString()} แต้ม</span>
               </div>
 
               <div className="border-t border-amber-500/20 pt-2 flex items-center justify-between text-xs">
                 <span className="text-slate-600 dark:text-slate-300 font-medium">💰 แต้มคงเหลือหลังบันทึก:</span>
-                <span className={`font-mono font-black text-sm ${confirmingPoints >= 990 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
-                  {Math.max(0, confirmingPoints - 990).toLocaleString()} แต้ม
+                <span className={`font-mono font-black text-sm ${confirmingPoints >= customSalepagePointsCost ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
+                  {Math.max(0, confirmingPoints - customSalepagePointsCost).toLocaleString()} แต้ม
                 </span>
               </div>
 
@@ -4830,11 +4850,11 @@ export default function WixCustomSalepageBuilderPage() {
             </div>
 
             {/* Warning if insufficient points */}
-            {confirmingPoints < 990 ? (
+            {confirmingPoints < customSalepagePointsCost ? (
               <div className="space-y-3">
                 <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2">
                   <AlertCircle className="w-5 h-5 shrink-0" />
-                  <span>แต้มของคุณไม่เพียงพอ (ต้องการ 990 แต้ม, ขาดอีก {(990 - confirmingPoints).toLocaleString()} แต้ม)</span>
+                  <span>แต้มของคุณไม่เพียงพอ (ต้องการ {customSalepagePointsCost.toLocaleString()} แต้ม, ขาดอีก {Math.max(0, customSalepagePointsCost - confirmingPoints).toLocaleString()} แต้ม)</span>
                 </div>
                 <div className="flex items-center gap-2 pt-1">
                   <a
@@ -4879,7 +4899,7 @@ export default function WixCustomSalepageBuilderPage() {
                   ) : (
                     <>
                       <Check className="w-4 h-4" />
-                      <span>ตกลง (หัก 990 แต้ม)</span>
+                      <span>ตกลง (หัก {customSalepagePointsCost.toLocaleString()} แต้ม)</span>
                     </>
                   )}
                 </button>
@@ -5171,7 +5191,7 @@ export default function WixCustomSalepageBuilderPage() {
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2.5 text-left text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-slate-500 dark:text-slate-400 font-medium">⚡ หักแต้มค่าบริการ:</span>
-                <span className="font-mono font-black text-rose-500">-990 แต้ม</span>
+                <span className="font-mono font-black text-rose-500">-{customSalepagePointsCost.toLocaleString()} แต้ม</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-500 dark:text-slate-400 font-medium">🪙 แต้มคงเหลือปัจจุบัน:</span>

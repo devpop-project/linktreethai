@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { 
-  LayoutTemplate, ShieldCheck, Users, Rocket, Sun, Moon, Coins, Crown, Zap, Search, Plus, 
+  LayoutTemplate, FileCode, ShieldCheck, Users, Rocket, Sun, Moon, Coins, Crown, Zap, Search, Plus, 
   Edit3, Edit2, ArrowLeft, Check, AlertCircle, Lock, RefreshCw, Eye, X, 
   Trash2, ExternalLink, Link2, ShoppingBag, Settings, Scissors, 
   Copy, BarChart3, Database, Filter, Download, CheckCircle2, 
@@ -481,7 +481,19 @@ export default function AdminDashboardPage() {
     line_user_id: '',
     line_webhook_url: '',
     line_notify_token: '',
-    meta_capi_token: ''
+    meta_capi_token: '',
+    price_pro_thb: '299',
+    points_cost_pro: '299',
+    duration_pro_days: '30',
+    price_master_thb: '599',
+    points_cost_master: '599',
+    duration_master_days: '30',
+    points_cost_upload_index: '599',
+    points_cost_extra_landing_slot: '350',
+    points_cost_renew_landing: '350',
+    points_cost_shortener: '100',
+    points_cost_pixels: '100',
+    points_cost_custom_salepage: '990'
   })
   const [testingLine, setTestingLine] = useState(false)
   const [testAmount, setTestAmount] = useState(299)
@@ -800,6 +812,19 @@ export default function AdminDashboardPage() {
     e.preventDefault()
     setSavingPaymentSettings(true)
     try {
+      // 1. Direct Supabase Upsert to system_settings table
+      try {
+        const rows = Object.keys(paymentSettings).map(k => ({
+          key: k,
+          value: String((paymentSettings as any)[k] !== undefined && (paymentSettings as any)[k] !== null ? (paymentSettings as any)[k] : '').trim(),
+          updated_at: new Date().toISOString()
+        }))
+        await supabase.from('system_settings').upsert(rows, { onConflict: 'key' })
+      } catch (dbErr) {
+        console.warn('Direct db upsert error:', dbErr)
+      }
+
+      // 2. Call API route to persist and trigger LINE sync
       const res = await fetch('/api/settings/payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -807,7 +832,7 @@ export default function AdminDashboardPage() {
       })
       const data = await res.json()
       if (res.ok && data.success) {
-        showNotification('✅ บันทึกการตั้งค่าบัญชีรับเงินและพร้อมเพย์เรียบร้อยแล้ว!')
+        showNotification('✅ บันทึกการตั้งค่าราคาแพ็กเกจ แต้มระบบ และบัญชีรับเงินลง SQL เรียบร้อยแล้ว!')
       } else {
         alert('❌ เกิดข้อผิดพลาด: ' + (data.error || 'บันทึกไม่สำเร็จ'))
       }
@@ -1947,6 +1972,14 @@ export default function AdminDashboardPage() {
             <Rocket className="w-4 h-4" /> <span>🚀 เซลเพจยิงแอด ({allLandingPages.length})</span>
           </button>
 
+          <a
+            href="/uploadindex?tab=admin"
+            className="px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition bg-gradient-to-r from-amber-500/15 to-orange-500/15 text-amber-400 hover:text-white hover:bg-slate-800 border border-amber-500/30 shadow-sm"
+            title="เปิดระบบจัดการ Index.html ทั้งหมดในระบบ (Admin Master CRUD)"
+          >
+            <FileCode className="w-4 h-4 text-amber-400" /> <span>👑 จัดการ Index.html</span>
+          </a>
+
           <button
             onClick={() => { setActiveTab('pixels'); setSearchQuery(''); }}
             className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition ${
@@ -2349,14 +2382,14 @@ export default function AdminDashboardPage() {
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead>
+                <thead className="sticky top-0 z-10 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md">
                   <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-bold">
-                    <th className="pb-3 px-2">สลิปการโอน</th>
-                    <th className="pb-3 px-2">ผู้ใช้งาน</th>
-                    <th className="pb-3 px-2">ยอดเงิน / แต้มที่ขอเติม</th>
-                    <th className="pb-3 px-2">วันที่แจ้งโอน</th>
-                    <th className="pb-3 px-2">สถานะ</th>
-                    <th className="pb-3 px-2 text-right">การอนุมัติ</th>
+                    <th className="py-3 px-2.5 min-w-[80px]">สลิปการโอน</th>
+                    <th className="py-3 px-2.5 min-w-[160px]">ผู้ใช้งาน</th>
+                    <th className="py-3 px-2.5 min-w-[130px]">ยอดเงิน / แต้ม</th>
+                    <th className="py-3 px-2.5 min-w-[120px]">วันที่แจ้งโอน</th>
+                    <th className="py-3 px-2.5 min-w-[110px]">สถานะ</th>
+                    <th className="py-3 px-2.5 text-right min-w-[150px]">การอนุมัติ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -3099,6 +3132,153 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
 
+                  {/* 5. DYNAMIC PRICING & POINTS CONFIGURATION (ADMIN MANAGED VIA SQL) */}
+                  <div className="p-5 bg-gradient-to-br from-amber-500/10 via-purple-950/20 to-slate-950 border-2 border-amber-500/40 rounded-3xl space-y-4 shadow-xl">
+                    <div className="flex items-center justify-between pb-2 border-b border-amber-500/20">
+                      <h4 className="font-black text-sm text-amber-400 flex items-center gap-2">
+                        <Coins className="w-4 h-4 text-amber-400" />
+                        <span>5. ตั้งค่าราคาแพ็กเกจ & อัตราแต้มระบบ (บันทึกลง SQL อัตโนมัติ)</span>
+                      </h4>
+                      <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 font-mono">
+                        Real-Time SQL Sync
+                      </span>
+                    </div>
+
+                    <p className="text-slate-400 text-[11px] leading-relaxed font-normal">
+                      เมื่อแก้ไขราคาและจำนวนแต้มตรงนี้ ข้อมูลในฐานข้อมูล SQL จะถูกอัปเดตทันที และหน้าเว็บทุกส่วน (หน้าแรก, แดชบอร์ด, หน้าอัปโหลด index.html) จะเปลี่ยนตัวเลขตามอัตโนมัติ
+                    </p>
+
+                    {/* A. VIP Membership Tiers */}
+                    <div className="space-y-3 pt-1">
+                      <span className="text-xs font-black text-purple-400 block">👑 ราคาแพ็กเกจสมาชิก VIP (Membership Tiers)</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-slate-300 mb-1">PRO VIP (ราคาบาท)</label>
+                          <input
+                            type="number"
+                            value={(paymentSettings as any).price_pro_thb || '299'}
+                            onChange={(e) => setPaymentSettings({ ...paymentSettings, price_pro_thb: e.target.value } as any)}
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-purple-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-slate-300 mb-1">PRO VIP (แต้มที่ใช้แลก)</label>
+                          <input
+                            type="number"
+                            value={(paymentSettings as any).points_cost_pro || '299'}
+                            onChange={(e) => setPaymentSettings({ ...paymentSettings, points_cost_pro: e.target.value } as any)}
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-purple-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-slate-300 mb-1">PRO VIP (อายุวัน)</label>
+                          <input
+                            type="number"
+                            value={(paymentSettings as any).duration_pro_days || '30'}
+                            onChange={(e) => setPaymentSettings({ ...paymentSettings, duration_pro_days: e.target.value } as any)}
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-purple-400"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-slate-300 mb-1">MASTER VIP (ราคาบาท)</label>
+                          <input
+                            type="number"
+                            value={(paymentSettings as any).price_master_thb || '599'}
+                            onChange={(e) => setPaymentSettings({ ...paymentSettings, price_master_thb: e.target.value } as any)}
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-slate-300 mb-1">MASTER VIP (แต้มที่ใช้แลก)</label>
+                          <input
+                            type="number"
+                            value={(paymentSettings as any).points_cost_master || '599'}
+                            onChange={(e) => setPaymentSettings({ ...paymentSettings, points_cost_master: e.target.value } as any)}
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-slate-300 mb-1">MASTER VIP (อายุวัน)</label>
+                          <input
+                            type="number"
+                            value={(paymentSettings as any).duration_master_days || '30'}
+                            onChange={(e) => setPaymentSettings({ ...paymentSettings, duration_master_days: e.target.value } as any)}
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* B. Feature Points Costs */}
+                    <div className="space-y-3 pt-2 border-t border-slate-800">
+                      <span className="text-xs font-black text-amber-400 block">⚡ แต้มบริการเสริมของระบบ (Feature Points Costs)</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-slate-300 mb-1">โฮสต์ Index.html (/uploadindex) (แต้ม)</label>
+                          <input
+                            type="number"
+                            value={(paymentSettings as any).points_cost_upload_index || '599'}
+                            onChange={(e) => setPaymentSettings({ ...paymentSettings, points_cost_upload_index: e.target.value } as any)}
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-slate-300 mb-1">สร้างเซลเพจ Custom / AI (แต้ม)</label>
+                          <input
+                            type="number"
+                            value={(paymentSettings as any).points_cost_custom_salepage || '990'}
+                            onChange={(e) => setPaymentSettings({ ...paymentSettings, points_cost_custom_salepage: e.target.value } as any)}
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-slate-300 mb-1">ปลดล็อกโควตาเซลเพจ +1 URL (แต้ม)</label>
+                          <input
+                            type="number"
+                            value={(paymentSettings as any).points_cost_extra_landing_slot || '350'}
+                            onChange={(e) => setPaymentSettings({ ...paymentSettings, points_cost_extra_landing_slot: e.target.value } as any)}
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-slate-300 mb-1">ต่ออายุหน้าเซลเพจ 30 วัน (แต้ม)</label>
+                          <input
+                            type="number"
+                            value={(paymentSettings as any).points_cost_renew_landing || '350'}
+                            onChange={(e) => setPaymentSettings({ ...paymentSettings, points_cost_renew_landing: e.target.value } as any)}
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-slate-300 mb-1">ปลดล็อกระบบย่อลิงก์สั้น 30 วัน (แต้ม)</label>
+                          <input
+                            type="number"
+                            value={(paymentSettings as any).points_cost_shortener || '100'}
+                            onChange={(e) => setPaymentSettings({ ...paymentSettings, points_cost_shortener: e.target.value } as any)}
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-purple-400"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-slate-300 mb-1">ปลดล็อกระบบฝัง Pixels ยิงแอด 30 วัน (แต้ม)</label>
+                          <input
+                            type="number"
+                            value={(paymentSettings as any).points_cost_pixels || '100'}
+                            onChange={(e) => setPaymentSettings({ ...paymentSettings, points_cost_pixels: e.target.value } as any)}
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-xs focus:outline-none focus:border-purple-400"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="flex justify-end pt-1">
                     <button
                       type="submit"
@@ -3472,16 +3652,16 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto max-h-[600px] border border-slate-800/80 rounded-2xl">
               <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 font-bold bg-slate-950/60">
-                    <th className="p-3">ผู้ใช้งาน (Username / Display Name)</th>
-                    <th className="p-3">บทบาท</th>
-                    <th className="p-3">แต้มสะสม</th>
-                    <th className="p-3">สถานะแพ็กเกจ</th>
-                    <th className="p-3">วันที่สมัคร</th>
-                    <th className="p-3 text-right">เครื่องมือ Admin</th>
+                <thead className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur-md">
+                  <tr className="border-b border-slate-800 text-slate-400 font-bold">
+                    <th className="p-3.5 min-w-[200px]">ผู้ใช้งาน (User Profile)</th>
+                    <th className="p-3.5 min-w-[100px]">บทบาท</th>
+                    <th className="p-3.5 min-w-[110px]">แต้มสะสม</th>
+                    <th className="p-3.5 min-w-[140px]">สถานะแพ็กเกจ</th>
+                    <th className="p-3.5 min-w-[120px]">วันที่สมัคร</th>
+                    <th className="p-3.5 text-right min-w-[180px]">เครื่องมือ Admin</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
@@ -3605,6 +3785,124 @@ export default function AdminDashboardPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Responsive Card List Layout (md:hidden) */}
+            <div className="md:hidden space-y-3">
+              {filteredUsers.length === 0 ? (
+                <div className="p-8 text-center text-slate-500 italic bg-slate-950/40 rounded-2xl border border-slate-800">
+                  ไม่พบข้อมูลผู้ใช้งานที่ตรงกับเงื่อนไขการค้นหา
+                </div>
+              ) : (
+                filteredUsers.map((u) => {
+                  const isUserMaster = u.master_expires_at && new Date(u.master_expires_at).getTime() > Date.now()
+                  const isUserPro = u.pro_expires_at && new Date(u.pro_expires_at).getTime() > Date.now()
+
+                  return (
+                    <div key={u.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3 shadow-sm">
+                      {/* Header row: Avatar + Name + Role */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={u.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${u.id}`}
+                            alt="Avatar"
+                            className="w-10 h-10 rounded-full object-cover border border-slate-700 shrink-0"
+                          />
+                          <div>
+                            <p className="font-bold text-white text-sm">{u.full_name || u.username}</p>
+                            <p className="text-slate-400 text-xs font-mono">@{u.username}</p>
+                          </div>
+                        </div>
+
+                        {u.role === 'admin' ? (
+                          <span className="px-2.5 py-1 bg-purple-500/20 text-purple-300 border border-purple-500/40 font-black rounded-full text-[10px]">
+                            ADMIN
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-slate-800 text-slate-400 rounded-full text-[10px] font-bold">
+                            USER
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Details row: Points & Tier */}
+                      <div className="flex items-center justify-between text-xs py-2 border-y border-slate-800/80">
+                        <div className="flex items-center gap-1.5 font-bold">
+                          <Coins className="w-3.5 h-3.5 text-amber-400" />
+                          <span className="text-amber-300 font-mono">{u.points || 0} แต้ม</span>
+                        </div>
+
+                        <div>
+                          {isUserMaster ? (
+                            <span className="px-2.5 py-0.5 bg-purple-500/20 border border-purple-500/40 text-purple-300 font-black rounded-full text-[10px]">
+                              👑 MASTER VIP
+                            </span>
+                          ) : isUserPro ? (
+                            <span className="px-2.5 py-0.5 bg-amber-400/20 border border-amber-400/40 text-amber-300 font-black rounded-full text-[10px]">
+                              ⚡ PRO VIP
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-slate-800 text-slate-400 rounded-full text-[10px]">
+                              Free Member
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action buttons (Touch targets >= 40px) */}
+                      <div className="grid grid-cols-4 gap-2 pt-1">
+                        <button
+                          onClick={() => {
+                            setSelectedUser(u)
+                            setAdjustPointsModalOpen(true)
+                          }}
+                          className="min-h-[40px] px-2 py-2 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 active:scale-95"
+                          title="ปรับแต้ม"
+                        >
+                          <Coins className="w-3.5 h-3.5" />
+                          <span>แต้ม</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setSelectedUser(u)
+                            setAdjustVipModalOpen(true)
+                          }}
+                          className="min-h-[40px] px-2 py-2 bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 active:scale-95"
+                          title="มอบสิทธิ์ VIP"
+                        >
+                          <Crown className="w-3.5 h-3.5" />
+                          <span>VIP</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setSelectedUser(u)
+                            setEditUserModalOpen(true)
+                          }}
+                          className="min-h-[40px] px-2 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 active:scale-95"
+                          title="แก้ไขข้อมูล"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>แก้ไข</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setSelectedUser(u)
+                            setDeleteUserModalOpen(true)
+                          }}
+                          className="min-h-[40px] px-2 py-2 bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 active:scale-95"
+                          title="ลบผู้ใช้"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>ลบ</span>
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
             </div>
           </div>
         )}

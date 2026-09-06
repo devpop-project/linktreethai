@@ -49,13 +49,21 @@ export default function TopUpPointsModal({
 
   const supabase = createClient()
 
+  const pricePro = parseInt((paymentConfig as any).price_pro_thb || '299', 10)
+  const ptsPro = parseInt((paymentConfig as any).points_cost_pro || '299', 10)
+  const priceMaster = parseInt((paymentConfig as any).price_master_thb || '599', 10)
+  const ptsMaster = parseInt((paymentConfig as any).points_cost_master || '599', 10)
+  const ptsCs = parseInt((paymentConfig as any).points_cost_custom_salepage || '990', 10)
+  const ptsUploadIndex = parseInt((paymentConfig as any).points_cost_upload_index || '599', 10)
+
   const packages = [
     { points: 100, price: 100, desc: 'ปลดล็อกย่อลิงก์ Shortlinks / Tracking Pixels 30 วัน', tag: 'STARTER' },
-    { points: 300, price: 299, desc: 'ปลดล็อก PRO VIP 30 วัน (ทุกลิงก์ไม่จำกัด + 10 สินค้า + ซ่อนลายน้ำ)', tag: 'PRO' },
-    { points: 600, price: 599, desc: 'ปลดล็อก MASTER VIP 30 วัน (ครบทุกฟังก์ชัน + เซลเพจคลาสสิก 1 URL)', tag: 'HOT • POPULAR' },
-    { points: 990, price: 990, desc: '🚀 ปลดล็อกสร้างเซลเพจ 13 บล็อกด้วย AI Vision / Custom Salepage +1 URL ทันที', tag: '✨ แนะนำยิงแอด' },
-    { points: 1800, price: 1599, desc: 'MASTER VIP 3 เดือน (ประหยัด 200 บาท • เฉลี่ยเดือนละ 533 บ.)', tag: 'คุ้มค่า' },
-    { points: 7200, price: 5990, desc: 'MASTER VIP รายปี 12 เดือน (คุ้มค่าที่สุด • ประหยัดกว่า 1,198 บ.)', tag: 'BEST VALUE' }
+    { points: ptsPro, price: pricePro, desc: 'ปลดล็อก PRO VIP 30 วัน (ทุกลิงก์ไม่จำกัด + 10 สินค้า + ซ่อนลายน้ำ)', tag: 'PRO' },
+    { points: ptsUploadIndex, price: ptsUploadIndex, desc: 'โฮสต์ Index.html ส่วนตัว (/uploadindex -> /u/[slug])', tag: 'INDEX.HTML' },
+    { points: ptsMaster, price: priceMaster, desc: 'ปลดล็อก MASTER VIP 30 วัน (ครบทุกฟังก์ชัน + เซลเพจ Flash Sale 1 URL)', tag: 'HOT • POPULAR' },
+    { points: ptsCs, price: ptsCs, desc: '🚀 ปลดล็อกสร้างเซลเพจ 13 บล็อกด้วย AI Vision / Custom Salepage +1 URL ทันที', tag: '✨ แนะนำยิงแอด' },
+    { points: Math.max(1000, ptsMaster * 3), price: Math.round(priceMaster * 2.65), desc: 'MASTER VIP 3 เดือน (ประหยัดพิเศษ • เฉลี่ยสุดคุ้ม)', tag: 'คุ้มค่า' },
+    { points: Math.max(4000, ptsMaster * 12), price: Math.round(priceMaster * 10), desc: 'MASTER VIP รายปี 12 เดือน (คุ้มค่าที่สุด)', tag: 'BEST VALUE' }
   ]
 
   const currentPkg = packages.find(p => p.points === selectedPkg) || packages[2]

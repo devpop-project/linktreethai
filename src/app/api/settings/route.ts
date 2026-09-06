@@ -27,7 +27,23 @@ export const DEFAULT_SITE_SETTINGS = {
   line_user_id: '',
   line_webhook_url: '',
   line_notify_token: '',
-  meta_capi_token: ''
+  meta_capi_token: '',
+
+  // Dynamic Pricing & Points Costs (Admin Managed via SQL)
+  price_pro_thb: '299',
+  points_cost_pro: '299',
+  duration_pro_days: '30',
+
+  price_master_thb: '599',
+  points_cost_master: '599',
+  duration_master_days: '30',
+
+  points_cost_upload_index: '599',
+  points_cost_extra_landing_slot: '350',
+  points_cost_renew_landing: '350',
+  points_cost_shortener: '100',
+  points_cost_pixels: '100',
+  points_cost_custom_salepage: '990'
 }
 
 function getSupabaseAdmin() {

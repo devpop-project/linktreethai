@@ -15,7 +15,7 @@ import SalesLandingPagePreview from '@/components/SalesLandingPagePreview'
 import PixelAnalyticsModal from '@/components/PixelAnalyticsModal'
 import TopUpPointsModal from '@/components/TopUpPointsModal'
 import SiteLogo from '@/components/SiteLogo'
-import { Loader2, Link2, Radio, Mic, Volume2, ShoppingBag, Palette, ExternalLink, Activity, Rocket, Plus, Trash2, Save, LogOut, Check, Eye, Upload, Image as ImageIcon, Sparkles, Globe, Youtube, RefreshCw, Share2, LayoutTemplate, Crown, Coins, Lock, AlertCircle, Users, Download, ShieldCheck, Zap, QrCode, X, MessageCircle, Scissors, Copy, Smartphone, Menu, ChevronRight, CheckCircle2, ArrowUpRight, Clock, KeyRound, Edit2, Camera, Sun, Moon, Filter, Search, BarChart3, ChevronDown, Phone, Mail, MapPin, DollarSign, Calendar, FileText, CheckSquare, Layers, EyeOff, ArrowUpDown, UserCheck, UserX, ListOrdered, Sliders, Flame, Send, ArrowRight, CheckCircle, ArrowLeft, Star, HelpCircle } from 'lucide-react'
+import { FileCode, Loader2, Link2, Radio, Mic, Volume2, ShoppingBag, Palette, ExternalLink, Activity, Rocket, Plus, Trash2, Save, LogOut, Check, Eye, Upload, Image as ImageIcon, Sparkles, Globe, Youtube, RefreshCw, Share2, LayoutTemplate, Crown, Coins, Lock, AlertCircle, Users, Download, ShieldCheck, Zap, QrCode, X, MessageCircle, Scissors, Copy, Smartphone, Menu, ChevronRight, CheckCircle2, ArrowUpRight, Clock, KeyRound, Edit2, Camera, Sun, Moon, Filter, Search, BarChart3, ChevronDown, Phone, Mail, MapPin, DollarSign, Calendar, FileText, CheckSquare, Layers, EyeOff, ArrowUpDown, UserCheck, UserX, ListOrdered, Sliders, MoreHorizontal, Flame, Send, ArrowRight, CheckCircle, ArrowLeft, Star, HelpCircle } from 'lucide-react'
 
 interface LandingPageFormData {
   slug: string
@@ -351,6 +351,9 @@ export default function DashboardPage() {
   
   const [uploading, setUploading] = useState<string | null>(null)
   const [savedMsg, setSavedMsg] = useState('')
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [siteSettings, setSiteSettings] = useState<any>(null)
 
   const router = useRouter()
   const supabase = createClient()
@@ -384,6 +387,23 @@ export default function DashboardPage() {
   }, [])
 
   const fetchUserData = async () => {
+    // Load dynamic settings from SQL (Dual Fetch: Direct Supabase + API)
+    try {
+      const { data: dbSettings } = await supabase.from('system_settings').select('key, value')
+      if (dbSettings && dbSettings.length > 0) {
+        const map: any = {}
+        dbSettings.forEach((row: any) => {
+          if (row.key) map[row.key] = row.value
+        })
+        setSiteSettings((prev: any) => ({ ...prev, ...map }))
+      }
+    } catch (e) {}
+
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => { if (data?.settings) setSiteSettings((prev: any) => ({ ...prev, ...data.settings })) })
+      .catch(() => {})
+
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       router.push('/login')
@@ -920,15 +940,16 @@ export default function DashboardPage() {
 
   const handleRenewLandingPage = async (lpId: string, currentExp: string | null, title: string) => {
     if (!user) return
-    if ((profile.points || 0) < 350) {
-      showToast('❌ แต้มไม่เพียงพอ ต้องการ 350 แต้มเพื่อต่ออายุเซลเพจ 30 วัน')
+    const renewCost = parseInt(siteSettings?.points_cost_renew_landing || '350', 10)
+    if ((profile.points || 0) < renewCost) {
+      showToast(`❌ แต้มไม่เพียงพอ ต้องการ ${renewCost} แต้มเพื่อต่ออายุเซลเพจ 30 วัน`)
       setTopUpModalOpen(true)
       return
     }
     try {
       const baseTime = (currentExp && new Date(currentExp).getTime() > Date.now()) ? new Date(currentExp).getTime() : Date.now()
       const newExp = new Date(baseTime + 30 * 24 * 60 * 60 * 1000).toISOString()
-      const newPts = (profile.points || 0) - 350
+      const newPts = (profile.points || 0) - renewCost
 
       const { error } = await supabase
         .from('landing_pages')
@@ -1113,8 +1134,9 @@ export default function DashboardPage() {
   // --- Short Links Unlock with 100 Points for 30 Days ---
   const handleUnlockShortener = async () => {
     if (!user) return
-    if ((profile.points || 0) < 100) {
-      showToast(`❌ แต้มสะสมของคุณไม่เพียงพอ (ต้องการ 100 แต้ม แต่คุณมี ${profile.points || 0} แต้ม)`)
+    const shortenerCost = parseInt(siteSettings?.points_cost_shortener || '100', 10)
+    if ((profile.points || 0) < shortenerCost) {
+      showToast(`❌ แต้มสะสมของคุณไม่เพียงพอ (ต้องการ ${shortenerCost} แต้ม แต่คุณมี ${profile.points || 0} แต้ม)`)
       return
     }
 
@@ -1122,14 +1144,14 @@ export default function DashboardPage() {
     try {
       const { data, error } = await supabase.rpc('unlock_shortener_with_points', {
         target_user_id: user.id,
-        points_cost: 100,
+        points_cost: shortenerCost,
         duration_days: 30
       })
 
       if (error) {
         const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
         const { error: updErr } = await supabase.from('profiles').update({
-          points: (profile.points || 0) - 100,
+          points: (profile.points || 0) - shortenerCost,
           shortener_expires_at: newExpiry
         }).eq('id', user.id)
 
@@ -1158,8 +1180,9 @@ export default function DashboardPage() {
 
   const handleUnlockPixels = async () => {
     if (!user) return
-    if ((profile.points || 0) < 100) {
-      showToast(`❌ แต้มสะสมไม่เพียงพอ (ต้องการ 100 แต้ม แต่คุณมี ${profile.points || 0} แต้ม)`)
+    const pixelsCost = parseInt(siteSettings?.points_cost_pixels || '100', 10)
+    if ((profile.points || 0) < pixelsCost) {
+      showToast(`❌ แต้มสะสมไม่เพียงพอ (ต้องการ ${pixelsCost} แต้ม แต่คุณมี ${profile.points || 0} แต้ม)`)
       setTopUpModalOpen(true)
       return
     }
@@ -1168,7 +1191,7 @@ export default function DashboardPage() {
     try {
       const { data, error } = await supabase.rpc('unlock_pixels_with_points', {
         target_user_id: user.id,
-        points_cost: 100
+        points_cost: pixelsCost
       })
 
       if (error) {
@@ -1177,7 +1200,7 @@ export default function DashboardPage() {
           ? new Date(profile.pixel_expires_at)
           : new Date()
         const newExp = new Date(currExp.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        const newPts = (profile.points || 0) - 100
+        const newPts = (profile.points || 0) - pixelsCost
 
         await supabase.from('profiles').update({
           points: newPts,
@@ -1656,7 +1679,13 @@ export default function DashboardPage() {
   // --- Redeem VIP Tiers with Points ---
   const handleRedeemTierWithPoints = async (tierType: 'pro' | 'master') => {
     if (!user) return
-    const cost = tierType === 'master' ? 599 : 299
+    const cost = tierType === 'master'
+      ? parseInt(siteSettings?.points_cost_master || '599', 10)
+      : parseInt(siteSettings?.points_cost_pro || '299', 10)
+    const durationDays = tierType === 'master'
+      ? parseInt(siteSettings?.duration_master_days || '30', 10)
+      : parseInt(siteSettings?.duration_pro_days || '30', 10)
+
     if ((profile.points || 0) < cost) {
       showToast(`❌ แต้มสะสมไม่เพียงพอ (ต้องการ ${cost} แต้ม แต่คุณมี ${profile.points || 0} แต้ม)`)
       return
@@ -1664,7 +1693,7 @@ export default function DashboardPage() {
 
     setRedeemingTier(tierType)
     try {
-      const newExp = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      const newExp = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString()
       const newPoints = (profile.points || 0) - cost
       const updateData: any = { points: newPoints }
       
@@ -1810,6 +1839,22 @@ export default function DashboardPage() {
   }
 
   const tier = getUserTier(profile)
+
+  // Dynamic pricing & points costs from SQL
+  const ptsPro = parseInt(siteSettings?.points_cost_pro || '299', 10)
+  const pricePro = parseInt(siteSettings?.price_pro_thb || '299', 10)
+  const durationPro = parseInt(siteSettings?.duration_pro_days || '30', 10)
+
+  const ptsMaster = parseInt(siteSettings?.points_cost_master || '599', 10)
+  const priceMaster = parseInt(siteSettings?.price_master_thb || '599', 10)
+  const durationMaster = parseInt(siteSettings?.duration_master_days || '30', 10)
+
+  const ptsCustomSalepage = parseInt(siteSettings?.points_cost_custom_salepage || '990', 10)
+  const ptsUploadIndex = parseInt(siteSettings?.points_cost_upload_index || '599', 10)
+  const ptsExtraSlot = parseInt(siteSettings?.points_cost_extra_landing_slot || '350', 10)
+  const ptsRenew = parseInt(siteSettings?.points_cost_renew_landing || '350', 10)
+  const ptsShortener = parseInt(siteSettings?.points_cost_shortener || '100', 10)
+  const ptsPixels = parseInt(siteSettings?.points_cost_pixels || '100', 10)
   const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://linktreethai.in.th'
   const publicProfileUrl = `${originUrl}/${profile.username}`
 
@@ -1969,60 +2014,287 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {/* Main Workspace Layout */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-36 sm:pb-16 w-full flex-1">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      {/* 3-ZONE DESKTOP SPLIT WORKSPACE & MODERN RESPONSIVE LAYOUT */}
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-28 lg:pb-12 w-full flex-1">
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
           
-          {/* Left Column: Mobile App Tabs & Content Editors */}
-          <div className="lg:col-span-7 space-y-6">
-            
-            {/* Desktop Segmented Navigation Tabs */}
-            <div className="hidden sm:flex bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 rounded-3xl shadow-sm overflow-x-auto gap-1">
-              {[
-                { id: 'links', label: 'ลิ้งก์', icon: Link2, count: links.length },
-                { id: 'shop', label: 'ร้านค้า', icon: ShoppingBag, count: products.length },
-                { id: 'landing_pages', label: 'เซลเพจยิงแอด', icon: Rocket, count: landingPages.length, locked: !isLandingActive },
-                { id: 'appearance', label: 'ข้อมูลโปรไฟล์', icon: Palette },
-                { id: 'shortener', label: 'ย่อลิงก์', icon: Scissors, count: shortLinks.length, locked: !isShortenerActive },
-                { id: 'leads', label: 'ลีด CRM', icon: Users, count: leads.length },
-                { id: 'services', label: 'บริการอื่นๆ', icon: LayoutTemplate },
-                { id: 'billing', label: 'แพ็กเกจ', icon: Crown }
-              ].map((tab) => {
-                const Icon = tab.icon
-                const isActive = activeTab === tab.id
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                  setActiveTab(tab.id as any)
-                  if (tab.id === 'landing_pages') {
-                    setPreviewMode('landing')
-                  } else if (tab.id === 'links' || tab.id === 'shop' || tab.id === 'appearance') {
-                    setPreviewMode('bio')
-                  }
-                }}
-                    className={`flex-1 py-2.5 px-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap ${
-                      isActive 
-                        ? 'bg-[#1E1B4B] dark:bg-purple-600 text-white shadow-md' 
-                        : 'text-slate-600 dark:text-slate-400 hover:text-[#1E1B4B] dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{tab.label}</span>
-                    {tab.locked && (
-                      <Lock className="w-3 h-3 text-amber-500" />
-                    )}
-                    {typeof tab.count === 'number' && (
+          {/* ZONE 1: LEFT SIDEBAR (240px Fixed, Categorized Collapsible Navigation on Desktop) */}
+          <aside className="w-[240px] shrink-0 hidden lg:block sticky top-20 self-start space-y-4">
+            <div className="bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 shadow-sm space-y-5">
+              
+              {/* Profile Card Header */}
+              <div className="p-3 bg-slate-50 dark:bg-slate-900/80 rounded-2xl flex items-center gap-2.5 border border-slate-100 dark:border-slate-800">
+                <img
+                  src={profile.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${profile.id || 'me'}`}
+                  alt="Avatar"
+                  className="w-10 h-10 rounded-full object-cover border border-purple-500/30 shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                    {profile.full_name || profile.username}
+                  </p>
+                  <p className="text-[10px] font-mono text-purple-600 dark:text-purple-400 truncate">
+                    @{profile.username}
+                  </p>
+                </div>
+              </div>
+
+              {/* Navigation Categories */}
+              <nav className="space-y-4 text-xs font-bold">
+                
+                {/* Category 1: Overview */}
+                <div>
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider px-2">
+                    1. ภาพรวม (Overview)
+                  </span>
+                  <div className="mt-1.5 space-y-0.5">
+                    <button
+                      onClick={() => {
+                        setActiveTab('appearance')
+                        setPreviewMode('bio')
+                      }}
+                      className={`w-full px-3 py-2 rounded-xl text-left flex items-center justify-between transition cursor-pointer ${
+                        activeTab === 'appearance'
+                          ? 'bg-purple-600 text-white shadow-sm font-black'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Palette className="w-4 h-4" />
+                        <span>ข้อมูลโปรไฟล์ & ธีม</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Category 2: Content & Shop */}
+                <div>
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider px-2">
+                    2. จัดการเนื้อหา & ร้านค้า
+                  </span>
+                  <div className="mt-1.5 space-y-0.5">
+                    <button
+                      onClick={() => {
+                        setActiveTab('links')
+                        setPreviewMode('bio')
+                      }}
+                      className={`w-full px-3 py-2 rounded-xl text-left flex items-center justify-between transition cursor-pointer ${
+                        activeTab === 'links'
+                          ? 'bg-purple-600 text-white shadow-sm font-black'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Link2 className="w-4 h-4" />
+                        <span>จัดการลิงก์</span>
+                      </div>
                       <span className={`text-[10px] px-2 py-0.2 rounded-full font-bold ${
-                        isActive ? 'bg-purple-400 text-[#1E1B4B]' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                        activeTab === 'links' ? 'bg-purple-400 text-[#1E1B4B]' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
                       }`}>
-                        {tab.count}
+                        {links.length}
                       </span>
-                    )}
-                  </button>
-                )
-              })}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setActiveTab('shop')
+                        setPreviewMode('bio')
+                      }}
+                      className={`w-full px-3 py-2 rounded-xl text-left flex items-center justify-between transition cursor-pointer ${
+                        activeTab === 'shop'
+                          ? 'bg-purple-600 text-white shadow-sm font-black'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <ShoppingBag className="w-4 h-4" />
+                        <span>ร้านค้า & สินค้า</span>
+                      </div>
+                      <span className={`text-[10px] px-2 py-0.2 rounded-full font-bold ${
+                        activeTab === 'shop' ? 'bg-purple-400 text-[#1E1B4B]' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                      }`}>
+                        {products.length}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Category 3: Marketing & Pixels */}
+                <div>
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider px-2">
+                    3. การตลาด & ยิงแอด
+                  </span>
+                  <div className="mt-1.5 space-y-0.5">
+                    <button
+                      onClick={() => {
+                        setActiveTab('landing_pages')
+                        setPreviewMode('landing')
+                      }}
+                      className={`w-full px-3 py-2 rounded-xl text-left flex items-center justify-between transition cursor-pointer ${
+                        activeTab === 'landing_pages'
+                          ? 'bg-rose-600 text-white shadow-sm font-black'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Rocket className="w-4 h-4" />
+                        <span>เซลเพจยิงแอด</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {!isLandingActive && <Lock className="w-3 h-3 text-amber-500" />}
+                        <span className={`text-[10px] px-2 py-0.2 rounded-full font-bold ${
+                          activeTab === 'landing_pages' ? 'bg-rose-400 text-slate-950' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                        }`}>
+                          {landingPages.length}
+                        </span>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveTab('shortener')}
+                      className={`w-full px-3 py-2 rounded-xl text-left flex items-center justify-between transition cursor-pointer ${
+                        activeTab === 'shortener'
+                          ? 'bg-purple-600 text-white shadow-sm font-black'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Scissors className="w-4 h-4" />
+                        <span>ระบบย่อลิงก์สั้น</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {!isShortenerActive && <Lock className="w-3 h-3 text-amber-500" />}
+                        <span className={`text-[10px] px-2 py-0.2 rounded-full font-bold ${
+                          activeTab === 'shortener' ? 'bg-purple-400 text-[#1E1B4B]' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                        }`}>
+                          {shortLinks.length}
+                        </span>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveTab('leads')}
+                      className={`w-full px-3 py-2 rounded-xl text-left flex items-center justify-between transition cursor-pointer ${
+                        activeTab === 'leads'
+                          ? 'bg-purple-600 text-white shadow-sm font-black'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4" />
+                        <span>ลีดลูกค้า & CRM</span>
+                      </div>
+                      <span className={`text-[10px] px-2 py-0.2 rounded-full font-bold ${
+                        activeTab === 'leads' ? 'bg-purple-400 text-[#1E1B4B]' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+                      }`}>
+                        {leads.length}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Category 4: Billing & Add-ons */}
+                <div>
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider px-2">
+                    4. บริการ & แพ็กเกจ
+                  </span>
+                  <div className="mt-1.5 space-y-0.5">
+                    <Link
+                      href="/uploadindex"
+                      className="w-full px-3 py-2 rounded-xl text-left flex items-center justify-between text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition"
+                    >
+                      <div className="flex items-center gap-2">
+                        <FileCode className="w-4 h-4" />
+                        <span>โฮสต์ Index.html</span>
+                      </div>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 font-black">
+                        PRO
+                      </span>
+                    </Link>
+
+                    <button
+                      onClick={() => setActiveTab('services')}
+                      className={`w-full px-3 py-2 rounded-xl text-left flex items-center justify-between transition cursor-pointer ${
+                        activeTab === 'services'
+                          ? 'bg-purple-600 text-white shadow-sm font-black'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <LayoutTemplate className="w-4 h-4" />
+                        <span>บริการเสริม</span>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveTab('billing')}
+                      className={`w-full px-3 py-2 rounded-xl text-left flex items-center justify-between transition cursor-pointer ${
+                        activeTab === 'billing'
+                          ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-sm font-black'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Crown className="w-4 h-4 text-amber-500" />
+                        <span>แพ็กเกจ & แต้ม</span>
+                      </div>
+                      <span className="text-[10px] font-mono font-black text-amber-600 dark:text-amber-400">
+                        {profile.points || 0}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+              </nav>
+
+              {/* Quick Top-up link in sidebar */}
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setTopUpModalOpen(true)}
+                  className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500/15 to-yellow-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-black flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                >
+                  <Coins className="w-4 h-4 text-amber-500" />
+                  <span>เติมแต้มสะสม PromptPay</span>
+                </button>
+              </div>
+
             </div>
+          </aside>
+
+          {/* Tablet Tab Bar (sm:flex lg:hidden to allow switching tabs on tablet) */}
+          <div className="w-full hidden sm:flex lg:hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1.5 rounded-2xl shadow-sm overflow-x-auto gap-1">
+            {[
+              { id: 'links', label: 'ลิ้งก์', icon: Link2 },
+              { id: 'shop', label: 'ร้านค้า', icon: ShoppingBag },
+              { id: 'landing_pages', label: 'เซลเพจ', icon: Rocket },
+              { id: 'appearance', label: 'โปรไฟล์', icon: Palette },
+              { id: 'shortener', label: 'ย่อลิงก์', icon: Scissors },
+              { id: 'leads', label: 'ลีด', icon: Users },
+              { id: 'services', label: 'บริการ', icon: LayoutTemplate },
+              { id: 'billing', label: 'แพ็กเกจ', icon: Crown }
+            ].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => {
+                  setActiveTab(t.id as any)
+                  if (t.id === 'landing_pages') setPreviewMode('landing')
+                  else if (t.id === 'links' || t.id === 'shop' || t.id === 'appearance') setPreviewMode('bio')
+                }}
+                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap transition ${
+                  activeTab === t.id
+                    ? 'bg-purple-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <t.icon className="w-3.5 h-3.5" />
+                <span>{t.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* ZONE 2: CENTER WORKSPACE (Expands dynamically according to screen) */}
+          <main className="flex-1 min-w-0 space-y-6 w-full">
 
             {/* TAB 1: LINKS MANAGEMENT */}
             {activeTab === 'links' && (
@@ -2225,52 +2497,84 @@ export default function DashboardPage() {
                   </h4>
 
                   {links.length === 0 ? (
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 text-center text-slate-500 text-xs shadow-sm">
+                    <div className="bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-800 rounded-3xl p-8 text-center text-slate-500 text-xs shadow-sm">
                       ยังไม่มีลิ้งก์ที่สร้างไว้ เริ่มต้นเพิ่มลิ้งก์แรกของคุณด้านบนได้เลย! 🚀
                     </div>
                   ) : (
                     links.map((link) => (
                       <div
                         key={link.id}
-                        className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-4 flex items-center justify-between gap-3 shadow-sm hover:shadow-md transition"
+                        className="bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 shadow-sm hover:shadow-md transition space-y-3"
                       >
-                        <div className="flex items-center gap-3.5 flex-1 min-w-0">
-                          <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-inner">
-                            {link.logo_url ? (
-                              <img 
-                                src={link.logo_url} 
-                                alt={link.title} 
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40">
-                                <SocialIcon type={link.icon || 'website'} className="w-5 h-5" />
+                        {/* TOP ROW: Logo/Icon + Full Title + Subtitle + URL + Status Switch */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            {/* Brand / Social Icon */}
+                            <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                              {link.logo_url ? (
+                                <img 
+                                  src={link.logo_url} 
+                                  alt={link.title} 
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40">
+                                  <SocialIcon type={link.icon || 'website'} className="w-6 h-6" />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Text Info: Full Title with ample width */}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base leading-snug break-words">
+                                  {link.title}
+                                </h4>
+                                <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 font-bold flex items-center gap-1 shrink-0">
+                                  👆 {link.clicks || 0} คลิก
+                                </span>
                               </div>
-                            )}
+
+                              {link.subtitle && (
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                                  {link.subtitle}
+                                </p>
+                              )}
+
+                              <p className="text-xs text-purple-600 dark:text-purple-400 font-mono mt-1 truncate hover:underline">
+                                <a href={link.url} target="_blank" rel="noreferrer" className="flex items-center gap-1">
+                                  <span className="truncate">{link.url}</span>
+                                  <ExternalLink className="w-3 h-3 shrink-0 opacity-60" />
+                                </a>
+                              </p>
+                            </div>
                           </div>
 
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-bold text-[#1E1B4B] dark:text-white text-xs truncate">{link.title}</h4>
-                              <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 font-bold flex items-center gap-1 shrink-0">
-                                👆 {link.clicks || 0} คลิก
-                              </span>
-                            </div>
-                            {link.subtitle && (
-                              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{link.subtitle}</p>
-                            )}
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate font-mono mt-0.5">{link.url}</p>
-                          </div>
+                          {/* Status Toggle on Top Right */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleLinkActive(link.id, link.is_active)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition shrink-0 cursor-pointer active:scale-95 ${
+                              link.is_active 
+                                ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
+                            }`}
+                            title="คลิกเพื่อเปิด/ปิดการแสดงผล"
+                          >
+                            {link.is_active ? '🟢 เปิดอยู่' : '⏸️ ปิด'}
+                          </button>
                         </div>
 
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          {/* Move Up / Move Down Reorder Buttons */}
-                          <div className="flex flex-col gap-1 mr-1">
+                        {/* BOTTOM ROW: Dedicated Mobile Action Toolbar (Never Colliding with Title) */}
+                        <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2 flex-wrap">
+                          {/* Reorder Arrows with Label */}
+                          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800">
+                            <span className="text-[10px] text-slate-400 font-bold mr-1">ลำดับ</span>
                             <button
                               type="button"
                               onClick={() => handleMoveLink(links.indexOf(link), 'up')}
                               disabled={links.indexOf(link) === 0}
-                              className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-purple-100 dark:hover:bg-purple-900 text-xs font-black flex items-center justify-center disabled:opacity-30"
+                              className="w-7 h-7 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-purple-100 dark:hover:bg-purple-900 text-xs font-black flex items-center justify-center disabled:opacity-30 active:scale-95 shadow-xs cursor-pointer"
                               title="เลื่อนขึ้น"
                             >
                               ▲
@@ -2279,53 +2583,48 @@ export default function DashboardPage() {
                               type="button"
                               onClick={() => handleMoveLink(links.indexOf(link), 'down')}
                               disabled={links.indexOf(link) === links.length - 1}
-                              className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-purple-100 dark:hover:bg-purple-900 text-xs font-black flex items-center justify-center disabled:opacity-30"
+                              className="w-7 h-7 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-purple-100 dark:hover:bg-purple-900 text-xs font-black flex items-center justify-center disabled:opacity-30 active:scale-95 shadow-xs cursor-pointer"
                               title="เลื่อนลง"
                             >
                               ▼
                             </button>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setQrTargetUrl(link.url)
-                              setQrModalOpen(true)
-                            }}
-                            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition cursor-pointer"
-                            title="QR Code & แชร์ลิ้งก์"
-                          >
-                            <QrCode className="w-4 h-4" />
-                          </button>
+                          {/* Action Buttons: QR Code, Edit, Delete */}
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setQrTargetUrl(link.url)
+                                setQrModalOpen(true)
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs"
+                              title="QR Code & แชร์ลิ้งก์"
+                            >
+                              <QrCode className="w-3.5 h-3.5" />
+                              <span className="text-xs">QR Code</span>
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() => handleEditLink(link)}
-                            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition cursor-pointer"
-                            title="แก้ไขข้อมูลลิ้งก์"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => handleEditLink(link)}
+                              className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs"
+                              title="แก้ไขข้อมูลลิ้งก์"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                              <span className="text-xs">แก้ไข</span>
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() => handleToggleLinkActive(link.id, link.is_active)}
-                            className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition ${
-                              link.is_active 
-                                ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
-                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                            }`}
-                          >
-                            {link.is_active ? 'เปิดอยู่' : 'ปิด'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteLink(link.id)}
-                            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition"
-                            title="ลบลิ้งก์"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteLink(link.id)}
+                              className="px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-xs"
+                              title="ลบลิ้งก์"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span className="text-xs">ลบ</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))
@@ -3468,7 +3767,15 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Link
+                        href="/uploadindex"
+                        className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 transition shadow-sm active:scale-95"
+                        title="อัปโหลดไฟล์ index.html ส่วนตัว (Master Pro)"
+                      >
+                        <FileCode className="w-3.5 h-3.5" />
+                        <span>อัปโหลด index.html (599 แต้ม)</span>
+                      </Link>
                       <span className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full font-mono">
                         โควตา: {landingPages.length}/{profile.role === 'admin' ? 'ไม่จำกัด (Admin)' : `${totalLandingSlots} เซลเพจ`}
                       </span>
@@ -4789,9 +5096,9 @@ export default function DashboardPage() {
                           onClick={() => {
                             setConfirmRedeemModal({
                               isOpen: true,
-                              title: 'อัปเกรดเป็น MASTER VIP (599 แต้ม)',
+                              title: `อัปเกรดเป็น MASTER VIP (${ptsMaster} แต้ม)`,
                               desc: 'ปลดล็อกระบบแจ้งเตือนเข้า LINE Real-time, 9 เทมเพลต, เซลเพจยิงแอด, และ Tracking Pixels',
-                              cost: 599,
+                              cost: ptsMaster,
                               onConfirm: () => handleRedeemTierWithPoints('master')
                             })
                           }}
@@ -5132,176 +5439,329 @@ export default function DashboardPage() {
             {/* TAB 8: BILLING & PACKAGES */}
             {activeTab === 'billing' && (
               <div className="space-y-6">
-              {/* TOP UP POINTS PROMINENT BANNER */}
-              <div className="p-6 bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 rounded-3xl text-slate-950 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="space-y-1 text-center sm:text-left">
-                  <div className="flex items-center justify-center sm:justify-start gap-2">
-                    <span className="p-2 rounded-xl bg-black/15 font-black text-xs">🪙 ระบบเติมแต้มสะสม</span>
-                    <span className="font-bold text-xs bg-white px-2 py-0.5 rounded-full">PromptPay QR</span>
+                {/* 1. TOP UP POINTS PROMINENT BANNER (Clean, High-Tech, Professional) */}
+                <div className="p-6 sm:p-7 bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 rounded-3xl text-slate-950 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-5 relative overflow-hidden">
+                  <div className="space-y-2.5 max-w-xl">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-3 py-1 rounded-xl bg-black/15 font-black text-xs flex items-center gap-1.5">
+                        <Coins className="w-3.5 h-3.5 text-amber-950" />
+                        <span>ระบบเติมแต้มสะสม</span>
+                      </span>
+                      <span className="font-extrabold text-xs bg-white px-2.5 py-0.5 rounded-full shadow-xs">
+                        PromptPay EMVCo QR
+                      </span>
+                    </div>
+
+                    <h3 className="text-xl sm:text-2xl font-black tracking-tight leading-tight">
+                      เติมแต้มสะสมเพื่อปลดล็อกฟังก์ชัน VIP ทันที
+                    </h3>
+
+                    {/* Clean Rate Chips instead of cramped text */}
+                    <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-bold text-slate-900">
+                      <span className="px-2.5 py-1 rounded-xl bg-black/10 border border-black/10">100 บ. = 100 แต้ม</span>
+                      <span className="px-2.5 py-1 rounded-xl bg-black/10 border border-black/10">{pricePro} บ. = {ptsPro} แต้ม (PRO)</span>
+                      <span className="px-2.5 py-1 rounded-xl bg-black/10 border border-black/10">{priceMaster} บ. = {ptsMaster} แต้ม (MASTER)</span>
+                      <span className="px-2.5 py-1 rounded-xl bg-black/10 border border-black/10">{ptsCustomSalepage} บ. = {ptsCustomSalepage} แต้ม (AI)</span>
+                    </div>
                   </div>
-                  <h3 className="text-xl sm:text-2xl font-black">เติมแต้มสะสมเพื่อปลดล็อกฟังก์ชัน VIP ทันที</h3>
-                  <p className="text-xs opacity-90">100 แต้ม = 100 บ. | 300 แต้ม = 299 บ. (PRO VIP) | 600 แต้ม = 599 บ. (MASTER VIP) | 990 แต้ม = 990 บ. (AI Vision Salepage)</p>
+
+                  <button
+                    type="button"
+                    onClick={() => setTopUpModalOpen(true)}
+                    className="px-6 py-4 bg-slate-950 hover:bg-slate-900 text-amber-400 font-black rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-2xl transition active:scale-95 shrink-0 cursor-pointer"
+                  >
+                    <Coins className="w-5 h-5 text-amber-400 animate-pulse" />
+                    <span>💳 เติมแต้มสะสม (PromptPay)</span>
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setTopUpModalOpen(true)}
-                  className="px-6 py-3.5 bg-slate-950 hover:bg-slate-900 text-amber-400 font-black rounded-2xl text-xs sm:text-sm flex items-center gap-2 shadow-2xl transition active:scale-95 flex-shrink-0"
-                >
-                  <Coins className="w-5 h-5 text-amber-400" />
-                  <span>💳 เติมแต้มสะสม (PromptPay)</span>
-                </button>
-              </div>
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 p-6 rounded-3xl shadow-sm space-y-5">
-                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-                    <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 flex items-center justify-center font-bold">
-                      <Crown className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h3 className="font-extrabold text-base text-[#1E1B4B] dark:text-white">แพ็กเกจการใช้งาน & เหรียญสะสม</h3>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">อัปเกรดเพื่อปลดล็อกฟังก์ชันขั้นสูงและเทมเพลตระดับพรีเมียม</p>
+                {/* 2. MAIN PACKAGES DASHBOARD CARD */}
+                <div className="bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-800 p-6 sm:p-7 rounded-3xl shadow-sm space-y-6">
+                  {/* Header */}
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+                        <Crown className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-base sm:text-lg text-slate-900 dark:text-white">
+                          แพ็กเกจการใช้งาน & เหรียญสะสม
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                          เลือกแพ็กเกจที่เหมาะสมกับธุรกิจคุณ เพื่อปลดล็อกฟังก์ชันและเทมเพลตระดับมืออาชีพ
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Current Plan Summary Card */}
-                  <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">แพ็กเกจปัจจุบันของคุณ</span>
-                      <h4 className="text-lg font-black text-[#1E1B4B] dark:text-white mt-0.5 flex items-center gap-2">
-                        {tier.name}
-                        <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-700">
-                          Active
+                  {/* Account Plan & Points Summary Bar */}
+                  <div className="p-5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider block">
+                        แพ็กเกจปัจจุบันของคุณ
+                      </span>
+                      <div className="flex items-center gap-2.5">
+                        <h4 className="text-xl font-black text-slate-900 dark:text-white">
+                          {tier.name}
+                        </h4>
+                        <span className="text-xs font-black text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-500/30">
+                          🟢 ใช้งานอยู่ (Active)
                         </span>
-                      </h4>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 justify-between sm:justify-end">
-                      <div className="text-right">
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">แต้มสะสม</span>
-                        <p className="text-lg font-black text-amber-700 dark:text-amber-400 flex items-center gap-1 justify-end mt-0.5 font-mono">
-                          <Coins className="w-4 h-4 text-amber-500" /> {profile.points || 0}
+
+                    <div className="flex items-center gap-4 justify-between sm:justify-end">
+                      <div className="text-left sm:text-right">
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 font-bold block">
+                          แต้มสะสมคงเหลือ
+                        </span>
+                        <p className="text-xl font-black text-amber-600 dark:text-amber-400 font-mono flex items-center sm:justify-end gap-1.5 mt-0.5">
+                          <Coins className="w-4 h-4 text-amber-500 animate-pulse" /> {(profile.points || 0).toLocaleString()} <span className="text-xs font-normal text-slate-500">แต้ม</span>
                         </p>
                       </div>
+
                       <button
+                        type="button"
                         onClick={() => setPointsDetailModalOpen(true)}
-                        className="px-4 py-2 bg-amber-100 dark:bg-amber-950/60 hover:bg-amber-200 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 font-bold rounded-xl text-xs flex items-center gap-1 transition shadow-sm"
+                        className="px-4 py-2.5 bg-amber-100 dark:bg-amber-950/60 hover:bg-amber-200 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 font-bold rounded-xl text-xs flex items-center gap-1.5 transition active:scale-95 shadow-sm cursor-pointer"
                       >
-                        <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> ดูสถานะ & สิทธิ์
+                        <Sparkles className="w-4 h-4 text-amber-500" />
+                        <span>ดูสิทธิ์ & ประวัติแต้ม</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Package Cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-                    <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl space-y-3">
-                      <h4 className="font-bold text-sm text-[#1E1B4B] dark:text-white">Free Plan</h4>
-                      <div className="text-2xl font-black text-[#1E1B4B] dark:text-white">ฟรีตลอดชีพ</div>
-                      <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-1.5">
-                        <li>✓ เพิ่มลิงก์ได้ไม่จำกัด (Unlimited)</li>
-                        <li>✓ สูงสุด 2 สินค้า</li>
-                        <li>✓ 3 เทมเพลตเริ่มต้น</li>
-                        <li>✓ QR Code แชร์โปรไฟล์</li>
-                      </ul>
-                    </div>
-
-                    <div className="bg-purple-50/60 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 p-5 rounded-3xl space-y-3 relative overflow-hidden flex flex-col justify-between shadow-sm">
-                      <div className="space-y-3">
-                        <div className="text-[9px] font-extrabold bg-purple-500 text-white px-2.5 py-0.5 rounded-full w-fit">
-                          POPULAR
+                  {/* 3. PACKAGES CARDS: 2-COLUMN LUXURY GRID (NO SQUEEZING!) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-2">
+                    
+                    {/* Card 1: Free Plan */}
+                    <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl space-y-5 flex flex-col justify-between shadow-sm">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="px-3 py-1 rounded-full text-[10px] font-black bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                            BASIC PLAN
+                          </span>
+                          <span className="text-xs font-bold text-slate-400">เริ่มต้นฟรี</span>
                         </div>
-                        <h4 className="font-bold text-sm text-purple-900 dark:text-purple-300">PRO VIP</h4>
-                        <div className="text-2xl font-black text-[#1E1B4B] dark:text-white">฿299 <span className="text-xs font-normal text-slate-500">/ 30 วัน (299 แต้ม)</span></div>
-                        <ul className="text-xs text-slate-700 dark:text-slate-300 space-y-1.5">
-                          <li>✓ เพิ่มลิงก์ได้ไม่จำกัด (Unlimited)</li>
-                          <li>✓ สูงสุด 10 สินค้า</li>
-                          <li>✓ 6 เทมเพลตยอดนิยม (Template 1-6)</li>
-                          <li>✓ ซ่อนลายน้ำแบรนด์ LinkTreeThai ได้</li>
-                          <li>✓ QR Code และสถิติคนเข้าชม</li>
+
+                        <div>
+                          <h4 className="font-black text-base text-slate-900 dark:text-white">Free Plan</h4>
+                          <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
+                            ฟรีตลอดชีพ
+                          </div>
+                        </div>
+
+                        <ul className="text-xs text-slate-600 dark:text-slate-300 space-y-2.5 pt-3 border-t border-slate-200 dark:border-slate-800 font-medium">
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                            <span>เพิ่มลิงก์โซเชียลได้ไม่จำกัด (Unlimited)</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                            <span>วางขายสินค้าในร้านค้าได้ 2 ชิ้น (0% GP)</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                            <span>3 เทมเพลตมาตรฐานสไตล์เรียบง่าย</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                            <span>QR Code สำหรับแชร์โปรไฟล์ทันที</span>
+                          </li>
                         </ul>
                       </div>
+
+                      <div className="w-full py-3 bg-slate-200/80 dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-bold rounded-2xl text-xs text-center border border-slate-200 dark:border-slate-800">
+                        ✓ แผนเริ่มต้นของสมาชิกทุกคน
+                      </div>
+                    </div>
+
+                    {/* Card 2: PRO VIP Plan */}
+                    <div className="bg-gradient-to-br from-purple-500/10 via-purple-950/5 to-slate-950 border-2 border-purple-500/40 p-6 rounded-3xl space-y-5 relative overflow-hidden flex flex-col justify-between shadow-md hover:border-purple-400 transition">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="px-3 py-1 rounded-full text-[10px] font-black bg-purple-600 text-white shadow-sm">
+                            🔥 POPULAR
+                          </span>
+                          <span className="text-xs font-bold text-purple-400">{durationPro} วัน</span>
+                        </div>
+
+                        <div>
+                          <h4 className="font-black text-base text-purple-900 dark:text-purple-200">PRO VIP</h4>
+                          <div className="text-2xl font-black text-purple-950 dark:text-white mt-1">
+                            ฿{pricePro} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">/ {durationPro} วัน ({ptsPro} แต้ม)</span>
+                          </div>
+                        </div>
+
+                        <ul className="text-xs text-slate-700 dark:text-slate-200 space-y-2.5 pt-3 border-t border-purple-200/60 dark:border-purple-900/60 font-medium">
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-purple-500 shrink-0" />
+                            <span>เพิ่มลิงก์ได้ไม่จำกัด & วางขาย 10 สินค้า</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-purple-500 shrink-0" />
+                            <span>6 เทมเพลตยอดนิยม (รวมสไตล์ Bento Grid)</span>
+                          </li>
+                          <li className="flex items-center gap-2 font-bold text-purple-900 dark:text-purple-100">
+                            <Check className="w-4 h-4 text-purple-500 shrink-0" />
+                            <span>ซ่อนลายน้ำแบรนด์ LinkTreeThai ได้ 100%</span>
+                          </li>
+                          <li className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold">
+                            <Check className="w-4 h-4 text-amber-500 shrink-0" />
+                            <span>สิทธิ์เข้าใช้งานโฮสต์ index.html (/uploadindex)</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-purple-500 shrink-0" />
+                            <span>QR Code ดาวน์โหลด & นับสถิติคนเข้าชม</span>
+                          </li>
+                        </ul>
+                      </div>
+
                       <button
+                        type="button"
                         onClick={() => {
                           setConfirmRedeemModal({
                             isOpen: true,
-                            title: 'ยืนยันการแลกสิทธิ์ PRO VIP (30 วัน)',
+                            title: `ยืนยันการแลกสิทธิ์ PRO VIP (${durationPro} วัน)`,
                             desc: 'ปลดล็อก 6 เทมเพลตยอดนิยม, เพิ่ม 10 สินค้า, และซ่อนลายน้ำแบรนด์',
-                            cost: 299,
+                            cost: ptsPro,
                             onConfirm: () => handleRedeemTierWithPoints('pro')
                           })
                         }}
-                        disabled={redeemingTier === 'pro' || (profile.points || 0) < 299}
-                        className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-xl text-xs transition disabled:opacity-40 shadow-md shadow-purple-500/20 active:scale-95 cursor-pointer"
+                        disabled={redeemingTier === 'pro' || (profile.points || 0) < ptsPro}
+                        className="w-full py-3.5 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-purple-600/25 active:scale-95 disabled:opacity-40 cursor-pointer flex items-center justify-center gap-2"
                       >
-                        {redeemingTier === 'pro' ? 'กำลังแลก...' : '💎 แลก PRO VIP (299 แต้ม)'}
+                        {redeemingTier === 'pro' ? 'กำลังแลก...' : `💎 แลก PRO VIP (${ptsPro} แต้ม)`}
                       </button>
                     </div>
 
-                    <div className="bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-5 rounded-3xl space-y-3 flex flex-col justify-between shadow-sm">
-                      <div className="space-y-3">
-                        <div className="text-[9px] font-extrabold bg-amber-500 text-white px-2.5 py-0.5 rounded-full w-fit">
-                          ULTIMATE
+                    {/* Card 3: MASTER VIP Plan (Featured Gold Luxury) */}
+                    <div className="bg-gradient-to-br from-amber-500/15 via-yellow-500/5 to-purple-950/20 border-2 border-amber-500/60 p-6 rounded-3xl space-y-5 flex flex-col justify-between shadow-xl relative overflow-hidden hover:border-amber-400 transition">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="px-3 py-1 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-sm">
+                            👑 BEST VALUE • สูงสุด
+                          </span>
+                          <span className="text-xs font-bold text-amber-400">{durationMaster} วัน</span>
                         </div>
-                        <h4 className="font-bold text-sm text-amber-900 dark:text-amber-300">MASTER VIP</h4>
-                        <div className="text-2xl font-black text-[#1E1B4B] dark:text-white">฿599 <span className="text-xs font-normal text-slate-500">/ 30 วัน (599 แต้ม)</span></div>
-                        <ul className="text-xs text-slate-700 dark:text-slate-300 space-y-1.5">
-                          <li>✓ เพิ่มลิงก์ได้ไม่จำกัด (Unlimited)</li>
-                          <li>✓ สินค้าไม่จำกัด (50+ รายการ)</li>
-                          <li>✓ ครบทั้ง 9 เทมเพลตระดับสูงสุด (รวม Template 7, 8, 9)</li>
-                          <li>✓ ฟรี! เซลเพจยิงแอด COD 1 URL ทันที</li>
-                          <li>✓ ปลดล็อกระบบย่อลิงก์สั้นไม่จำกัด</li>
-                          <li>✓ ระบบฝัง Tracking Pixels (FB/TikTok/Google/Line)</li>
+
+                        <div>
+                          <h4 className="font-black text-base text-amber-950 dark:text-amber-200">MASTER VIP</h4>
+                          <div className="text-2xl font-black text-amber-950 dark:text-white mt-1">
+                            ฿{priceMaster} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">/ {durationMaster} วัน ({ptsMaster} แต้ม)</span>
+                          </div>
+                        </div>
+
+                        <ul className="text-xs text-slate-700 dark:text-slate-200 space-y-2 pt-3 border-t border-amber-200/60 dark:border-amber-900/60 font-medium">
+                          <li className="flex items-center gap-2 font-bold text-amber-900 dark:text-amber-300">
+                            <Check className="w-4 h-4 text-amber-500 shrink-0" />
+                            <span>ครบทั้ง 9 เทมเพลตระดับสูงสุด (Royale, Luxury)</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                            <span>สินค้าไม่จำกัด (0% GP) & ลบลายน้ำแบรนด์</span>
+                          </li>
+                          <li className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold">
+                            <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                            <span>ฟรี! เซลเพจยิงแอด Flash Sale 1 URL ทันที</span>
+                          </li>
+                          <li className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold">
+                            <Check className="w-4 h-4 text-amber-500 shrink-0" />
+                            <span>สิทธิ์เต็ม Upload Index.html โฮสต์หน้า /u/[slug]</span>
+                          </li>
+                          <li className="flex items-center gap-2 text-[#06C755] font-bold">
+                            <Check className="w-4 h-4 text-[#06C755] shrink-0" />
+                            <span>แจ้งเตือนออเดอร์ & สลิปเข้า LINE OA ทันที</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-amber-500 shrink-0" />
+                            <span>Multi-Pixel & Meta CAPI ยิงแอด Conversion</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-amber-500 shrink-0" />
+                            <span>ปลดล็อกระบบย่อลิงก์สั้น Shortlinks ไม่จำกัด</span>
+                          </li>
                         </ul>
                       </div>
+
                       <button
+                        type="button"
                         onClick={() => {
                           setConfirmRedeemModal({
                             isOpen: true,
-                            title: 'ยืนยันการแลกสิทธิ์ MASTER VIP (30 วัน)',
+                            title: `ยืนยันการแลกสิทธิ์ MASTER VIP (${durationMaster} วัน)`,
                             desc: 'ปลดล็อกครบทุกฟังก์ชันสูงสุด: 9 เทมเพลต, เซลเพจยิงแอด COD, ย่อลิงก์, และ Tracking Pixels',
-                            cost: 599,
+                            cost: ptsMaster,
                             onConfirm: () => handleRedeemTierWithPoints('master')
                           })
                         }}
-                        disabled={redeemingTier === 'master' || (profile.points || 0) < 599}
-                        className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 text-slate-950 font-black rounded-xl text-xs transition disabled:opacity-40 shadow-md shadow-amber-500/20 active:scale-95 cursor-pointer"
+                        disabled={redeemingTier === 'master' || (profile.points || 0) < ptsMaster}
+                        className="w-full py-3.5 bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 text-slate-950 font-black rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-amber-500/25 active:scale-95 disabled:opacity-40 cursor-pointer flex items-center justify-center gap-2"
                       >
-                        {redeemingTier === 'master' ? 'กำลังแลก...' : '👑 แลก MASTER VIP (599 แต้ม)'}
+                        {redeemingTier === 'master' ? 'กำลังแลก...' : `👑 แลก MASTER VIP (${ptsMaster} แต้ม)`}
                       </button>
                     </div>
 
-                    {/* AI Vision & Custom Salepage Card */}
-                    <div className="bg-gradient-to-br from-amber-500/15 via-orange-500/10 to-purple-500/15 border-2 border-amber-500/50 dark:border-amber-500/40 p-5 rounded-3xl space-y-3 relative overflow-hidden flex flex-col justify-between shadow-md">
-                      <div className="space-y-3">
-                        <div className="text-[9px] font-black bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 px-2.5 py-0.5 rounded-full w-fit shadow-xs flex items-center gap-1">
-                          <Sparkles className="w-3 h-3" />
-                          <span>AI VISION • ยิงแอด</span>
+                    {/* Card 4: Custom Salepage + AI Card */}
+                    <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/10 to-indigo-950/20 border-2 border-orange-500/40 p-6 rounded-3xl space-y-5 relative overflow-hidden flex flex-col justify-between shadow-lg hover:border-orange-400 transition">
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="px-3 py-1 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-xs flex items-center gap-1">
+                            <Sparkles className="w-3 h-3" />
+                            <span>AI VISION • ปิดการขาย</span>
+                          </span>
+                          <span className="text-xs font-bold text-orange-400">+1 โควตา</span>
                         </div>
-                        <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Custom Salepage + AI</h4>
-                        <div className="text-2xl font-black text-amber-600 dark:text-amber-400">990 แต้ม <span className="text-xs font-normal text-slate-500">/ 1 เซลเพจ (+1 โควตา)</span></div>
-                        <ul className="text-xs text-slate-700 dark:text-slate-300 space-y-1.5 font-medium">
-                          <li>✓ สร้างเซลเพจ 13 บล็อก สไตล์ Mobile App</li>
-                          <li>✓ สแกน & วิเคราะห์ภาพสินค้าด้วย AI Vision</li>
-                          <li>✓ เขียนพาดหัว รีวิว 5 ดาว และจัดเซ็ตราคาอัตโนมัติ</li>
-                          <li>✓ PromptPay Dynamic QR + ปลายทาง COD</li>
-                          <li>✓ Multi-Pixel (Meta CAPI, TikTok, Google, Line)</li>
-                          <li>✓ เพิ่มโควตาเซลเพจ +1 ช่อง/URL ทันที</li>
+
+                        <div>
+                          <h4 className="font-black text-base text-slate-900 dark:text-white">Custom Salepage + AI</h4>
+                          <div className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">
+                            {ptsCustomSalepage} แต้ม <span className="text-xs font-normal text-slate-500 dark:text-slate-400">/ 1 เซลเพจ (+1 โควตา)</span>
+                          </div>
+                        </div>
+
+                        <ul className="text-xs text-slate-700 dark:text-slate-200 space-y-2.5 pt-3 border-t border-amber-200/60 dark:border-amber-900/60 font-medium">
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-orange-500 shrink-0" />
+                            <span>สร้างเซลเพจ 13 บล็อก สไตล์ Mobile App หรูหรา</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-orange-500 shrink-0" />
+                            <span>สแกน & วิเคราะห์ภาพสินค้าด้วย AI Vision</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-orange-500 shrink-0" />
+                            <span>เขียนพาดหัว รีวิว 5 ดาว และจัดเซ็ตราคาอัตโนมัติ</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                            <span>PromptPay Dynamic QR + ปลายทาง COD</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check className="w-4 h-4 text-orange-500 shrink-0" />
+                            <span>เพิ่มโควตาเซลเพจ +1 ช่อง/URL ทันที</span>
+                          </li>
                         </ul>
                       </div>
+
                       <Link
                         href="/custom-salepage"
-                        className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 text-slate-950 font-black rounded-xl text-xs transition shadow-md shadow-amber-500/20 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                        className="w-full py-3.5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 text-slate-950 font-black rounded-2xl text-xs sm:text-sm transition shadow-lg shadow-amber-500/20 active:scale-95 flex items-center justify-center gap-2 cursor-pointer text-center"
                       >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>สร้างเซลเพจด้วย AI (990 แต้ม)</span>
+                        <Sparkles className="w-4 h-4" />
+                        <span>สร้างเซลเพจด้วย AI ({ptsCustomSalepage} แต้ม)</span>
                       </Link>
                     </div>
+
                   </div>
                 </div>
               </div>
             )}
-          </div>
 
-          {/* Right Column: Live Smartphone Preview */}
-          <div className="hidden lg:block lg:col-span-5 sticky top-20 space-y-3">
+          </main>
+
+          {/* ZONE 3: RIGHT LIVE PREVIEW (360px Fixed Sticky Device Frame on xl+ screens) */}
+          <aside className="w-[360px] shrink-0 hidden xl:block sticky top-20 self-start space-y-3">
             
             {/* Mode Switcher Tabs (Bio Link vs เซลเพจยิงแอด) */}
             <div className="w-full max-w-[340px] mx-auto flex bg-slate-200 dark:bg-slate-800 p-1 rounded-2xl shadow-sm text-xs font-bold">
@@ -5392,66 +5852,202 @@ export default function DashboardPage() {
               </div>
             </div>
 
-          </div>
+          </aside>
 
         </div>
       </div>
 
-      {/* FLOATING ELEVATED MOBILE BOTTOM NAVBAR (Exact match to Reference Image 11) */}
-      <div className="sm:hidden fixed bottom-3 left-3 right-3 z-40">
-        <div className="bg-white/95 dark:bg-[#1E293B]/95 border border-slate-200 dark:border-slate-700/80 rounded-[32px] shadow-2xl backdrop-blur-2xl px-1.5 py-2 flex items-center justify-around relative">
+      {/* STANDARDIZED 5-ITEM MOBILE BOTTOM DOCK (Clean, High-Usability) */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#0F172A]/95 border-t border-slate-200 dark:border-slate-800 px-2 py-2 pb-safe backdrop-blur-xl shadow-2xl">
+        <div className="flex items-center justify-around">
           {[
             { id: 'links', label: 'ลิ้งก์', icon: Link2 },
             { id: 'shop', label: 'ร้านค้า', icon: ShoppingBag },
-            { id: 'landing_pages', label: 'เซลเพจ', icon: Rocket, locked: !isLandingActive },
-            { id: 'appearance', label: 'โปรไฟล์', icon: Palette },
-            { id: 'shortener', label: 'ย่อลิงก์', icon: Scissors, locked: !isShortenerActive },
-            { id: 'leads', label: 'ลีด', icon: Users },
-            { id: 'services', label: 'บริการ', icon: LayoutTemplate },
-            { id: 'billing', label: 'แพ็กเกจ', icon: Crown }
+            { id: 'landing_pages', label: 'เซลเพจ', icon: Rocket },
+            { id: 'billing', label: 'แพ็กเกจ', icon: Crown },
           ].map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => {
                   setActiveTab(tab.id as any)
-                  if (tab.id === 'landing_pages') {
-                    setPreviewMode('landing')
-                  } else if (tab.id === 'links' || tab.id === 'shop' || tab.id === 'appearance') {
-                    setPreviewMode('bio')
-                  }
+                  if (tab.id === 'landing_pages') setPreviewMode('landing')
+                  else setPreviewMode('bio')
                 }}
-                className="flex-1 flex flex-col items-center justify-center relative py-1 focus:outline-none transition-all"
+                className={`flex-1 flex flex-col items-center justify-center py-1 rounded-xl transition cursor-pointer min-h-[44px] ${
+                  isActive
+                    ? 'text-purple-600 dark:text-purple-400 font-black'
+                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-semibold'
+                }`}
               >
-                {isActive ? (
-                  /* Elevated Floating Active Circle (Exact Reference Style) */
-                  <div className="flex flex-col items-center">
-                    <div className="w-12 h-12 rounded-full bg-[#1E1B4B] dark:bg-gradient-to-tr dark:from-purple-600 dark:to-indigo-500 text-white shadow-xl shadow-purple-900/30 flex items-center justify-center -translate-y-5 border-4 border-[#F9F9FF] dark:border-[#0B0F17] transition-all animate-in zoom-in-95 duration-200">
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <span className="text-[10px] font-black text-[#1E1B4B] dark:text-white -mt-3.5">
-                      {tab.label}
-                    </span>
-                  </div>
-                ) : (
-                  /* Inactive Regular Tab Item */
-                  <div className="flex flex-col items-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300">
-                    <Icon className="w-5 h-5" />
-                    <span className="text-[10px] font-semibold mt-1">
-                      {tab.label}
-                    </span>
-                    {tab.locked && (
-                      <Lock className="w-2.5 h-2.5 text-amber-500 absolute top-0.5 right-2" />
-                    )}
-                  </div>
-                )}
+                <Icon className={`w-5 h-5 ${isActive ? 'scale-110 text-purple-600 dark:text-purple-400' : ''} transition-transform`} />
+                <span className="text-[10px] mt-1">{tab.label}</span>
               </button>
             )
           })}
+
+          {/* 5th Button: More Drawer (เปิด Bottom Sheet สำหรับฟังก์ชันย่อย) */}
+          <button
+            type="button"
+            onClick={() => setMobileDrawerOpen(true)}
+            className="flex-1 flex flex-col items-center justify-center py-1 rounded-xl text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-semibold cursor-pointer min-h-[44px]"
+          >
+            <Sliders className="w-5 h-5" />
+            <span className="text-[10px] mt-1">เพิ่มเติม</span>
+          </button>
         </div>
       </div>
+
+      {/* MOBILE DRAWER / BOTTOM SHEET (Human Interface Guidelines Compliant) */}
+      {mobileDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 backdrop-blur-sm animate-in fade-in sm:hidden">
+          <div
+            className="w-full bg-white dark:bg-[#131B2A] border-t border-slate-200 dark:border-slate-800 rounded-t-[32px] p-6 shadow-2xl space-y-5 animate-in slide-in-from-bottom duration-200 max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Sheet Handle */}
+            <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto -mt-2"></div>
+
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
+                  <Sliders className="w-4 h-4" />
+                </div>
+                <h3 className="font-black text-sm text-slate-900 dark:text-white">
+                  เมนูและบริการทั้งหมด
+                </h3>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setMobileDrawerOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center hover:text-slate-900 dark:hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Grid of Secondary Features */}
+            <div className="grid grid-cols-2 gap-3 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('appearance')
+                  setPreviewMode('bio')
+                  setMobileDrawerOpen(false)
+                }}
+                className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-2.5 text-left active:scale-95 transition"
+              >
+                <Palette className="w-5 h-5 text-pink-500 shrink-0" />
+                <div>
+                  <span className="block text-slate-900 dark:text-white">ข้อมูลโปรไฟล์</span>
+                  <span className="text-[10px] text-slate-400 font-normal">จัดการธีม & สี</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('shortener')
+                  setMobileDrawerOpen(false)
+                }}
+                className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-2.5 text-left active:scale-95 transition"
+              >
+                <Scissors className="w-5 h-5 text-cyan-500 shrink-0" />
+                <div>
+                  <span className="block text-slate-900 dark:text-white">ย่อลิงก์สั้น</span>
+                  <span className="text-[10px] text-slate-400 font-normal">{shortLinks.length} ลิงก์</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('leads')
+                  setMobileDrawerOpen(false)
+                }}
+                className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-2.5 text-left active:scale-95 transition"
+              >
+                <Users className="w-5 h-5 text-indigo-500 shrink-0" />
+                <div>
+                  <span className="block text-slate-900 dark:text-white">ลีดลูกค้า CRM</span>
+                  <span className="text-[10px] text-slate-400 font-normal">{leads.length} รายการ</span>
+                </div>
+              </button>
+
+              <Link
+                href="/uploadindex"
+                onClick={() => setMobileDrawerOpen(false)}
+                className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-2.5 text-left active:scale-95 transition text-amber-600 dark:text-amber-400"
+              >
+                <FileCode className="w-5 h-5 text-amber-500 shrink-0" />
+                <div>
+                  <span className="block font-black">โฮสต์ Index.html</span>
+                  <span className="text-[10px] text-amber-500/80 font-normal">Master Pro</span>
+                </div>
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('services')
+                  setMobileDrawerOpen(false)
+                }}
+                className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-2.5 text-left active:scale-95 transition"
+              >
+                <LayoutTemplate className="w-5 h-5 text-purple-500 shrink-0" />
+                <div>
+                  <span className="block text-slate-900 dark:text-white">บริการเสริม</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Services Hub</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileDrawerOpen(false)
+                  setMobilePreviewOpen(true)
+                }}
+                className="p-3.5 rounded-2xl bg-purple-600 text-white flex items-center gap-2.5 text-left active:scale-95 transition shadow-md"
+              >
+                <Eye className="w-5 h-5 text-white shrink-0" />
+                <div>
+                  <span className="block font-black">พรีวิวหน้าเว็บ</span>
+                  <span className="text-[10px] text-purple-200 font-normal">Live Preview</span>
+                </div>
+              </button>
+            </div>
+
+            {/* Quick Actions in Drawer */}
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileDrawerOpen(false)
+                  setTopUpModalOpen(true)
+                }}
+                className="flex-1 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-black rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95"
+              >
+                <Coins className="w-4 h-4" />
+                <span>เติมแต้มสะสม</span>
+              </button>
+
+              <a
+                href={publicProfileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold rounded-2xl text-xs flex items-center justify-center gap-1 active:scale-95"
+              >
+                <Globe className="w-4 h-4 text-purple-500" />
+                <span>ดูหน้าจริง</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
 
 
@@ -5925,16 +6521,16 @@ export default function DashboardPage() {
                       onClick={() => {
                         setConfirmRedeemModal({
                           isOpen: true,
-                          title: 'ยืนยันการแลกสิทธิ์ MASTER VIP (30 วัน)',
+                          title: `ยืนยันการแลกสิทธิ์ MASTER VIP (${durationMaster} วัน)`,
                           desc: 'ปลดล็อกครบทุกฟังก์ชันสูงสุด: 9 เทมเพลต, เซลเพจยิงแอด COD, ย่อลิงก์, Tracking Pixels, และแจ้งเตือน LINE',
-                          cost: 599,
+                          cost: ptsMaster,
                           onConfirm: () => handleRedeemTierWithPoints('master')
                         })
                       }}
-                      disabled={redeemingTier === 'master' || (profile.points || 0) < 599}
+                      disabled={redeemingTier === 'master' || (profile.points || 0) < ptsMaster}
                       className="px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 text-slate-950 font-black rounded-xl text-xs transition shadow-md shadow-amber-500/20 active:scale-95 disabled:opacity-40 cursor-pointer shrink-0"
                     >
-                      {redeemingTier === 'master' ? 'กำลังแลก...' : '👑 แลก 599 แต้ม (30 วัน)'}
+                      {redeemingTier === 'master' ? 'กำลังแลก...' : `👑 แลก ${ptsMaster} แต้ม (${durationMaster} วัน)`}
                     </button>
                   </div>
 
@@ -5967,16 +6563,16 @@ export default function DashboardPage() {
                       onClick={() => {
                         setConfirmRedeemModal({
                           isOpen: true,
-                          title: 'ยืนยันการแลกสิทธิ์ PRO VIP (30 วัน)',
+                          title: `ยืนยันการแลกสิทธิ์ PRO VIP (${durationPro} วัน)`,
                           desc: 'ปลดล็อก 6 เทมเพลตยอดนิยม, เพิ่ม 10 สินค้า, และซ่อนลายน้ำแบรนด์',
-                          cost: 299,
+                          cost: ptsPro,
                           onConfirm: () => handleRedeemTierWithPoints('pro')
                         })
                       }}
-                      disabled={redeemingTier === 'pro' || (profile.points || 0) < 299}
+                      disabled={redeemingTier === 'pro' || (profile.points || 0) < ptsPro}
                       className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-xl text-xs transition shadow-md shadow-purple-500/20 active:scale-95 disabled:opacity-40 cursor-pointer shrink-0"
                     >
-                      {redeemingTier === 'pro' ? 'กำลังแลก...' : '💎 แลก 299 แต้ม (30 วัน)'}
+                      {redeemingTier === 'pro' ? 'กำลังแลก...' : `💎 แลก ${ptsPro} แต้ม (${durationPro} วัน)`}
                     </button>
                   </div>
 

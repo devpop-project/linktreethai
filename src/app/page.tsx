@@ -4,12 +4,13 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import SiteLogo from '@/components/SiteLogo'
+import ShaderDemo_ATC from '@/components/ui/atc-shader'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect } from 'react'
 import { 
   Link2, ShoppingBag, Palette, ShieldCheck, Sparkles, ArrowRight, Sun, Moon, Rocket, Flame, Activity, 
   Smartphone, Zap, Scissors, QrCode, CheckCircle2, Globe, Heart, 
-  Coins, Check, Star, ChevronRight, Share2, Layers, BarChart3, Users, Eye, X, Search
+  Coins, Check, Star, FileCode, Crown, ChevronRight, Share2, Layers, BarChart3, Users, Eye, X, Search
 } from 'lucide-react'
 
 export default function HomePage() {
@@ -35,16 +36,22 @@ export default function HomePage() {
       document.documentElement.classList.remove('dark')
     }
 
-    // Load dynamic site settings (Logo, Title, Footer)
+    // Load REAL users and dynamic site settings from Supabase (SQL)
+    const supabase = createClient()
+    supabase.from('system_settings').select('key, value').then(({ data: rows }) => {
+      if (rows && rows.length > 0) {
+        const map: any = {}
+        rows.forEach((r: any) => { if (r.key) map[r.key] = r.value })
+        setSiteSettings((prev: any) => ({ ...prev, ...map }))
+      }
+    }).catch(() => {})
+
     fetch('/api/settings')
       .then(res => res.json())
       .then(data => {
-        if (data?.settings) setSiteSettings(data.settings)
+        if (data?.settings) setSiteSettings((prev: any) => ({ ...prev, ...data.settings }))
       })
       .catch(() => {})
-
-    // Load REAL users and REAL landing pages from Supabase
-    const supabase = createClient()
     const loadRealUsers = async () => {
       setLoadingShowcase(true)
       try {
@@ -149,8 +156,13 @@ export default function HomePage() {
       <main className="flex-1">
         <section className="max-w-6xl mx-auto px-3.5 sm:px-6 pt-6 sm:pt-12 pb-16 sm:pb-20 text-center relative overflow-hidden">
           
+          {/* 21st.dev WebGL Interactive Shader Aura Background */}
+          <div className="absolute inset-x-0 -top-16 h-[720px] w-full pointer-events-none -z-10 overflow-hidden opacity-25 dark:opacity-35 [mask-image:radial-gradient(ellipse_75%_55%_at_50%_35%,#000_25%,transparent_90%)]">
+            <ShaderDemo_ATC className="w-full h-full" />
+          </div>
+
           {/* Ambient Glows */}
-          <div className="absolute top-10 left-1/2 -translate-x-1/2 w-96 h-96 bg-purple-200/40 rounded-full blur-3xl pointer-events-none -z-10 animate-pulse"></div>
+          <div className="absolute top-10 left-1/2 -translate-x-1/2 w-96 h-96 bg-purple-400/20 dark:bg-purple-600/20 rounded-full blur-3xl pointer-events-none -z-10 animate-pulse"></div>
 
           {/* PROMINENT HERO BRAND LOGO (ใหญ่ขึ้น คมชัด หรูหรา) */}
           <div className="flex flex-col items-center justify-center mb-6 animate-in zoom-in-95 duration-500">
@@ -180,9 +192,9 @@ export default function HomePage() {
           </div>
 
           {/* Hero Tagline Chip */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-purple-200 dark:border-purple-800/80 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 text-xs font-bold mb-6 shadow-sm">
-            <Sparkles className="w-4 h-4 text-purple-500 animate-pulse" />
-            <span>One link for everything you create, share and sell online.</span>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-purple-200 dark:border-purple-800/80 bg-purple-50/90 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 text-xs font-bold mb-6 shadow-sm backdrop-blur-md">
+            <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
+            <span>2026 All-in-One Bio Link • เซลเพจ Flash Sale • โฮสต์ Index.html ส่วนตัว</span>
           </div>
 
           {/* Main Headline (High Contrast in both Light & Dark Mode) */}
@@ -194,8 +206,8 @@ export default function HomePage() {
           </h1>
 
           {/* Subtitle */}
-          <p className="text-slate-600 dark:text-slate-300 text-base sm:text-lg max-w-2xl mx-auto mt-6 leading-relaxed">
-            สร้างหน้า Bio Link สวยหรู สไตล์พาสเทลและแอปมือถือ รวมทุกช่องทาง Facebook, TikTok, LINE, Shopee, Lazada พร้อมวางขายสินค้า ย่อลิงก์สั้น และเก็บรายชื่อลูกค้า จบครบทุกฟังก์ชันฟรี 100%
+          <p className="text-slate-600 dark:text-slate-300 text-base sm:text-lg max-w-3xl mx-auto mt-6 leading-relaxed font-normal">
+            สร้างหน้า Bio Link สไตล์ Mobile App สวยหรู โหลดเร็วเสี้ยววินาที รวมทุกลิงก์โซเชียล พร้อมระบบรับเงิน PromptPay ยอดตรง แนบสลิป, ฟอร์มเก็บเงินปลายทาง COD, ฝัง Tracking Pixels (Facebook, TikTok, Google, LINE Tag) และระบบใหม่: โฮสต์ไฟล์ index.html ส่วนตัวระดับ Master Pro
           </p>
 
           {/* Interactive Claim Username Form (Signature Bio.link feature with Mint Button) */}
@@ -344,49 +356,19 @@ export default function HomePage() {
               <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 flex items-center justify-center font-bold">
                 <Link2 className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-[#1E1B4B] dark:text-white dark:text-white">เพิ่มลิ้งก์ได้ไม่จำกัด (Unlimited Links)</h3>
+              <h3 className="text-lg font-bold text-[#1E1B4B] dark:text-white">Bio Link & ร้านค้า 0% GP (9 เทมเพลต)</h3>
               <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
-                ทุกระดับสามารถใส่ลิ้งก์ได้ไม่จำกัดจำนวน พร้อมใส่รูป Thumbnail โลโก้, ปรับสีปุ่มอิสระ, รองรับ 10 โซเชียล และตั้งเวลาเปิด/ปิดล่วงหน้า
+                รวมทุกลิงก์โซเชียล วางขายสินค้าดิจิทัลและคอร์สเรียน 3 ระดับดีไซน์ (Linear Stack, Bento Grid, Royale Mobile App) โหลดเร็วและไม่หักค่าธรรมเนียม GP
               </p>
             </div>
 
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/90 p-6 rounded-3xl shadow-sm hover:shadow-md transition space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold">
-                <ShoppingBag className="w-6 h-6" />
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold">
+                <QrCode className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-[#1E1B4B] dark:text-white">หน้าร้านค้าดิจิทัล 0% GP</h3>
-              <p className="text-slate-500 text-xs leading-relaxed">
-                โชว์สินค้า ไฟล์ดาวน์โหลด คอร์สเรียน หรือบริการ พร้อมปุ่มสั่งซื้อตรง ไม่หักค่าธรรมเนียมยอดขายแม้แต่บาทเดียว
-              </p>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/90 p-6 rounded-3xl shadow-sm hover:shadow-md transition space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-cyan-100 text-cyan-600 flex items-center justify-center font-bold">
-                <Scissors className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-[#1E1B4B] dark:text-white">ระบบย่อลิงก์ (URL Shortener)</h3>
-              <p className="text-slate-500 text-xs leading-relaxed">
-                เปลี่ยน URL ยาวๆ ให้เป็นชื่อสั้นที่คุณต้องการ เช่น <code className="text-purple-600 font-mono font-bold">/s/promo</code> พร้อมระบบนับจำนวนคลิก Real-time
-              </p>
-            </div>
-
-            <div id="templates" className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/90 p-6 rounded-3xl shadow-sm hover:shadow-md transition space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-pink-100 dark:bg-pink-950/60 text-pink-600 dark:text-pink-300 flex items-center justify-center font-bold">
-                <Palette className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-[#1E1B4B] dark:text-white dark:text-white">9 ธีมเทมเพลต 3 ระดับความพรีเมียม</h3>
+              <h3 className="text-lg font-bold text-[#1E1B4B] dark:text-white">Dynamic PromptPay QR & COD Checkout</h3>
               <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
-                ดีไซน์เฉพาะตัว: Free (Linear Stack), Pro (Bento Grid ตารางกล่องคู่), และ Master (Full Interactive Mobile App & Mini Store)
-              </p>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/90 p-6 rounded-3xl shadow-sm hover:shadow-md transition space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
-                <Users className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-[#1E1B4B] dark:text-white">ฟอร์มเก็บข้อมูลลูกค้า (Leads CRM)</h3>
-              <p className="text-slate-500 text-xs leading-relaxed">
-                ให้ผู้ติดตามฝากชื่อ เบอร์โทร อีเมล และข้อความติดต่อกลับ พร้อมปุ่ม Export ออกมาเป็นไฟล์ Excel/CSV ได้ทันที
+                สแกนจ่ายเงินสะดวกด้วย EMVCo QR Code ระบุยอดตรงอัตโนมัติ พร้อมระบบแนบรูปสลิป และฟอร์มเก็บเงินปลายทาง (COD) คำนวณค่าส่งครบจบ
               </p>
             </div>
 
@@ -394,9 +376,46 @@ export default function HomePage() {
               <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
                 <Rocket className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-bold text-[#1E1B4B] dark:text-white dark:text-white">เซลเพจ PromptPay QR & ยิงแอด CAPI</h3>
+              <h3 className="text-lg font-bold text-[#1E1B4B] dark:text-white">Sales Landing Page Flash Sale</h3>
               <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
-                สร้างหน้าเซลเพจขายของ Flash Sale พร้อม Dynamic PromptPay QR ตามยอดเงินของร้านค้าคุณ + เก็บเงินปลายทาง (COD) และยิง Meta CAPI / Pixels อัตโนมัติ 100%
+                สร้างหน้าเซลเพจปิดการขายแบบ Flash Sale สไตล์ TikTok Shop กระตุ้นการตัดสินใจด้วยนาฬิกานับถอยหลัง Real-time และระบบบันทึก Leads CRM
+              </p>
+            </div>
+
+            {/* NEW FEATURE CARD: Upload Index.html */}
+            <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-purple-500/10 border-2 border-amber-500/40 p-6 rounded-3xl shadow-md hover:shadow-lg transition space-y-3 relative overflow-hidden">
+              <div className="absolute top-4 right-4 text-[10px] font-black bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 px-2.5 py-0.5 rounded-full shadow-sm">
+                👑 ใหม่! Master Pro
+              </div>
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+                <FileCode className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">โฮสต์ Index.html ส่วนตัว (/u/[slug])</h3>
+              <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
+                นำไฟล์ index.html ที่คุณออกแบบเองมาอัปโหลดโฮสต์เป็นหน้าเว็บจริง แสดงผลที่ <code className="text-purple-600 dark:text-purple-400 font-mono font-bold">/u/[ชื่อindex]</code> พร้อมระบบฝัง Tracking Pixels อัตโนมัติ แก้ไขฟรีตลอดชีพ
+              </p>
+              <Link href="/uploadindex" className="inline-flex items-center gap-1.5 text-xs font-black text-amber-600 dark:text-amber-400 hover:underline pt-1">
+                <span>ทดลองอัปโหลด index.html</span> <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/90 p-6 rounded-3xl shadow-sm hover:shadow-md transition space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                <Activity className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-[#1E1B4B] dark:text-white">Multi-Tracking Pixels & Meta CAPI</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
+                ติดตั้ง Facebook Pixel, TikTok Pixel, Google Analytics (GA4), และ LINE Tag ครบ 100% พร้อม Server-Side CAPI รองรับการยิงแอด Conversion แม่นยำ
+              </p>
+            </div>
+
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/90 p-6 rounded-3xl shadow-sm hover:shadow-md transition space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-[#1E1B4B] dark:text-white">AI Studio & แจ้งเตือนออเดอร์เข้า LINE</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
+                ปัญญาประดิษฐ์ช่วยเขียนพาดหัว Hook TikTok และสคริปต์ปิดการขาย พร้อมระบบ Push Notification แจ้งเตือนออเดอร์ใหม่และสลิปเข้า LINE OA แบบ Real-time
               </p>
             </div>
           </div>
@@ -420,7 +439,7 @@ export default function HomePage() {
                 สร้างเซลเพจ 13 บล็อกระดับมืออาชีพ ด้วย AI สแกนจากรูปภาพสินค้าจริง
               </h3>
               <p className="text-xs sm:text-sm text-slate-300 font-light max-w-2xl leading-relaxed">
-                อัปโหลดรูปภาพสินค้า AI Vision จะวิเคราะห์ชื่อสินค้า พาดหัว จุดเด่น รีวิวลูกค้า 5 ดาว และจัดเซ็ตโปรโมชั่น 3 ระดับ พร้อมระบบเช็กเอาต์ QR Code โอนเงินตรง + ปลายทาง COD ให้อัตโนมัติ (เพียง 990 แต้ม / 1 เซลเพจ)
+                อัปโหลดรูปภาพสินค้า AI Vision จะวิเคราะห์ชื่อสินค้า พาดหัว จุดเด่น รีวิวลูกค้า 5 ดาว และจัดเซ็ตโปรโมชั่น 3 ระดับ พร้อมระบบเช็กเอาต์ QR Code โอนเงินตรง + ปลายทาง COD ให้อัตโนมัติ (เพียง {siteSettings?.points_cost_custom_salepage || '990'} แต้ม / 1 เซลเพจ)
               </p>
             </div>
             <div className="shrink-0 flex flex-col items-center gap-2">
@@ -431,7 +450,7 @@ export default function HomePage() {
                 <Sparkles className="w-4 h-4" />
                 <span>ลองสร้างเซลเพจ AI ↗</span>
               </Link>
-              <span className="text-[10px] text-amber-400/80 font-mono font-bold">ใช้เพียง 990 แต้ม / บันทึก</span>
+              <span className="text-[10px] text-amber-400/80 font-mono font-bold">ใช้เพียง {siteSettings?.points_cost_custom_salepage || '990'} แต้ม / เซลเพจ</span>
             </div>
           </div>
 
@@ -468,12 +487,13 @@ export default function HomePage() {
                   <h3 className="font-extrabold text-base text-purple-900 dark:text-purple-200">PRO VIP</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">สำหรับ Creator & แม่ค้าออนไลน์</p>
                 </div>
-                <div className="text-3xl font-black text-purple-950 dark:text-white">฿299 <span className="text-xs font-normal text-slate-500">/ 30 วัน (299 แต้ม)</span></div>
+                <div className="text-3xl font-black text-purple-950 dark:text-white">฿{siteSettings?.price_pro_thb || '299'} <span className="text-xs font-normal text-slate-500">/ {siteSettings?.duration_pro_days || '30'} วัน ({siteSettings?.points_cost_pro || '299'} แต้ม)</span></div>
                 <ul className="text-xs text-slate-700 dark:text-slate-200 space-y-2.5 pt-3 border-t border-purple-200/60 dark:border-purple-900/60 font-medium">
                   <li className="flex items-center gap-2 text-purple-700 dark:text-purple-300 font-bold"><Check className="w-4 h-4 text-purple-600" /> เพิ่มลิงก์ได้ไม่จำกัด (Unlimited)</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-purple-600" /> วางขายได้ 10 สินค้าในร้านค้า</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-purple-600" /> 6 เทมเพลตสไตล์ Bento Grid ยอดนิยม</li>
                   <li className="flex items-center gap-2 font-bold text-purple-900 dark:text-purple-100"><Check className="w-4 h-4 text-purple-600" /> ซ่อนลายน้ำแบรนด์ LinkTreeThai ได้ 100%</li>
+                  <li className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold"><Check className="w-4 h-4 text-amber-500" /> สิทธิ์เข้าใช้งานโฮสต์ index.html (/uploadindex)</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-purple-600" /> QR Code ดาวน์โหลด & สถิติคนเข้าชม</li>
                 </ul>
               </div>
@@ -492,14 +512,14 @@ export default function HomePage() {
                   <h3 className="font-extrabold text-base text-amber-950 dark:text-amber-200">MASTER VIP</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">สำหรับแบรนด์และธุรกิจยิงแอดเต็มตัว</p>
                 </div>
-                <div className="text-3xl font-black text-amber-950 dark:text-white">฿599 <span className="text-xs font-normal text-slate-500">/ 30 วัน (599 แต้ม)</span></div>
+                <div className="text-3xl font-black text-amber-950 dark:text-white">฿{siteSettings?.price_master_thb || '599'} <span className="text-xs font-normal text-slate-500">/ {siteSettings?.duration_master_days || '30'} วัน ({siteSettings?.points_cost_master || '599'} แต้ม)</span></div>
                 <ul className="text-xs text-slate-700 dark:text-slate-200 space-y-2.5 pt-3 border-t border-amber-200/60 dark:border-amber-900/60 font-medium">
-                  <li className="flex items-center gap-2 text-amber-700 dark:text-amber-300 font-bold"><Check className="w-4 h-4 text-amber-600" /> เพิ่มลิงก์ไม่จำกัด & วางขายสินค้าได้ 0% GP</li>
-                  <li className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold"><Check className="w-4 h-4 text-emerald-600" /> ฟรี! เซลเพจยิงแอด 1 URL พร้อม PromptPay QR ส่วนตัว</li>
-                  <li className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold"><Check className="w-4 h-4 text-emerald-600" /> เช็กเอาต์ 2 ระบบ (โอนพร้อมเพย์ตามยอด + ปลายทาง COD)</li>
-                  <li className="flex items-center gap-2 text-[#06C755] font-bold"><Check className="w-4 h-4 text-[#06C755]" /> แจ้งเตือนออเดอร์ & สลิปเข้า LINE Messaging API ทันที</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-amber-600" /> Full-Funnel Tracking (Pixel, Meta CAPI, UTM Forwarding)</li>
-                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-amber-600" /> ครบทั้ง 9 เทมเพลตระดับสูงสุด (รวม Template 7, 8, 9)</li>
+                  <li className="flex items-center gap-2 text-amber-700 dark:text-amber-300 font-bold"><Check className="w-4 h-4 text-amber-600" /> ครบทุกฟังก์ชันสูงสุด & สินค้าไม่จำกัด (0% GP)</li>
+                  <li className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold"><Check className="w-4 h-4 text-emerald-600" /> ฟรี! เซลเพจยิงแอด 1 URL + Dynamic PromptPay</li>
+                  <li className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold"><Check className="w-4 h-4 text-amber-500" /> สิทธิ์เต็ม Upload Index.html โฮสต์หน้า /u/[slug]</li>
+                  <li className="flex items-center gap-2 text-[#06C755] font-bold"><Check className="w-4 h-4 text-[#06C755]" /> แจ้งเตือนออเดอร์ & สลิปเข้า LINE OA ทันที</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-amber-600" /> Multi-Pixel & Meta CAPI ยิงแอด Conversion 100%</li>
+                  <li className="flex items-center gap-2"><Check className="w-4 h-4 text-amber-600" /> ครบทั้ง 9 เทมเพลตสุดหรู (Royale, Bento, Luxury)</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-amber-600" /> ปลดล็อกระบบย่อลิงก์สั้น Shortlinks ไม่จำกัด</li>
                 </ul>
               </div>
@@ -518,7 +538,7 @@ export default function HomePage() {
                   <h3 className="font-extrabold text-base text-slate-900 dark:text-white">Custom Salepage + AI</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">เซลเพจ 13 บล็อกสไตล์ Mobile-App</p>
                 </div>
-                <div className="text-3xl font-black text-amber-600 dark:text-amber-400">990 แต้ม <span className="text-xs font-normal text-slate-500">/ 1 เซลเพจ (+1 โควตา)</span></div>
+                <div className="text-3xl font-black text-amber-600 dark:text-amber-400">{siteSettings?.points_cost_custom_salepage || '990'} แต้ม <span className="text-xs font-normal text-slate-500">/ 1 เซลเพจ (+1 โควตา)</span></div>
                 <ul className="text-xs text-slate-700 dark:text-slate-200 space-y-2.5 pt-3 border-t border-amber-200/60 dark:border-amber-900/60 font-medium">
                   <li className="flex items-center gap-2 text-amber-700 dark:text-amber-300 font-bold"><Check className="w-4 h-4 text-amber-600" /> วิเคราะห์ภาพสินค้าด้วย AI Vision อัตโนมัติ</li>
                   <li className="flex items-center gap-2"><Check className="w-4 h-4 text-amber-600" /> 13 บล็อกพรีเมียม (Hero, รีวิว 5 ดาว, แชท LINE, ตารางราคา)</li>
@@ -528,7 +548,7 @@ export default function HomePage() {
                 </ul>
               </div>
               <Link href="/custom-salepage" className="w-full py-3 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black rounded-2xl text-xs flex items-center justify-center transition shadow-lg shadow-amber-500/25 mt-4">
-                สร้างเซลเพจด้วย AI (990 แต้ม)
+                สร้างเซลเพจด้วย AI ({siteSettings?.points_cost_custom_salepage || '990'} แต้ม)
               </Link>
             </div>
 
@@ -956,21 +976,44 @@ export default function HomePage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200/80 py-8 bg-white dark:bg-[#0B0F17] text-xs text-slate-500 dark:text-slate-400">
-        <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 font-bold text-[#1E1B4B] dark:text-white">
-            {siteSettings?.site_logo_url ? (
-              <img src={siteSettings.site_logo_url} alt="Logo" className="h-6 max-w-[120px] object-contain" />
-            ) : (
-              <>
-                <div className="w-6 h-6 rounded-lg bg-purple-500 flex items-center justify-center text-white text-[10px] font-black">
-                  LT
-                </div>
-                <span>{siteSettings?.site_title ? siteSettings.site_title.split(' - ')[0] : 'LinkTreeThai'}</span>
-              </>
-            )}
+      <footer className="border-t border-slate-200/80 py-10 bg-white dark:bg-[#0B0F17] text-xs text-slate-500 dark:text-slate-400">
+        <div className="max-w-6xl mx-auto px-4 space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-slate-200 dark:border-slate-800/80">
+            <div className="flex items-center gap-2 font-bold text-[#1E1B4B] dark:text-white">
+              {siteSettings?.site_logo_url ? (
+                <img src={siteSettings.site_logo_url} alt="Logo" className="h-7 max-w-[130px] object-contain" />
+              ) : (
+                <>
+                  <div className="w-7 h-7 rounded-xl bg-purple-600 flex items-center justify-center text-white text-xs font-black">
+                    LT
+                  </div>
+                  <span className="text-sm font-black">LinkTree<span className="text-purple-500">Thai</span></span>
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center gap-4 sm:gap-6 font-semibold flex-wrap">
+              <a href="#features" className="hover:text-purple-600 transition">จุดเด่น</a>
+              <a href="#pricing" className="hover:text-purple-600 transition">แพ็กเกจ</a>
+              <Link href="/uploadindex" className="hover:text-purple-600 transition text-amber-500 font-bold flex items-center gap-1">
+                <FileCode className="w-3.5 h-3.5" /> <span>โฮสต์ Index.html</span>
+              </Link>
+              <Link href="/services" className="hover:text-purple-600 transition">บริการเสริม</Link>
+              <Link href="/login" className="hover:text-purple-600 transition">เข้าสู่ระบบ</Link>
+              <Link href="/register" className="hover:text-purple-600 transition text-purple-500 font-bold">สมัครสมาชิกฟรี</Link>
+            </div>
           </div>
-          <p>{siteSettings?.site_footer_text || '© 2026 LinkTreeThai. All rights reserved. สร้าง Bio Link & เซลเพจขายของยิงแอดครบวงจร'}</p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px]">
+            <p>{siteSettings?.site_footer_text || '© 2026 LinkTreeThai. All rights reserved. สร้าง Bio Link & เซลเพจขายของยิงแอดครบวงจร'}</p>
+            <div className="flex items-center gap-4 text-slate-400">
+              <span>Made with ❤️ in Thailand</span>
+              <span>•</span>
+              <a href="https://line.me/ti/p/@amth" target="_blank" rel="noreferrer" className="hover:text-emerald-500 transition">
+                LINE: @amth
+              </a>
+            </div>
+          </div>
         </div>
       </footer>
 
