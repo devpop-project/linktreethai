@@ -4,8 +4,8 @@ import Link from 'next/link'
 
 import ServicesTabContent from '@/components/ServicesTabContent'
 
-import { useEffect, useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, useRef, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getUserTier } from '@/lib/tier'
 import SocialIcon from '@/components/SocialIcon'
@@ -138,9 +138,57 @@ const DEFAULT_LANDING_PAGE_FORM: LandingPageFormData = {
   line_webhook_url: ''
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'links' | 'shop' | 'appearance' | 'landing_pages' | 'shortener' | 'leads' | 'services' | 'billing'>('links')
+  const [activeTab, setActiveTabRaw] = useState<'links' | 'shop' | 'appearance' | 'landing_pages' | 'shortener' | 'leads' | 'services' | 'billing'>('links')
+  const searchParams = useSearchParams()
+
+  // Smart setActiveTab that updates previewMode and browser URL query (?tab=...)
+  const setActiveTab = (tabId: 'links' | 'shop' | 'appearance' | 'landing_pages' | 'shortener' | 'leads' | 'services' | 'billing') => {
+    setActiveTabRaw(tabId)
+    if (tabId === 'landing_pages') {
+      setPreviewMode('landing')
+    } else if (tabId === 'links' || tabId === 'shop' || tabId === 'appearance') {
+      setPreviewMode('bio')
+    }
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      url.searchParams.set('tab', tabId)
+      window.history.replaceState(null, '', url.toString())
+    }
+  }
+
+  // Read URL query parameter ?tab=... on load or when URL changes
+  useEffect(() => {
+    const validTabs = ['links', 'shop', 'appearance', 'landing_pages', 'shortener', 'leads', 'services', 'billing']
+    
+    let targetTab = searchParams.get('tab')
+    if (!targetTab && typeof window !== 'undefined') {
+      targetTab = new URLSearchParams(window.location.search).get('tab')
+    }
+
+    if (targetTab) {
+      // Support friendly aliases
+      if (targetTab === 'landing' || targetTab === 'salepage' || targetTab === 'salepages') {
+        targetTab = 'landing_pages'
+      } else if (targetTab === 'products') {
+        targetTab = 'shop'
+      } else if (targetTab === 'profile') {
+        targetTab = 'appearance'
+      } else if (targetTab === 'packages') {
+        targetTab = 'billing'
+      }
+
+      if (validTabs.includes(targetTab)) {
+        setActiveTabRaw(targetTab as any)
+        if (targetTab === 'landing_pages') {
+          setPreviewMode('landing')
+        } else if (targetTab === 'links' || targetTab === 'shop' || targetTab === 'appearance') {
+          setPreviewMode('bio')
+        }
+      }
+    }
+  }, [searchParams])
   const [user, setUser] = useState<any>(null)
   const [isDarkMode, setIsDarkMode] = useState(false)
   
@@ -8171,6 +8219,21 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-</div>
+    </div>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#F9F9FF] dark:bg-[#0B0F17] flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">กำลังโหลดแดชบอร์ด...</p>
+        </div>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   )
 }
