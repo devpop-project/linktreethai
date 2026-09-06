@@ -14,6 +14,9 @@ export interface ServiceItemDTO {
   priceText?: string
   actionLabel: string
   actionUrl?: string
+  btnBg?: string
+  btnTextColor?: string
+  textColor?: string
   position?: number
   is_active?: boolean
 }

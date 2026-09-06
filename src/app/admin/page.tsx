@@ -61,6 +61,10 @@ export default function AdminDashboardPage() {
   const [sFormPriceText, setSFormPriceText] = useState('เริ่มต้น 990.- / เซลเพจ')
   const [sFormActionLabel, setSFormActionLabel] = useState('สั่งทำเซลเพจ / ปรึกษาออกแบบ')
   const [sFormActionUrl, setSFormActionUrl] = useState('/custom-salepage')
+  const [sFormBtnBg, setSFormBtnBg] = useState('bg-purple-600')
+  const [sFormCustomBtnBg, setSFormCustomBtnBg] = useState('')
+  const [sFormBtnTextColor, setSFormBtnTextColor] = useState('#FFFFFF')
+  const [sFormTextColor, setSFormTextColor] = useState('')
   const [sFormFeatures, setSFormFeatures] = useState<string[]>([
     'ออกแบบ UI/UX สวยหรู สไตล์ Mobile App เฉพาะเอกลักษณ์แบรนด์คุณ',
     'ระบบคำนวณเงิน + Dynamic PromptPay EMVCo QR ยอดตรง พร้อมแนบสลิป',
@@ -97,6 +101,9 @@ export default function AdminDashboardPage() {
       priceText: row.price_text || row.priceText || '',
       actionLabel: row.action_label || row.actionLabel || 'สั่งทำเซลเพจ',
       actionUrl: row.action_url || row.actionUrl || '/custom-salepage',
+      btnBg: row.btn_bg || row.btnBg || 'bg-purple-600',
+      btnTextColor: row.btn_text_color || row.btnTextColor || '#FFFFFF',
+      textColor: row.text_color || row.textColor || '',
       position: row.position !== undefined ? row.position : 1,
       is_active: row.is_active !== false,
       features: feats
@@ -178,6 +185,10 @@ export default function AdminDashboardPage() {
     setSFormPriceText('เริ่มต้น 990.- / เซลเพจ')
     setSFormActionLabel('สั่งทำเซลเพจ / ปรึกษาออกแบบ')
     setSFormActionUrl('/custom-salepage')
+    setSFormBtnBg('bg-purple-600')
+    setSFormCustomBtnBg('')
+    setSFormBtnTextColor('#FFFFFF')
+    setSFormTextColor('')
     setSFormFeatures([
       'บริการคุณภาพระดับมืออาชีพ 100%',
       'ส่งมอบงานรวดเร็ว พร้อมการรับประกันดูแลหลังการขาย',
@@ -203,6 +214,17 @@ export default function AdminDashboardPage() {
     setSFormPriceText(item.priceText || '')
     setSFormActionLabel(item.actionLabel || 'สั่งทำเซลเพจ')
     setSFormActionUrl(item.actionUrl || '/custom-salepage')
+    const knownPresets = ['bg-purple-600', 'bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 text-slate-950', 'bg-emerald-500', 'bg-blue-600', 'bg-rose-600', 'bg-slate-900']
+    const curBtnBg = item.btnBg || ''
+    if (curBtnBg.startsWith('#') || (curBtnBg && !knownPresets.includes(curBtnBg))) {
+      setSFormBtnBg('custom')
+      setSFormCustomBtnBg(curBtnBg)
+    } else {
+      setSFormBtnBg(curBtnBg || 'bg-purple-600')
+      setSFormCustomBtnBg('')
+    }
+    setSFormBtnTextColor(item.btnTextColor || '#FFFFFF')
+    setSFormTextColor(item.textColor || '')
     setSFormFeatures(Array.isArray(item.features) && item.features.length > 0 ? item.features : ['บริการคุณภาพมาตรฐาน 100%'])
     setSFormIsActive(item.is_active !== false)
     setServiceFormModalOpen(true)
@@ -220,6 +242,8 @@ export default function AdminDashboardPage() {
     try {
       const slugId = editingServiceId || (sFormTitle.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || `service-${Date.now()}`)
       
+      const resolvedBtnBg = sFormBtnBg === 'custom' ? (sFormCustomBtnBg.trim() || 'bg-purple-600') : sFormBtnBg
+
       const newServiceObj: ServiceItemDTO = {
         id: slugId,
         title: sFormTitle.trim(),
@@ -235,6 +259,9 @@ export default function AdminDashboardPage() {
         priceText: sFormPriceText.trim(),
         actionLabel: sFormActionLabel.trim(),
         actionUrl: sFormActionUrl.trim(),
+        btnBg: resolvedBtnBg,
+        btnTextColor: sFormBtnTextColor.trim() || '#FFFFFF',
+        textColor: sFormTextColor.trim() || '',
         features: sFormFeatures.filter(f => f.trim().length > 0),
         is_active: sFormIsActive,
         position: editingServiceId ? (adminServicesList.find(s => s.id === editingServiceId)?.position || 1) : adminServicesList.length + 1
@@ -263,6 +290,9 @@ export default function AdminDashboardPage() {
         price_text: sFormPriceText.trim(),
         action_label: sFormActionLabel.trim(),
         action_url: sFormActionUrl.trim(),
+        btn_bg: resolvedBtnBg,
+        btn_text_color: sFormBtnTextColor.trim() || '#FFFFFF',
+        text_color: sFormTextColor.trim() || '',
         position: newServiceObj.position,
         is_active: sFormIsActive,
         features: newServiceObj.features,
@@ -6544,9 +6574,95 @@ WHERE username = 'YOUR_USERNAME';`}
                           type="text"
                           value={sFormActionUrl}
                           onChange={(e) => setSFormActionUrl(e.target.value)}
-                          placeholder="เช่น /custom-salepage หรือ line"
+                          placeholder="เช่น /uploadindex หรือ /custom-salepage"
                           className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500 font-mono text-[11px]"
                         />
+                      </div>
+                    </div>
+
+                    <p className="text-[10px] text-slate-500 leading-relaxed bg-slate-950/70 p-2.5 rounded-xl border border-slate-800/80">
+                      💡 <strong>วิธีใส่ลิงก์:</strong> หน้าภายในระบบให้ใส่ <code className="text-purple-400">/</code> นำหน้า เช่น <code className="text-purple-400 font-bold">/uploadindex</code>, <code className="text-purple-400 font-bold">/custom-salepage</code> | ลิงก์ภายนอกใส่ <code className="text-purple-400">https://...</code> | ปรึกษา LINE ใส่ <code className="text-purple-400">line</code> หรือปล่อยว่าง
+                    </p>
+
+                    {/* Custom Color Styling (Button Color & Text Color) */}
+                    <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                      <span className="text-[10px] font-black uppercase text-amber-400 flex items-center gap-1 tracking-wider">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                        <span>🎨 ปรับแต่งสีปุ่มและสีข้อความ (Custom Colors)</span>
+                      </span>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 block mb-1">สไตล์สีปุ่ม Action (Button Color)</label>
+                          <select
+                            value={sFormBtnBg}
+                            onChange={(e) => setSFormBtnBg(e.target.value)}
+                            className="w-full px-2.5 py-2 text-xs rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-purple-500"
+                          >
+                            <option value="bg-purple-600">💜 ม่วง (Purple Violet)</option>
+                            <option value="bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 text-slate-950">💛 ส้มทอง (Amber Gold)</option>
+                            <option value="bg-emerald-500">💚 เขียวมรกต (Emerald LINE)</option>
+                            <option value="bg-blue-600">💙 น้ำเงินฟ้า (Blue Cyan)</option>
+                            <option value="bg-rose-600">❤️ แดงกุหลาบ (Rose Red)</option>
+                            <option value="bg-slate-900">🖤 ดำหรู (Luxury Dark)</option>
+                            <option value="custom">🎨 ระบุโค้ดสีเอง (Custom Hex)</option>
+                          </select>
+                          {sFormBtnBg === 'custom' && (
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                              <input
+                                type="color"
+                                value={sFormCustomBtnBg.startsWith('#') ? sFormCustomBtnBg : '#8B5CF6'}
+                                onChange={(e) => setSFormCustomBtnBg(e.target.value)}
+                                className="w-7 h-7 rounded border border-slate-700 bg-transparent cursor-pointer shrink-0"
+                              />
+                              <input
+                                type="text"
+                                value={sFormCustomBtnBg}
+                                onChange={(e) => setSFormCustomBtnBg(e.target.value)}
+                                placeholder="#8B5CF6"
+                                className="w-full px-2 py-1 text-[11px] rounded-lg bg-slate-900 border border-slate-700 text-white font-mono"
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 block mb-1">สีข้อความบนปุ่ม (Button Text)</label>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="color"
+                              value={sFormBtnTextColor.startsWith('#') ? sFormBtnTextColor : '#FFFFFF'}
+                              onChange={(e) => setSFormBtnTextColor(e.target.value)}
+                              className="w-7 h-7 rounded border border-slate-700 bg-transparent cursor-pointer shrink-0"
+                            />
+                            <input
+                              type="text"
+                              value={sFormBtnTextColor}
+                              onChange={(e) => setSFormBtnTextColor(e.target.value)}
+                              placeholder="#FFFFFF"
+                              className="w-full px-2 py-2 text-xs rounded-xl bg-slate-900 border border-slate-700 text-white font-mono"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 block mb-1">สีข้อความชื่อบริการ (Title Text Color - ทางเลือก)</label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="color"
+                            value={sFormTextColor.startsWith('#') ? sFormTextColor : '#FFFFFF'}
+                            onChange={(e) => setSFormTextColor(e.target.value)}
+                            className="w-7 h-7 rounded border border-slate-700 bg-transparent cursor-pointer shrink-0"
+                          />
+                          <input
+                            type="text"
+                            value={sFormTextColor}
+                            onChange={(e) => setSFormTextColor(e.target.value)}
+                            placeholder="ปล่อยว่างเพื่อใช้สีมาตรฐาน หรือระบุ #HEX"
+                            className="w-full px-2.5 py-2 text-xs rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-[11px]"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -6568,7 +6684,12 @@ WHERE username = 'YOUR_USERNAME';`}
                         </div>
 
                         <div>
-                          <h4 className="text-sm font-black text-white">{sFormTitle || 'ชื่อบริการของคุณ'}</h4>
+                          <h4 
+                            style={sFormTextColor ? { color: sFormTextColor } : undefined}
+                            className="text-sm font-black text-white"
+                          >
+                            {sFormTitle || 'ชื่อบริการของคุณ'}
+                          </h4>
                           <p className="text-xs text-slate-400 font-medium">{sFormSubtitle || 'คำโปรยย่อบริการ'}</p>
                         </div>
 
@@ -6583,6 +6704,20 @@ WHERE username = 'YOUR_USERNAME';`}
                             </span>
                           )}
                           <span className="text-purple-300 font-mono">{sFormPriceText || 'ฟรี'}</span>
+                        </div>
+
+                        {/* Action Button Preview */}
+                        <div
+                          style={{
+                            color: sFormBtnTextColor || '#FFFFFF',
+                            ...(sFormBtnBg === 'custom' && sFormCustomBtnBg ? { backgroundColor: sFormCustomBtnBg } : {})
+                          }}
+                          className={`w-full py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-sm ${
+                            sFormBtnBg !== 'custom' ? sFormBtnBg : ''
+                          }`}
+                        >
+                          <Zap className="w-3.5 h-3.5" />
+                          <span>{sFormActionLabel || 'เข้าใช้งานบริการ'}</span>
                         </div>
                       </div>
                     </div>

@@ -27,7 +27,9 @@ import {
   Camera,
   ShoppingBag,
   Link2,
-  RefreshCw
+  RefreshCw,
+  ArrowRight,
+  ExternalLink
 } from 'lucide-react'
 
 // Icon resolver helper
@@ -73,6 +75,9 @@ export interface ServiceItem {
   priceText?: string
   actionLabel: string
   actionUrl?: string
+  btnBg?: string
+  btnTextColor?: string
+  textColor?: string
   position?: number
   is_active?: boolean
 }
@@ -80,20 +85,23 @@ export interface ServiceItem {
 export const DEFAULT_FALLBACK_SERVICES: ServiceItem[] = [
   {
     id: 'upload-index-html',
-    title: 'Upload Index.html',
-    subtitle: 'นำเข้าหน้าเว็บ HTML ส่วนตัว (Master Pro)',
+    title: 'UPLOAD Index.html host',
+    subtitle: 'โฮสต์ Index.html ส่วนตัว',
     description: 'นำเข้าและโฮสต์ไฟล์ index.html ของคุณเองเป็นหน้าเว็บส่วนตัวบนระบบ LinkTreeThai แสดงผลที่เส้นทาง /u/[ชื่อindex] รองรับการติดตั้ง Multi-Tracking Pixels ครบวงจร แก้ไขได้ตลอดชีพ',
-    category: 'salepage',
-    iconName: 'FileCode',
-    icon: FileCode,
-    iconBg: 'bg-gradient-to-br from-amber-500 via-orange-600 to-rose-600',
+    category: 'marketing',
+    iconName: 'Wand2',
+    icon: Wand2,
+    iconBg: 'bg-gradient-to-br from-amber-500 via-yellow-500 to-orange-500',
     iconColor: 'text-white',
-    badge: '👑 Master Pro',
+    badge: '✨ บริการใหม่',
     badgeColor: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
     status: 'active',
-    priceText: '599 แต้ม / หน้า (แก้ไขฟรีตลอดชีพ)',
-    actionLabel: 'อัปโหลด index.html ทันที',
+    priceText: 'เริ่มต้น 599.- / index',
+    actionLabel: 'UPLOAD-INDEX',
     actionUrl: '/uploadindex',
+    btnBg: 'bg-purple-600',
+    btnTextColor: '#FFFFFF',
+    textColor: '#FFFFFF',
     features: [
       'อัปโหลดไฟล์ index.html ขึ้นโฮสต์เป็นหน้าเว็บส่วนตัวทันที',
       'เข้าถึงผ่านเส้นทางสวยงาม https://linktreethai.in.th/u/[ชื่อindex]',
@@ -224,6 +232,27 @@ export default function ServicesTabContent() {
     setLoadingServices(true)
     const loadServices = async () => {
       try {
+        // Fast local cache check for instant Admin sync
+        if (typeof window !== 'undefined') {
+          try {
+            const cached = localStorage.getItem('admin_services_list')
+            if (cached) {
+              const parsed = JSON.parse(cached)
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                const activeOnly = parsed.filter((s: any) => s.is_active !== false)
+                const mapped = activeOnly.map((s: any) => ({
+                  ...s,
+                  btnBg: s.btnBg || s.btn_bg || '',
+                  btnTextColor: s.btnTextColor || s.btn_text_color || '',
+                  textColor: s.textColor || s.text_color || '',
+                  icon: getServiceIconComponent(s.iconName || s.icon_name)
+                }))
+                setServicesList(mapped)
+              }
+            }
+          } catch (e) {}
+        }
+
         const supabase = createClient()
         const { data: dbServices, error: dbErr } = await supabase
           .from('services')
@@ -264,6 +293,9 @@ export default function ServicesTabContent() {
                 : (s.price_text || s.priceText || ''),
               actionLabel: s.action_label || s.actionLabel || 'สั่งทำเซลเพจ',
               actionUrl: s.action_url || s.actionUrl || '/custom-salepage',
+              btnBg: s.btn_bg || s.btnBg || '',
+              btnTextColor: s.btn_text_color || s.btnTextColor || '',
+              textColor: s.text_color || s.textColor || '',
               position: s.position !== undefined ? s.position : 1,
               is_active: s.is_active !== false,
               features: feats
@@ -280,6 +312,9 @@ export default function ServicesTabContent() {
           const activeOnly = data.services.filter((s: any) => s.is_active !== false)
           const mapped = activeOnly.map((s: any) => ({
             ...s,
+            btnBg: s.btnBg || s.btn_bg || '',
+            btnTextColor: s.btnTextColor || s.btn_text_color || '',
+            textColor: s.textColor || s.text_color || '',
             icon: getServiceIconComponent(s.iconName || s.icon_name)
           }))
           setServicesList(mapped)
@@ -377,7 +412,10 @@ export default function ServicesTabContent() {
 
               {/* Middle Body: Service Title & Description */}
               <div className="flex-1 my-1 space-y-1.5">
-                <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white line-clamp-1 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                <h3 
+                  style={service.textColor ? { color: service.textColor } : undefined}
+                  className="text-xs sm:text-sm font-black text-slate-900 dark:text-white line-clamp-1 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors"
+                >
                   {service.title}
                 </h3>
                 <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium line-clamp-2 leading-relaxed">
@@ -451,7 +489,12 @@ export default function ServicesTabContent() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">{selectedServiceModal.title}</h3>
+                      <h3 
+                        style={selectedServiceModal.textColor ? { color: selectedServiceModal.textColor } : undefined}
+                        className="text-sm sm:text-base font-black text-slate-900 dark:text-white"
+                      >
+                        {selectedServiceModal.title}
+                      </h3>
                       <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border ${selectedServiceModal.badgeColor || 'bg-purple-100 text-purple-700 border-purple-200'}`}>
                         {selectedServiceModal.badge}
                       </span>
@@ -503,55 +546,76 @@ export default function ServicesTabContent() {
               <div className="pt-2 space-y-2.5 border-t border-slate-100 dark:border-slate-800">
                 {selectedServiceModal.status === 'active' ? (
                   <div>
-                    {isCustomSalepageAction ? (
-                      <div className="space-y-2">
-                        <Link
-                          href="/custom-salepage"
-                          className="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:opacity-95 text-white text-xs font-black flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 active:scale-95 transition-all"
-                        >
-                          <Sparkles className="w-4 h-4" />
-                          เปิดตัวสร้าง Custom Salepage Wizard
-                        </Link>
-                        
-                        <Link
+                    {(() => {
+                      const rawUrl = (selectedServiceModal.actionUrl || '').trim()
+                      const label = selectedServiceModal.actionLabel || 'เข้าใช้งานบริการ'
+                      
+                      const customBg = (selectedServiceModal.btnBg || '').trim()
+                      const customTextColor = (selectedServiceModal.btnTextColor || '').trim()
+                      const isHexBg = customBg.startsWith('#') || customBg.startsWith('rgb')
+                      const isHexText = customTextColor.startsWith('#') || customTextColor.startsWith('rgb')
+
+                      const buttonStyle: React.CSSProperties = {
+                        ...(isHexBg ? { backgroundColor: customBg } : {}),
+                        ...(isHexText ? { color: customTextColor } : {})
+                      }
+
+                      const defaultBtnClass = customBg && !isHexBg
+                        ? `${customBg} hover:opacity-90`
+                        : 'bg-purple-600 hover:bg-purple-700'
+                      
+                      const textClass = customTextColor && !isHexText
+                        ? customTextColor
+                        : !isHexText && !customTextColor ? 'text-white' : ''
+
+                      const baseBtnClass = `w-full py-3.5 px-4 rounded-2xl ${textClass} ${!isHexBg ? defaultBtnClass : ''} text-xs sm:text-sm font-black flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all cursor-pointer`
+
+                      // 1. Internal Route starting with '/' (e.g. /uploadindex, /custom-salepage, /dashboard, etc.)
+                      if (rawUrl.startsWith('/')) {
+                        return (
+                          <Link
+                            href={rawUrl}
+                            onClick={() => setSelectedServiceModal(null)}
+                            style={buttonStyle}
+                            className={baseBtnClass}
+                          >
+                            <Zap className="w-4 h-4" />
+                            <span>{label}</span>
+                            <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                          </Link>
+                        )
+                      }
+
+                      // 2. External Link starting with 'http'
+                      if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+                        return (
+                          <a
+                            href={rawUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={buttonStyle}
+                            className={baseBtnClass}
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                            <span>{label}</span>
+                          </a>
+                        )
+                      }
+
+                      // 3. Fallback: LINE OA Consultation (if rawUrl === 'line' or empty)
+                      return (
+                        <a
                           href={siteSettings?.contact_line_url || siteSettings?.line_contact_url || 'https://line.me'}
                           target="_blank"
-                          className="w-full py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                          rel="noreferrer"
+                          style={buttonStyle}
+                          className={`${baseBtnClass} ${!customBg ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : ''}`}
                         >
                           <MessageCircle className="w-4 h-4" />
-                          ปรึกษาทีมงานผ่าน LINE OA
-                        </Link>
-                      </div>
-                    ) : isAiAction ? (
-                      <div className="space-y-2">
-                        <Link
-                          href="/ai-salepage"
-                          className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:opacity-95 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
-                        >
-                          <Sparkles className="w-4 h-4 text-slate-950" />
-                          เปิด AI Copywriting Studio
-                        </Link>
-                      </div>
-                    ) : selectedServiceModal.actionUrl && selectedServiceModal.actionUrl.startsWith('http') ? (
-                      <a
-                        href={selectedServiceModal.actionUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="w-full py-3 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all"
-                      >
-                        <Zap className="w-4 h-4" />
-                        {selectedServiceModal.actionLabel || 'เข้าใช้งานบริการ'}
-                      </a>
-                    ) : (
-                      <Link
-                        href={siteSettings?.contact_line_url || siteSettings?.line_contact_url || 'https://line.me'}
-                        target="_blank"
-                        className="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all"
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                        {selectedServiceModal.actionLabel || 'ปรึกษาทีมงานผ่าน LINE OA'}
-                      </Link>
-                    )}
+                          <span>{label || 'ปรึกษาทีมงานผ่าน LINE OA'}</span>
+                        </a>
+                      )
+                    })()}
                   </div>
                 ) : (
                   <div>
