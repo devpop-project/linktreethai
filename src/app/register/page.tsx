@@ -33,10 +33,45 @@ function RegisterForm() {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [isEmailSent, setIsEmailSent] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(true)
 
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
+
+  // Auto redirect to dashboard if user is already logged in (Prevents navigating back to register when authenticated)
+  useEffect(() => {
+    let isMounted = true
+
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session && isMounted) {
+          router.replace('/dashboard')
+          return
+        }
+      } catch (err) {
+        console.warn('Session check error:', err)
+      } finally {
+        if (isMounted) {
+          setCheckingSession(false)
+        }
+      }
+    }
+
+    checkAuth()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && isMounted && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+        router.replace('/dashboard')
+      }
+    })
+
+    return () => {
+      isMounted = false
+      subscription?.unsubscribe()
+    }
+  }, [router, supabase])
 
   useEffect(() => {
     const prefill = searchParams.get('username')
@@ -127,7 +162,7 @@ function RegisterForm() {
       if (error) throw error
 
       if (data?.session) {
-        router.push('/dashboard')
+        router.replace('/dashboard')
       } else {
         setIsEmailSent(true)
       }
@@ -142,6 +177,17 @@ function RegisterForm() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="w-full max-w-md mx-auto bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-800 rounded-3xl p-12 shadow-xl flex items-center justify-center font-sans">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">กำลังตรวจสอบสถานะการเข้าสู่ระบบ...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

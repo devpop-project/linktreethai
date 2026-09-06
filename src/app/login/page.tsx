@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import SiteLogo from '@/components/SiteLogo'
@@ -27,21 +27,56 @@ import {
 } from 'lucide-react'
 
 export default function LoginPage() {
+  const router = useRouter()
+  const supabase = createClient()
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [checkingSession, setCheckingSession] = useState(true)
+
+  // Auto redirect to dashboard if user is already logged in (Prevents navigating back to login when authenticated)
+  useEffect(() => {
+    let isMounted = true
+
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session && isMounted) {
+          router.replace('/dashboard')
+          return
+        }
+      } catch (err) {
+        console.warn('Session check error:', err)
+      } finally {
+        if (isMounted) {
+          setCheckingSession(false)
+        }
+      }
+    }
+
+    checkAuth()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && isMounted && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+        router.replace('/dashboard')
+      }
+    })
+
+    return () => {
+      isMounted = false
+      subscription?.unsubscribe()
+    }
+  }, [router, supabase])
 
   // Password Reset Modal
   const [resetModalOpen, setResetModalOpen] = useState(false)
   const [resetEmail, setResetEmail] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
   const [resetMsg, setResetMsg] = useState('')
-
-  const router = useRouter()
-  const supabase = createClient()
 
   const getRedirectUrl = () => {
     if (typeof window !== 'undefined') {
@@ -93,7 +128,7 @@ export default function LoginPage() {
       }
 
       if (data?.session) {
-        router.push('/dashboard')
+        router.replace('/dashboard')
       }
     } catch (err: any) {
       let msg = err.message || 'เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบข้อมูล'
@@ -129,6 +164,17 @@ export default function LoginPage() {
       setResetMsg('✅ ส่งลิงก์รีเซ็ตรหัสผ่านไปยังอีเมลเรียบร้อยแล้ว กรุณาตรวจสอบกล่องจดหมาย')
     }
     setResetLoading(false)
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen bg-[#F9F9FF] dark:bg-[#0B0F17] flex items-center justify-center p-4 font-sans">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">กำลังตรวจสอบสถานะการเข้าสู่ระบบ...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
