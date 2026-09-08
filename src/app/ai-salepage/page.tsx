@@ -472,18 +472,20 @@ export default function AISalepageGeneratorPage() {
         testimonials: reviews.length > 0 ? reviews : (aiResult.reviews || []),
         faqs: faqs.length > 0 ? faqs : (aiResult.faqs || []),
         body_content: brandStory || aiResult.brandStory || '',
+        page_type: 'c',
         guarantee_text: guaranteeText || aiResult.guaranteeText || '',
         enable_cod_form: true,
         is_active: true,
         updated_at: new Date().toISOString()
       }
 
-      // Check if slug exists
+      // Check if slug exists specifically for /c/
       const { data: existing } = await supabase
         .from('landing_pages')
         .select('id')
         .eq('slug', slugToUse)
-        .single()
+        .or('page_type.eq.c,page_type.eq.custom,page_type.eq.modular,card_style.eq.custom_modular')
+        .maybeSingle()
 
       if (existing) {
         // Update

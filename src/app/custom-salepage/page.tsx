@@ -12,6 +12,7 @@ import LayoutOptionCard from '@/components/salepage/LayoutOptionCard'
 import {
   Target,
   LayoutTemplate,
+  Loader2,
   Key,
   Sparkles,
   CheckCircle2,
@@ -154,6 +155,8 @@ export default function WixCustomSalepageBuilderPage() {
   // Builder States
   const [pageTitle, setPageTitle] = useState('')
   const [pageSlug, setPageSlug] = useState('')
+  const [slugStatus, setSlugStatus] = useState<{ checked: boolean; available: boolean; isOwn: boolean; msg: string }>({ checked: false, available: true, isOwn: false, msg: '' })
+  const [checkingSlug, setCheckingSlug] = useState(false)
   const [globalThemeColor, setGlobalThemeColor] = useState('#8B5CF6')
   const [globalBgColor, setGlobalBgColor] = useState('#0B0F17')
   const [globalTextColor, setGlobalTextColor] = useState('#FFFFFF')
@@ -535,6 +538,41 @@ export default function WixCustomSalepageBuilderPage() {
   }
 
   // Load User & Existing Salepage
+  // Real-time Slug Validation for /c/
+  useEffect(() => {
+    const clean = pageSlug.toLowerCase().trim().replace(/[^a-z0-9-_]/g, '')
+    if (!clean) {
+      setSlugStatus({ checked: false, available: true, isOwn: false, msg: '' })
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      setCheckingSlug(true)
+      try {
+        const supabaseClient = createClient()
+        const { data: existing } = await supabaseClient
+          .from('landing_pages')
+          .select('id, user_id, title, page_type')
+          .eq('slug', clean)
+          .or('page_type.eq.c,page_type.eq.custom,page_type.eq.modular,card_style.eq.custom_modular')
+          .maybeSingle()
+
+        if (!existing) {
+          setSlugStatus({ checked: true, available: true, isOwn: false, msg: `✓ ชื่อ /c/${clean} ว่าง สามารถใช้งานได้` })
+        } else if (user && existing.user_id === user.id) {
+          setSlugStatus({ checked: true, available: true, isOwn: true, msg: `📝 กำลังแก้ไขหน้า /c/${clean} เดิมของคุณ (จะบันทึกทับหน้านี้)` })
+        } else {
+          setSlugStatus({ checked: true, available: false, isOwn: false, msg: `✕ ชื่อ /c/${clean} นี้มีผู้ใช้งานในระบบแล้ว` })
+        }
+      } catch (e) {
+      } finally {
+        setCheckingSlug(false)
+      }
+    }, 350)
+
+    return () => clearTimeout(timer)
+  }, [pageSlug, user?.id])
+
   useEffect(() => {
     setMounted(true)
     // Direct SQL fetch from system_settings
@@ -601,7 +639,7 @@ export default function WixCustomSalepageBuilderPage() {
         if (targetEditId) {
           query = query.eq('id', targetEditId)
         } else if (editSlug) {
-          query = query.eq('slug', editSlug)
+          query = query.eq('slug', editSlug).or('page_type.eq.c,page_type.eq.custom,page_type.eq.modular,card_style.eq.custom_modular')
         }
 
         const { data: lpData } = await query.maybeSingle()
@@ -1164,24 +1202,25 @@ export default function WixCustomSalepageBuilderPage() {
 
     const supabase = createClient()
     try {
-      // Pre-check if slug is already registered in landing_pages
+      // Pre-check if slug is already registered specifically for /c/
       const { data: existingLanding } = await supabase
         .from('landing_pages')
-        .select('id, user_id, slug, title')
+        .select('id, user_id, slug, title, page_type')
         .eq('slug', cleanSlug)
+        .or('page_type.eq.c,page_type.eq.custom,page_type.eq.modular,card_style.eq.custom_modular')
         .maybeSingle()
 
       if (existingLanding) {
         if (existingLanding.user_id === user.id) {
-          // Current user owns this page -> It's an UPDATE!
+          // Current user owns this 'c' page -> It's an UPDATE of this /c page!
           setActiveEditId(existingLanding.id)
           setIsExistingEdit(true)
         } else {
-          // Slug belongs to another user!
+          // Slug belongs to another user on /c!
           const uniqueSuffix = Math.floor(100 + Math.random() * 900)
           const suggestedSlug = `${cleanSlug}-${uniqueSuffix}`
           setPageSlug(suggestedSlug)
-          alert(`❌ ชื่อลิงก์ URL "${cleanSlug}" นี้มีผู้ใช้งานในระบบแล้ว\n\nระบบแนะนำให้ใช้ชื่อ: "${suggestedSlug}"\n(ระบบได้ปรับชื่อลิงก์ให้อัตโนมัติ กรุณากดบันทึกอีกครั้งครับ)`)
+          alert(`❌ ชื่อลิงก์ URL "/c/${cleanSlug}" นี้มีผู้ใช้งานในระบบแล้ว\n\nระบบแนะนำให้ใช้ชื่อ: "${suggestedSlug}"\n(ระบบได้ปรับชื่อลิงก์ให้อัตโนมัติ กรุณากดบันทึกอีกครั้งครับ)`)
           return
         }
       } else {
@@ -1217,11 +1256,12 @@ export default function WixCustomSalepageBuilderPage() {
     try {
       let effectiveId = activeEditId || editId
 
-      // Double check slug in database before performing any operations
+      // Double check slug in database specifically for /c/ before performing operations
       const { data: existingLanding } = await supabase
         .from('landing_pages')
-        .select('id, user_id')
+        .select('id, user_id, page_type')
         .eq('slug', cleanSlug)
+        .or('page_type.eq.c,page_type.eq.custom,page_type.eq.modular,card_style.eq.custom_modular')
         .maybeSingle()
 
       if (existingLanding) {
@@ -1232,7 +1272,7 @@ export default function WixCustomSalepageBuilderPage() {
           const uniqueSuffix = Math.floor(100 + Math.random() * 900)
           const suggestedSlug = `${cleanSlug}-${uniqueSuffix}`
           setPageSlug(suggestedSlug)
-          alert(`❌ ชื่อลิงก์ URL "${cleanSlug}" นี้มีผู้ใช้งานในระบบแล้ว\n\nระบบได้เปลี่ยนชื่อลิงก์เป็น "${suggestedSlug}" ให้อัตโนมัติ กรุณากดบันทึกอีกครั้งครับ`)
+          alert(`❌ ชื่อลิงก์ URL "/c/${cleanSlug}" นี้มีผู้ใช้งานในระบบแล้ว\n\nระบบได้เปลี่ยนชื่อลิงก์เป็น "${suggestedSlug}" ให้อัตโนมัติ กรุณากดบันทึกอีกครั้งครับ`)
           setSaving(false)
           setIsConfirmSaveModalOpen(false)
           return
@@ -1280,6 +1320,7 @@ export default function WixCustomSalepageBuilderPage() {
       const payload: any = {
         user_id: user.id,
         slug: cleanSlug,
+        page_type: 'c', // Explicitly marked as /c/ Custom Modular Salepage
         title: pageTitle.trim(),
         headline: heroSec.headline || pageTitle.trim(),
         subheadline: heroSec.subheadline || null,
@@ -2194,6 +2235,33 @@ export default function WixCustomSalepageBuilderPage() {
                     className="w-full bg-transparent text-xs font-mono font-black focus:outline-none pl-1"
                   />
                 </div>
+
+                {/* Real-time Slug Validation Badge */}
+                {pageSlug && (
+                  <div className="pt-1 flex items-center gap-1.5 text-[11px] font-bold">
+                    {checkingSlug ? (
+                      <span className="text-slate-400 flex items-center gap-1">
+                        <Loader2 className="w-3 h-3 animate-spin" /> กำลังตรวจสอบชื่อลิงก์ /c/{pageSlug}...
+                      </span>
+                    ) : slugStatus.checked ? (
+                      slugStatus.available ? (
+                        slugStatus.isOwn ? (
+                          <span className="text-amber-500 flex items-center gap-1">
+                            <Sparkles className="w-3 h-3" /> {slugStatus.msg}
+                          </span>
+                        ) : (
+                          <span className="text-emerald-500 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> {slugStatus.msg}
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-rose-500 flex items-center gap-1">
+                          <X className="w-3 h-3" /> {slugStatus.msg}
+                        </span>
+                      )
+                    ) : null}
+                  </div>
+                )}
               </div>
             </div>
 

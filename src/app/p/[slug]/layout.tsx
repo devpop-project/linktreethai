@@ -19,7 +19,8 @@ async function getSalepage(slug: string) {
       .from('landing_pages')
       .select('id, title, slug, headline, subheadline, hero_image_url, og_image_url, offer_price, seo_title, seo_description')
       .eq('slug', slug.toLowerCase())
-      .single()
+      .or('page_type.eq.p,page_type.is.null')
+      .maybeSingle()
 
     if (page) return page
   } catch (e) {}

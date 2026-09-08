@@ -400,11 +400,55 @@ function DashboardContent() {
   const [uploading, setUploading] = useState<string | null>(null)
   const [savedMsg, setSavedMsg] = useState('')
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
+  const [dashboardSlugStatus, setDashboardSlugStatus] = useState<{ checked: boolean; available: boolean; isOwn: boolean; msg: string }>({ checked: false, available: true, isOwn: false, msg: '' })
+  const [checkingDashboardSlug, setCheckingDashboardSlug] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [siteSettings, setSiteSettings] = useState<any>(null)
 
   const router = useRouter()
   const supabase = createClient()
+
+  // Real-time Slug Validation for /p/ and /c/
+  useEffect(() => {
+    const clean = (newLandingPage?.slug || '').toLowerCase().trim().replace(/[^a-z0-9-_]/g, '')
+    if (!clean) {
+      setDashboardSlugStatus({ checked: false, available: true, isOwn: false, msg: '' })
+      return
+    }
+
+    const targetType = newLandingPage?.page_type === 'c' ? 'c' : 'p'
+    const timer = setTimeout(async () => {
+      setCheckingDashboardSlug(true)
+      try {
+        const supabaseClient = createClient()
+        let q = supabaseClient
+          .from('landing_pages')
+          .select('id, user_id, page_type')
+          .eq('slug', clean)
+
+        if (targetType === 'c') {
+          q = q.or('page_type.eq.c,page_type.eq.custom,page_type.eq.modular,card_style.eq.custom_modular')
+        } else {
+          q = q.or('page_type.eq.p,page_type.is.null')
+        }
+
+        const { data: existing } = await q.maybeSingle()
+
+        if (!existing) {
+          setDashboardSlugStatus({ checked: true, available: true, isOwn: false, msg: `✓ ชื่อ /${targetType}/${clean} ว่าง สามารถใช้งานได้` })
+        } else if (user && existing.user_id === user.id) {
+          setDashboardSlugStatus({ checked: true, available: true, isOwn: true, msg: `📝 กำลังแก้ไขหน้า /${targetType}/${clean} เดิมของคุณ (จะบันทึกทับหน้านี้)` })
+        } else {
+          setDashboardSlugStatus({ checked: true, available: false, isOwn: false, msg: `✕ ชื่อ /${targetType}/${clean} นี้มีผู้ใช้งานในระบบแล้ว` })
+        }
+      } catch (e) {
+      } finally {
+        setCheckingDashboardSlug(false)
+      }
+    }, 350)
+
+    return () => clearTimeout(timer)
+  }, [newLandingPage?.slug, newLandingPage?.page_type, user?.id])
 
   // Initialize Dark / Light Theme
   useEffect(() => {
@@ -1529,8 +1573,10 @@ function DashboardContent() {
         rawCtaUrl = 'https://' + rawCtaUrl
       }
 
+      const targetPageType = newLandingPage.page_type === 'c' ? 'c' : 'p'
       const payload: any = {
         slug,
+        page_type: targetPageType,
         title: finalTitle,
         headline: finalHeadline,
         subheadline: newLandingPage.subheadline?.trim() || null,
@@ -1591,19 +1637,26 @@ function DashboardContent() {
       const pathPrefix = newLandingPage.page_type === 'c' ? 'c' : 'p'
       const fullUrl = `${originUrl || ''}/${pathPrefix}/${slug}`
 
-      // Pre-check if slug is already registered
+      // Pre-check if slug is already registered specifically for this route type (/p vs /c)
       let effectiveLandingId = editingLandingPageId
-      const { data: existingLanding } = await supabase
+      let dupQuery = supabase
         .from('landing_pages')
-        .select('id, user_id, slug')
+        .select('id, user_id, slug, page_type')
         .eq('slug', slug)
-        .maybeSingle()
+
+      if (targetPageType === 'c') {
+        dupQuery = dupQuery.or('page_type.eq.c,page_type.eq.custom,page_type.eq.modular,card_style.eq.custom_modular')
+      } else {
+        dupQuery = dupQuery.or('page_type.eq.p,page_type.is.null')
+      }
+
+      const { data: existingLanding } = await dupQuery.maybeSingle()
 
       if (existingLanding) {
         if (existingLanding.user_id === user.id) {
           effectiveLandingId = existingLanding.id
         } else {
-          showToast(`❌ ชื่อ URL "${slug}" นี้มีผู้ใช้งานในระบบแล้ว กรุณาเปลี่ยนชื่อ URL ใหม่`)
+          showToast(`❌ ชื่อ URL "/${targetPageType}/${slug}" นี้มีผู้ใช้งานในระบบแล้ว กรุณาเปลี่ยนชื่อ URL ใหม่`)
           setIsSavingLandingPage(false)
           setConfirmSaveLpModal(false)
           return
@@ -3994,6 +4047,33 @@ function DashboardContent() {
                                   className="w-full py-1.5 bg-transparent text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono font-bold"
                                 />
                               </div>
+
+                              {/* Real-time Slug Validation Badge */}
+                              {newLandingPage.slug && (
+                                <div className="pt-1 flex items-center gap-1.5 text-[11px] font-bold">
+                                  {checkingDashboardSlug ? (
+                                    <span className="text-slate-400 flex items-center gap-1">
+                                      <Loader2 className="w-3 h-3 animate-spin" /> กำลังตรวจสอบชื่อลิงก์ /{newLandingPage.page_type === 'c' ? 'c' : 'p'}/{newLandingPage.slug}...
+                                    </span>
+                                  ) : dashboardSlugStatus.checked ? (
+                                    dashboardSlugStatus.available ? (
+                                      dashboardSlugStatus.isOwn ? (
+                                        <span className="text-amber-500 flex items-center gap-1">
+                                          <Sparkles className="w-3 h-3" /> {dashboardSlugStatus.msg}
+                                        </span>
+                                      ) : (
+                                        <span className="text-emerald-500 flex items-center gap-1">
+                                          <CheckCircle2 className="w-3 h-3" /> {dashboardSlugStatus.msg}
+                                        </span>
+                                      )
+                                    ) : (
+                                      <span className="text-rose-500 flex items-center gap-1">
+                                        <X className="w-3 h-3" /> {dashboardSlugStatus.msg}
+                                      </span>
+                                    )
+                                  ) : null}
+                                </div>
+                              )}
                             </div>
                           </div>
 

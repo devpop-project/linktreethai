@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { getPromptPayQRImageUrl } from '@/lib/promptpay'
 import SiteLogo from '@/components/SiteLogo'
 import { DEFAULT_SERVICES_LIST, ServiceItemDTO } from '@/types/services'
@@ -2159,65 +2160,112 @@ export default function AdminDashboardPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredLandingPages.map((lp) => (
-                      <tr key={lp.id} className="hover:bg-slate-800/40 transition">
-                        <td className="py-3 px-2">
-                          <p className="font-bold text-white text-sm">{lp.title}</p>
-                          <p className="text-[11px] text-purple-400 font-mono">@{lp.profiles?.username || 'unknown'}</p>
-                        </td>
-                        <td className="py-3 px-2 font-mono font-bold text-rose-400">
-                          /p/{lp.slug}
-                        </td>
-                        <td className="py-3 px-2 font-mono font-bold text-emerald-400 text-sm">
-                          ฿{lp.offer_price ? parseFloat(lp.offer_price).toLocaleString() : '0'}
-                        </td>
-                        <td className="py-3 px-2 text-slate-300 font-mono">
-                          👁️ {lp.views || 0} | 🛒 {lp.clicks || 0}
-                        </td>
-                        <td className="py-3 px-2">
-                          <div className="space-y-0.5 font-mono text-[10px]">
-                            {lp.fb_pixel_id && <p className="text-blue-400">FB: {lp.fb_pixel_id}</p>}
-                            {lp.tiktok_pixel_id && <p className="text-pink-400">TT: {lp.tiktok_pixel_id}</p>}
-                            {!lp.fb_pixel_id && !lp.tiktok_pixel_id && <span className="text-slate-500">ใช้ค่าหลักโปรไฟล์</span>}
-                          </div>
-                        </td>
-                        <td className="py-3 px-2 text-right space-x-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setLpExpiryModal(lp)
-                              setLpCustomExpiryInput(lp.expires_at ? lp.expires_at.split('T')[0] : '')
-                            }}
-                            className="px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 rounded-xl text-xs font-extrabold transition shadow cursor-pointer"
-                            title="จัดการวันหมดอายุของเซลเพจนี้"
-                          >
-                            ⏳ วันหมดอายุ
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingLp({ ...lp })}
-                            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black transition shadow cursor-pointer"
-                          >
-                            ✏️ แก้ไข (Admin)
-                          </button>
-                          <a
-                            href={`/p/${lp.slug}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition inline-block"
-                          >
-                            เปิดดู
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteLandingPageAdmin(lp.id, lp.title)}
-                            className="px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 rounded-xl text-xs font-bold transition"
-                          >
-                            ลบ
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                    filteredLandingPages.map((lp) => {
+                      const isModular =
+                        lp.slug === 'enter-the-amanita-th-775' ||
+                        (lp.slug && lp.slug.includes('-775')) ||
+                        lp.page_type === 'c' ||
+                        lp.page_type === 'custom' ||
+                        lp.page_type === 'modular' ||
+                        lp.template_type === 'custom' ||
+                        lp.card_style === 'custom_modular' ||
+                        (Array.isArray(lp.features) && lp.features.length > 0 && typeof lp.features[0] === 'object' && lp.features[0] !== null && (lp.features[0].type || lp.features[0].id))
+
+                      const isUploadedHtml =
+                        lp.card_style === 'uploaded_html_index' ||
+                        lp.page_type === 'u'
+
+                      const routePrefix = isUploadedHtml ? 'u' : isModular ? 'c' : 'p'
+                      const realUrl = `/${routePrefix}/${lp.slug}`
+
+                      return (
+                        <tr key={lp.id} className="hover:bg-slate-800/40 transition">
+                          <td className="py-3 px-2">
+                            <p className="font-bold text-white text-sm">{lp.title}</p>
+                            <p className="text-[11px] text-purple-400 font-mono">@{lp.profiles?.username || 'unknown'}</p>
+                          </td>
+                          <td className="py-3 px-2">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={`text-[10px] font-mono font-black px-2 py-0.5 rounded-full border ${
+                                routePrefix === 'c'
+                                  ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
+                                  : routePrefix === 'u'
+                                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                  : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                              }`}>
+                                {routePrefix === 'c' ? '✨ Custom' : routePrefix === 'u' ? '📄 Host' : '⚡ Flash'}
+                              </span>
+                              <a
+                                href={realUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="font-mono font-bold text-xs text-rose-400 hover:text-rose-300 hover:underline"
+                              >
+                                /{routePrefix}/{lp.slug}
+                              </a>
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 font-mono font-bold text-emerald-400 text-sm">
+                            ฿{lp.offer_price ? parseFloat(lp.offer_price).toLocaleString() : '0'}
+                          </td>
+                          <td className="py-3 px-2 text-slate-300 font-mono">
+                            👁️ {lp.views || 0} | 🛒 {lp.clicks || 0}
+                          </td>
+                          <td className="py-3 px-2">
+                            <div className="space-y-0.5 font-mono text-[10px]">
+                              {lp.fb_pixel_id && <p className="text-blue-400">FB: {lp.fb_pixel_id}</p>}
+                              {lp.tiktok_pixel_id && <p className="text-pink-400">TT: {lp.tiktok_pixel_id}</p>}
+                              {!lp.fb_pixel_id && !lp.tiktok_pixel_id && <span className="text-slate-500">ใช้ค่าหลักโปรไฟล์</span>}
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 text-right space-x-1.5 whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setLpExpiryModal(lp)
+                                setLpCustomExpiryInput(lp.expires_at ? lp.expires_at.split('T')[0] : '')
+                              }}
+                              className="px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 rounded-xl text-xs font-extrabold transition shadow cursor-pointer"
+                              title="จัดการวันหมดอายุของเซลเพจนี้"
+                            >
+                              ⏳ วันหมดอายุ
+                            </button>
+                            {isModular ? (
+                              <Link
+                                href={`/custom-salepage?id=${lp.id}&slug=${lp.slug}`}
+                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black transition shadow inline-block"
+                                title="แก้ไขใน Custom Salepage Builder"
+                              >
+                                ✏️ แก้ไข Custom
+                              </Link>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setEditingLp({ ...lp })}
+                                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black transition shadow cursor-pointer"
+                              >
+                                ✏️ แก้ไข (Admin)
+                              </button>
+                            )}
+                            <a
+                              href={realUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition inline-block"
+                            >
+                              เปิดดู ↗
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteLandingPageAdmin(lp.id, lp.title)}
+                              className="px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 rounded-xl text-xs font-bold transition"
+                            >
+                              ลบ
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })
                   )}
                 </tbody>
               </table>

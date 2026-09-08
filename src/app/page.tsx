@@ -67,9 +67,9 @@ export default function HomePage() {
 
         const { data: lps } = await supabase
           .from('landing_pages')
-          .select('id, title, slug, headline, offer_price, hero_image_url, bg_color, theme_color, created_at, profiles(username, full_name, avatar_url)')
+          .select('id, title, slug, headline, offer_price, hero_image_url, hero_media_url, bg_color, theme_color, page_type, card_style, features, created_at, profiles(username, full_name, avatar_url)')
           .order('created_at', { ascending: false })
-          .limit(6)
+          .limit(12)
 
         if (lps && lps.length > 0) {
           setRealSalepages(lps)
@@ -649,20 +649,39 @@ export default function HomePage() {
               url: `/${p.username}`
             }))
 
-            const dynamicSalepages = (realSalepages || []).map((lp: any) => ({
-              id: lp.id,
-              type: 'salepage',
-              name: lp.title || lp.headline,
-              username: `p/${lp.slug}`,
-              bio: lp.headline || 'เซลเพจปิดการขายยิงแอด Facebook & TikTok',
-              avatarUrl: lp.hero_image_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${lp.slug}`,
-              category: '🚀 เซลเพจยิงแอด',
-              views: `${(Math.floor(Math.random() * 150) + 50) / 10}k`,
-              rating: '5.0',
-              badge1: lp.offer_price ? `฿${parseFloat(String(lp.offer_price)).toLocaleString()}` : 'Flash Sale',
-              badge2: 'แจ้งเตือน LINE',
-              url: `/p/${lp.slug}`
-            }))
+            const dynamicSalepages = (realSalepages || []).map((lp: any) => {
+              const isModular =
+                lp.slug === 'enter-the-amanita-th-775' ||
+                (lp.slug && lp.slug.includes('-775')) ||
+                lp.page_type === 'c' ||
+                lp.page_type === 'custom' ||
+                lp.page_type === 'modular' ||
+                lp.template_type === 'custom' ||
+                lp.card_style === 'custom_modular' ||
+                (Array.isArray(lp.features) && lp.features.length > 0 && typeof lp.features[0] === 'object' && lp.features[0] !== null && (lp.features[0].type || lp.features[0].id))
+
+              const isUploaded =
+                lp.card_style === 'uploaded_html_index' ||
+                lp.page_type === 'u'
+
+              const pathPrefix = isUploaded ? 'u' : isModular ? 'c' : 'p'
+              const realUrl = `/${pathPrefix}/${lp.slug}`
+
+              return {
+                id: lp.id,
+                type: 'salepage',
+                name: lp.title || lp.headline,
+                username: `${pathPrefix}/${lp.slug}`,
+                bio: lp.headline || (isModular ? 'Custom Salepage สไตล์ Mobile App หรูหรา' : 'เซลเพจปิดการขายยิงแอด Facebook & TikTok'),
+                avatarUrl: lp.hero_image_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${lp.slug}`,
+                category: isModular ? '✨ Custom Salepage' : (isUploaded ? '📄 โฮสต์ HTML' : '🚀 เซลเพจยิงแอด'),
+                views: `${(Math.floor(Math.random() * 150) + 50) / 10}k`,
+                rating: '5.0',
+                badge1: lp.offer_price ? `฿${parseFloat(String(lp.offer_price)).toLocaleString()}` : (isModular ? '13 บล็อกพรีเมียม' : 'Flash Sale'),
+                badge2: isModular ? 'Dynamic PromptPay' : 'แจ้งเตือน LINE',
+                url: realUrl
+              }
+            })
 
             // Merge dynamic real items
             const allShowcaseItems = [...dynamicProfiles, ...dynamicSalepages]

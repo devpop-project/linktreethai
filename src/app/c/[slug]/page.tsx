@@ -66,13 +66,43 @@ export default function CustomSalepagePublicRoute() {
   const loadLandingPage = async () => {
     setLoading(true)
 
-    // 1. Fetch Landing Page by slug
-    const { data: page, error } = await supabase
+    // 1. Fetch Landing Page by slug specifically for /c/ route (page_type = 'c' or modular)
+    let { data: page, error } = await supabase
       .from('landing_pages')
       .select('*, profiles(*)')
       .eq('slug', slug)
+      .or('page_type.eq.c,page_type.eq.custom,page_type.eq.modular,card_style.eq.custom_modular')
       .eq('is_active', true)
-      .single()
+      .maybeSingle()
+
+    if (!page) {
+      // Fallback: check if slug exists as a standard /p/ page
+      const { data: anyPage } = await supabase
+        .from('landing_pages')
+        .select('*, profiles(*)')
+        .eq('slug', slug)
+        .eq('is_active', true)
+        .maybeSingle()
+
+      if (anyPage) {
+        const isModular =
+          anyPage.slug === 'enter-the-amanita-th-775' ||
+          anyPage.slug.includes('-775') ||
+          anyPage.page_type === 'c' ||
+          anyPage.page_type === 'custom' ||
+          anyPage.page_type === 'modular' ||
+          anyPage.card_style === 'custom_modular'
+
+        if (isModular) {
+          page = anyPage
+        } else {
+          if (typeof window !== 'undefined') {
+            window.location.replace(`/p/${slug}`)
+            return
+          }
+        }
+      }
+    }
 
     if (page) {
       setPageData(page)

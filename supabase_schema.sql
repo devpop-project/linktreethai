@@ -1194,3 +1194,32 @@ BEGIN
         ALTER TABLE public.uploaded_index_pages ADD COLUMN meta_capi_token TEXT;
     END IF;
 END $$;
+
+-- ==============================================================================
+-- 15. SEPARATION OF /p/[slug] AND /c/[slug] IN LANDING_PAGES
+-- ==============================================================================
+-- 1. เพิ่มคอลัมน์ page_type หากยังไม่มี (default 'p' สำหรับ Classic Flash Sale)
+ALTER TABLE public.landing_pages ADD COLUMN IF NOT EXISTS page_type TEXT DEFAULT 'p';
+
+-- 2. ปรับปรุงข้อมูลหน้าเดิม: หากเป็น Custom Modular ให้ตั้งเป็น 'c' ส่วนหน้าที่เหลือตั้งเป็น 'p'
+UPDATE public.landing_pages 
+SET page_type = 'c' 
+WHERE card_style = 'custom_modular' 
+   OR page_type = 'custom' 
+   OR page_type = 'modular'
+   OR (jsonb_typeof(features) = 'array' AND jsonb_array_length(features) > 0 AND features->0 ? 'type');
+
+UPDATE public.landing_pages 
+SET page_type = 'p' 
+WHERE page_type IS NULL OR page_type = '';
+
+-- 3. ยกเลิกเงื่อนไข UNIQUE เดิมที่ล็อคเฉพาะ slug เดี่ยวๆ
+ALTER TABLE public.landing_pages DROP CONSTRAINT IF EXISTS landing_pages_slug_key;
+ALTER TABLE public.landing_pages DROP CONSTRAINT IF EXISTS landing_pages_page_type_slug_key;
+
+-- 4. กำหนดเงื่อนไข UNIQUE ใหม่เป็นแบบ Composite (page_type, slug)
+-- ทำให้สามารถมี /p/linkthaitree และ /c/linkthaitree ร่วมกันได้โดยไม่ชนกันและไม่แทนที่กัน
+ALTER TABLE public.landing_pages ADD CONSTRAINT landing_pages_page_type_slug_key UNIQUE (page_type, slug);
+
+-- 5. สร้าง Index เพื่อเพิ่มความเร็วในการค้นหา
+CREATE INDEX IF NOT EXISTS idx_landing_pages_page_type_slug ON public.landing_pages(page_type, slug);
