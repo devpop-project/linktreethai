@@ -133,6 +133,8 @@ export default function WixCustomSalepageBuilderPage() {
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
   const [customSalepagePointsCost, setCustomSalepagePointsCost] = useState<number>(990)
+  const [activeEditId, setActiveEditId] = useState<string | null>(searchParams.get('id'))
+  const [isExistingEdit, setIsExistingEdit] = useState<boolean>(false)
     // AI Vision & API Key States
   const [isAiAnalyzeModalOpen, setIsAiAnalyzeModalOpen] = useState(false)
   const [userAiApiKey, setUserAiApiKey] = useState('')
@@ -593,17 +595,19 @@ export default function WixCustomSalepageBuilderPage() {
         setLineNotifyToken(prof.line_notify_token || '')
       }
 
-      if (editId) {
+      const targetEditId = activeEditId || editId
+      if (targetEditId || editSlug) {
         let query = supabase.from('landing_pages').select('*').eq('user_id', session.user.id)
-        if (editId) {
-          query = query.eq('id', editId)
+        if (targetEditId) {
+          query = query.eq('id', targetEditId)
         } else if (editSlug) {
           query = query.eq('slug', editSlug)
         }
 
-        const { data: lpData } = (editId || editSlug) ? await query.single() : { data: null }
-
+        const { data: lpData } = await query.maybeSingle()
         if (lpData) {
+          setActiveEditId(lpData.id)
+          setIsExistingEdit(true)
           setPageTitle(lpData.title || '')
           setPageSlug(lpData.slug || '')
           setGlobalThemeColor(lpData.theme_color || '#8B5CF6')
@@ -1145,9 +1149,10 @@ export default function WixCustomSalepageBuilderPage() {
     }
   }
 
-  // 1. Open Points Confirmation Modal
+  // 1. Pre-check Slug & Open Points Confirmation Modal
   const handleSaveSalepage = async () => {
-    if (!pageTitle || !pageSlug) {
+    const cleanSlug = pageSlug.toLowerCase().trim().replace(/[^a-z0-9-_]/g, '')
+    if (!pageTitle.trim() || !cleanSlug) {
       alert('กรุณากรอกชื่อเซลเพจ และกำหนดลิงก์ URL (Slug)')
       return
     }
@@ -1159,6 +1164,31 @@ export default function WixCustomSalepageBuilderPage() {
 
     const supabase = createClient()
     try {
+      // Pre-check if slug is already registered in landing_pages
+      const { data: existingLanding } = await supabase
+        .from('landing_pages')
+        .select('id, user_id, slug, title')
+        .eq('slug', cleanSlug)
+        .maybeSingle()
+
+      if (existingLanding) {
+        if (existingLanding.user_id === user.id) {
+          // Current user owns this page -> It's an UPDATE!
+          setActiveEditId(existingLanding.id)
+          setIsExistingEdit(true)
+        } else {
+          // Slug belongs to another user!
+          const uniqueSuffix = Math.floor(100 + Math.random() * 900)
+          const suggestedSlug = `${cleanSlug}-${uniqueSuffix}`
+          setPageSlug(suggestedSlug)
+          alert(`❌ ชื่อลิงก์ URL "${cleanSlug}" นี้มีผู้ใช้งานในระบบแล้ว\n\nระบบแนะนำให้ใช้ชื่อ: "${suggestedSlug}"\n(ระบบได้ปรับชื่อลิงก์ให้อัตโนมัติ กรุณากดบันทึกอีกครั้งครับ)`)
+          return
+        }
+      } else {
+        const hasExistingId = Boolean(activeEditId || editId)
+        setIsExistingEdit(hasExistingId)
+      }
+
       const { data: freshProf } = await supabase
         .from('profiles')
         .select('*')
@@ -1178,13 +1208,39 @@ export default function WixCustomSalepageBuilderPage() {
     }
   }
 
-  // 2. Execute Points Deduction (990 Points) & Publish Salepage
+  // 2. Execute Points Deduction (if new) & Publish Salepage
   const executeSaveSalepage = async () => {
     setSaving(true)
     const supabase = createClient()
     const cleanSlug = pageSlug.toLowerCase().trim().replace(/[^a-z0-9-_]/g, '')
 
     try {
+      let effectiveId = activeEditId || editId
+
+      // Double check slug in database before performing any operations
+      const { data: existingLanding } = await supabase
+        .from('landing_pages')
+        .select('id, user_id')
+        .eq('slug', cleanSlug)
+        .maybeSingle()
+
+      if (existingLanding) {
+        if (existingLanding.user_id === user.id) {
+          effectiveId = existingLanding.id
+          setActiveEditId(existingLanding.id)
+        } else {
+          const uniqueSuffix = Math.floor(100 + Math.random() * 900)
+          const suggestedSlug = `${cleanSlug}-${uniqueSuffix}`
+          setPageSlug(suggestedSlug)
+          alert(`❌ ชื่อลิงก์ URL "${cleanSlug}" นี้มีผู้ใช้งานในระบบแล้ว\n\nระบบได้เปลี่ยนชื่อลิงก์เป็น "${suggestedSlug}" ให้อัตโนมัติ กรุณากดบันทึกอีกครั้งครับ`)
+          setSaving(false)
+          setIsConfirmSaveModalOpen(false)
+          return
+        }
+      }
+
+      const isEditingExisting = Boolean(effectiveId)
+
       // Fetch latest profile points and slots
       const { data: freshProf, error: profErr } = await supabase
         .from('profiles')
@@ -1199,36 +1255,14 @@ export default function WixCustomSalepageBuilderPage() {
       const currentPoints = freshProf?.points !== undefined ? freshProf.points : (profile?.points ?? 0)
       const currentSlots = freshProf?.extra_landing_page_slots !== undefined ? freshProf.extra_landing_page_slots : (profile?.extra_landing_page_slots ?? 0)
 
-      // Require 990 points
-      if (currentPoints < customSalepagePointsCost) {
-        alert(`❌ แต้มของคุณไม่เพียงพอสำหรับการบันทึกเซลเพจ\n\n• ต้องการ: ${customSalepagePointsCost.toLocaleString()} แต้ม\n• แต้มของคุณปัจจุบัน: ${currentPoints.toLocaleString()} แต้ม\n\nกรุณาเติมแต้มในแดชบอร์ดก่อนดำเนินการบันทึก`)
-        setSaving(false)
-        return
+      // Only require points if this is a NEW page creation
+      if (!isEditingExisting) {
+        if (currentPoints < customSalepagePointsCost) {
+          alert(`❌ แต้มของคุณไม่เพียงพอสำหรับการบันทึกเซลเพจใหม่\n\n• ต้องการ: ${customSalepagePointsCost.toLocaleString()} แต้ม\n• แต้มของคุณปัจจุบัน: ${currentPoints.toLocaleString()} แต้ม\n\nกรุณาเติมแต้มในแดชบอร์ดก่อนดำเนินการบันทึก`)
+          setSaving(false)
+          return
+        }
       }
-
-      // Deduct 990 points and increment extra_landing_page_slots (+1)
-      const newPoints = Math.max(0, currentPoints - customSalepagePointsCost)
-      const newSlots = currentSlots + 1
-
-      const { error: updateProfErr } = await supabase
-        .from('profiles')
-        .update({
-          points: newPoints,
-          extra_landing_page_slots: newSlots,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id)
-
-      if (updateProfErr) {
-        throw new Error('ไม่สามารถหักแต้มและเพิ่มโควตาได้: ' + updateProfErr.message)
-      }
-
-      // Update local profile state
-      setProfile((prev: any) => ({
-        ...prev,
-        points: newPoints,
-        extra_landing_page_slots: newSlots
-      }))
 
       // Assemble payload matching landing_pages schema
       const heroSec = sections.find(s => s.type === 'hero')?.data || {}
@@ -1293,14 +1327,64 @@ export default function WixCustomSalepageBuilderPage() {
         updated_at: new Date().toISOString()
       }
 
+      // 1. PERFORM INSERT OR UPDATE FIRST (Ensures DB write succeeds before any points are deducted)
       let res
-      if (editId) {
-        res = await supabase.from('landing_pages').update(payload).eq('id', editId).eq('user_id', user.id)
+      if (effectiveId) {
+        res = await supabase
+          .from('landing_pages')
+          .update(payload)
+          .eq('id', effectiveId)
+          .eq('user_id', user.id)
+          .select()
       } else {
-        res = await supabase.from('landing_pages').insert([payload])
+        res = await supabase
+          .from('landing_pages')
+          .insert([payload])
+          .select()
       }
 
-      if (res.error) throw res.error
+      if (res.error) {
+        console.error('Save error from Supabase:', res.error)
+        if (res.error.code === '23505' || res.error.message?.includes('unique') || res.error.message?.includes('duplicate') || res.error.message?.includes('landing_pages_slug_key')) {
+          const uniqueSuffix = Math.floor(100 + Math.random() * 900)
+          const suggestedSlug = `${cleanSlug}-${uniqueSuffix}`
+          setPageSlug(suggestedSlug)
+          alert(`❌ ชื่อลิงก์ URL "${cleanSlug}" นี้มีผู้ใช้งานในระบบแล้ว\n\nระบบได้เปลี่ยนชื่อลิงก์เป็น "${suggestedSlug}" ให้แล้ว กรุณากดบันทึกใหม่อีกครั้งครับ`)
+          setIsConfirmSaveModalOpen(false)
+          return
+        }
+        throw res.error
+      }
+
+      // 2. DEDUCT POINTS ONLY IF THIS WAS A SUCCESSFUL NEW PAGE CREATION
+      if (!isEditingExisting) {
+        const newPoints = Math.max(0, currentPoints - customSalepagePointsCost)
+        const newSlots = currentSlots + 1
+
+        const { error: updateProfErr } = await supabase
+          .from('profiles')
+          .update({
+            points: newPoints,
+            extra_landing_page_slots: newSlots,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id)
+
+        if (updateProfErr) {
+          console.warn('Profile points deduction notice:', updateProfErr.message)
+        } else {
+          setProfile((prev: any) => ({
+            ...prev,
+            points: newPoints,
+            extra_landing_page_slots: newSlots
+          }))
+        }
+      }
+
+      if (res.data && res.data[0]) {
+        setActiveEditId(res.data[0].id)
+        setIsExistingEdit(true)
+      }
 
       setPublishedSlug(cleanSlug)
       setSaveSuccessSlug(cleanSlug)
@@ -1309,7 +1393,11 @@ export default function WixCustomSalepageBuilderPage() {
 
     } catch (err: any) {
       console.error('Save error:', err)
-      alert('เกิดข้อผิดพลาดในการบันทึก: ' + (err.message || 'Slug ซ้ำ หรือข้อมูลไม่ถูกต้อง'))
+      let msg = err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล'
+      if (msg.includes('landing_pages_slug_key') || msg.includes('unique constraint') || msg.includes('duplicate key')) {
+        msg = `ชื่อลิงก์ "${cleanSlug}" นี้มีผู้ใช้งานแล้ว กรุณาเปลี่ยนชื่อลิงก์ใหม่`
+      }
+      alert('เกิดข้อผิดพลาดในการบันทึก: ' + msg)
     } finally {
       setSaving(false)
     }
@@ -4789,15 +4877,15 @@ export default function WixCustomSalepageBuilderPage() {
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-slate-950 flex items-center justify-center shadow-lg shadow-amber-500/20">
-                  <Coins className="w-5 h-5" />
+                <div className={`w-10 h-10 rounded-2xl ${isExistingEdit ? 'bg-purple-600 text-white' : 'bg-gradient-to-br from-amber-500 to-orange-500 text-slate-950'} flex items-center justify-center shadow-lg shadow-amber-500/20`}>
+                  {isExistingEdit ? <Save className="w-5 h-5" /> : <Coins className="w-5 h-5" />}
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-900 dark:text-white">
-                    ยืนยันการบันทึกเซลเพจ
+                    {isExistingEdit ? 'ยืนยันการบันทึกการแก้ไขเซลเพจ' : 'ยืนยันการสร้างเซลเพจใหม่'}
                   </h3>
                   <p className="text-[11px] text-slate-400 font-light">
-                    ระบบจะหักแต้มและเพิ่มโควตาเซลเพจให้อัตโนมัติ
+                    {isExistingEdit ? 'บันทึกการเปลี่ยนแปลงและอัปเดตหน้าเว็บจริงทันที (แก้ไขฟรีตลอดชีพ)' : 'ระบบจะหักแต้มและเพิ่มโควตาเซลเพจให้อัตโนมัติ'}
                   </p>
                 </div>
               </div>
@@ -4823,34 +4911,38 @@ export default function WixCustomSalepageBuilderPage() {
             </div>
 
             {/* Points & Quota Breakdown Card */}
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent border border-amber-500/30 space-y-3">
+            <div className={`p-4 rounded-2xl ${isExistingEdit ? 'bg-purple-50/50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800' : 'bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent border-amber-500/30'} border space-y-3`}>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-600 dark:text-slate-300 font-medium">🪙 แต้มปัจจุบันของคุณ:</span>
                 <span className="font-mono font-bold text-slate-900 dark:text-white">{confirmingPoints.toLocaleString()} แต้ม</span>
               </div>
               
-              <div className="flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400">
-                <span>⚡ ค่าบริการบันทึกเซลเพจ:</span>
-                <span className="font-mono font-black text-sm">-{customSalepagePointsCost.toLocaleString()} แต้ม</span>
-              </div>
-
-              <div className="border-t border-amber-500/20 pt-2 flex items-center justify-between text-xs">
-                <span className="text-slate-600 dark:text-slate-300 font-medium">💰 แต้มคงเหลือหลังบันทึก:</span>
-                <span className={`font-mono font-black text-sm ${confirmingPoints >= customSalepagePointsCost ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
-                  {Math.max(0, confirmingPoints - customSalepagePointsCost).toLocaleString()} แต้ม
+              <div className="flex items-center justify-between text-xs font-bold">
+                <span className={isExistingEdit ? 'text-purple-600 dark:text-purple-400' : 'text-amber-600 dark:text-amber-400'}>
+                  {isExistingEdit ? '⚡ ค่าบริการแก้ไข:' : '⚡ ค่าบริการสร้างเซลเพจใหม่:'}
+                </span>
+                <span className={`font-mono font-black text-sm ${isExistingEdit ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                  {isExistingEdit ? 'ฟรี (0 แต้ม)' : `-${customSalepagePointsCost.toLocaleString()} แต้ม`}
                 </span>
               </div>
 
-              <div className="border-t border-amber-500/20 pt-2 flex items-center justify-between text-xs">
-                <span className="text-slate-600 dark:text-slate-300 font-medium">📦 โควตาเซลเพจที่จะได้รับ:</span>
+              <div className="border-t border-slate-200 dark:border-slate-800 pt-2 flex items-center justify-between text-xs">
+                <span className="text-slate-600 dark:text-slate-300 font-medium">💰 แต้มคงเหลือหลังบันทึก:</span>
+                <span className={`font-mono font-black text-sm ${isExistingEdit || confirmingPoints >= customSalepagePointsCost ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
+                  {isExistingEdit ? confirmingPoints.toLocaleString() : Math.max(0, confirmingPoints - customSalepagePointsCost).toLocaleString()} แต้ม
+                </span>
+              </div>
+
+              <div className="border-t border-slate-200 dark:border-slate-800 pt-2 flex items-center justify-between text-xs">
+                <span className="text-slate-600 dark:text-slate-300 font-medium">📦 โควตาเซลเพจ:</span>
                 <span className="font-mono font-black text-purple-600 dark:text-purple-400">
-                  +1 ช่อง (โควตารวม {confirmingSlots + 1} ช่อง)
+                  {isExistingEdit ? `${confirmingSlots} ช่อง (ใช้โควตาเดิม)` : `+1 ช่อง (โควตารวม ${confirmingSlots + 1} ช่อง)`}
                 </span>
               </div>
             </div>
 
             {/* Warning if insufficient points */}
-            {confirmingPoints < customSalepagePointsCost ? (
+            {!isExistingEdit && confirmingPoints < customSalepagePointsCost ? (
               <div className="space-y-3">
                 <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2">
                   <AlertCircle className="w-5 h-5 shrink-0" />
@@ -4899,7 +4991,7 @@ export default function WixCustomSalepageBuilderPage() {
                   ) : (
                     <>
                       <Check className="w-4 h-4" />
-                      <span>ตกลง (หัก {customSalepagePointsCost.toLocaleString()} แต้ม)</span>
+                      <span>{isExistingEdit ? '💾 ยืนยันบันทึกการแก้ไข (ฟรี)' : `ตกลง (หัก ${customSalepagePointsCost.toLocaleString()} แต้ม)`}</span>
                     </>
                   )}
                 </button>

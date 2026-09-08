@@ -5,6 +5,9 @@
 -- Short Links & Analytics, Pixel Events, Analytics Events, Payment Transactions
 -- ==============================================================================
 
+-- Ensure tier column exists
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'free';
+
 -- 1. PROFILES TABLE (ตารางข้อมูลผู้ใช้งานและโปรไฟล์)
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -921,38 +924,76 @@ BEGIN
         EXIT WHEN counter > 10;
     END LOOP;
 
-    -- Insert into profiles table
-    INSERT INTO public.profiles (
-        id,
-        username,
-        full_name,
-        avatar_url,
-        role,
-        tier,
-        points,
-        template_id,
-        bg_color,
-        text_color,
-        created_at,
-        updated_at
-    ) VALUES (
-        NEW.id,
-        temp_username,
-        user_full_name,
-        user_avatar,
-        'user',
-        'free',
-        100,
-        'template_1',
-        '#0B0F17',
-        '#FFFFFF',
-        NOW(),
-        NOW()
-    )
-    ON CONFLICT (id) DO UPDATE SET
-        full_name = EXCLUDED.full_name,
-        avatar_url = COALESCE(public.profiles.avatar_url, EXCLUDED.avatar_url),
-        updated_at = NOW();
+    -- Ensure tier column exists on profiles table to prevent trigger crash
+    -- Insert into profiles table with EXCEPTION guard
+    BEGIN
+        INSERT INTO public.profiles (
+            id,
+            username,
+            full_name,
+            avatar_url,
+            role,
+            tier,
+            points,
+            template_id,
+            bg_color,
+            text_color,
+            created_at,
+            updated_at
+        ) VALUES (
+            NEW.id,
+            temp_username,
+            user_full_name,
+            user_avatar,
+            'user',
+            'free',
+            100,
+            'template_1',
+            '#0B0F17',
+            '#FFFFFF',
+            NOW(),
+            NOW()
+        )
+        ON CONFLICT (id) DO UPDATE SET
+            full_name = EXCLUDED.full_name,
+            avatar_url = COALESCE(public.profiles.avatar_url, EXCLUDED.avatar_url),
+            updated_at = NOW();
+    EXCEPTION WHEN OTHERS THEN
+        -- Fallback: If tier column does not exist or any schema conflict occurs, insert without tier
+        BEGIN
+            INSERT INTO public.profiles (
+                id,
+                username,
+                full_name,
+                avatar_url,
+                role,
+                points,
+                template_id,
+                bg_color,
+                text_color,
+                created_at,
+                updated_at
+            ) VALUES (
+                NEW.id,
+                temp_username,
+                user_full_name,
+                user_avatar,
+                'user',
+                100,
+                'template_1',
+                '#0B0F17',
+                '#FFFFFF',
+                NOW(),
+                NOW()
+            )
+            ON CONFLICT (id) DO UPDATE SET
+                full_name = EXCLUDED.full_name,
+                avatar_url = COALESCE(public.profiles.avatar_url, EXCLUDED.avatar_url),
+                updated_at = NOW();
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'handle_new_user profile creation warning: %', SQLERRM;
+        END;
+    END;
 
     RETURN NEW;
 END;

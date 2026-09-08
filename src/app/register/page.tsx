@@ -164,9 +164,38 @@ function RegisterForm() {
       if (data?.session) {
         router.replace('/dashboard')
       } else {
+        // Try immediate auto-login if email confirmation is disabled on Supabase
+        try {
+          const { data: loginData } = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password
+          })
+          if (loginData?.session) {
+            router.replace('/dashboard')
+            return
+          }
+        } catch (e) {}
+
         setIsEmailSent(true)
       }
     } catch (err: any) {
+      // If 504 Gateway Timeout happens, often Supabase created the user, but SMTP confirmation hung
+      if (err.message?.includes('504') || err.message?.includes('Gateway Timeout') || err.status === 504) {
+        try {
+          const { data: autoLogin } = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password
+          })
+          if (autoLogin?.session) {
+            router.replace('/dashboard')
+            return
+          }
+        } catch (e) {}
+        
+        setErrorMsg('⚠️ ระบบส่งอีเมลยืนยันของ Supabase เกิด Gateway Timeout (504) แนะนำให้ไปที่ Supabase Dashboard > Authentication > Providers > Email แล้วปิด "Confirm email" หรือสมัครผ่านปุ่ม Google ด้านบน')
+        return
+      }
+
       let msg = err.message || 'เกิดข้อผิดพลาดในการสมัครสมาชิก'
       if (msg.includes('User already registered')) {
         msg = 'อีเมลนี้ถูกใช้งานแล้ว กรุณาใช้อีเมลอื่นหรือเข้าสู่ระบบ'

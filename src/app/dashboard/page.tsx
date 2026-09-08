@@ -1591,11 +1591,30 @@ function DashboardContent() {
       const pathPrefix = newLandingPage.page_type === 'c' ? 'c' : 'p'
       const fullUrl = `${originUrl || ''}/${pathPrefix}/${slug}`
 
-      if (editingLandingPageId) {
+      // Pre-check if slug is already registered
+      let effectiveLandingId = editingLandingPageId
+      const { data: existingLanding } = await supabase
+        .from('landing_pages')
+        .select('id, user_id, slug')
+        .eq('slug', slug)
+        .maybeSingle()
+
+      if (existingLanding) {
+        if (existingLanding.user_id === user.id) {
+          effectiveLandingId = existingLanding.id
+        } else {
+          showToast(`❌ ชื่อ URL "${slug}" นี้มีผู้ใช้งานในระบบแล้ว กรุณาเปลี่ยนชื่อ URL ใหม่`)
+          setIsSavingLandingPage(false)
+          setConfirmSaveLpModal(false)
+          return
+        }
+      }
+
+      if (effectiveLandingId) {
         const { data, error } = await supabase
           .from('landing_pages')
           .update(payload)
-          .eq('id', editingLandingPageId)
+          .eq('id', effectiveLandingId)
           .select()
 
         if (error) {
