@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const fetchCache = 'force-no-store'
 
 function getSupabaseAdmin() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dkidksohprjhkcokdbja.supabase.co'
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_rV42rP4GC0GQaI7eK56X9Q_ADKY96PU'
   return createClient(supabaseUrl, supabaseKey, {
-    auth: { persistSession: false }
+    auth: { persistSession: false },
+    global: {
+      fetch: (url, init) => fetch(url, { ...init, cache: 'no-store' })
+    }
   })
 }
 
@@ -248,34 +253,29 @@ export async function GET(
 
     const supabase = getSupabaseAdmin()
 
-    // Query both tables concurrently to find the most up-to-date HTML
+    // Primary table for /u/[slug] is uploaded_index_pages
     let page: any = null
-    const [pRes, lpRes] = await Promise.all([
-      supabase.from('uploaded_index_pages').select('*').eq('slug', slug).maybeSingle(),
-      supabase.from('landing_pages').select('*').eq('slug', slug).maybeSingle()
-    ])
+    const { data: pData } = await supabase
+      .from('uploaded_index_pages')
+      .select('*')
+      .eq('slug', slug)
+      .maybeSingle()
 
-    const pData = pRes.data
-    const lpData = lpRes.data
+    if (pData && pData.html_content) {
+      page = pData
+    } else {
+      // Fallback to landing_pages only if uploaded_index_pages does not exist
+      const { data: lpData } = await supabase
+        .from('landing_pages')
+        .select('*')
+        .eq('slug', slug)
+        .maybeSingle()
 
-    if (pData && lpData) {
-      // Pick whichever was updated or created most recently!
-      const t1 = new Date(pData.updated_at || pData.created_at || 0).getTime()
-      const t2 = new Date(lpData.updated_at || lpData.created_at || 0).getTime()
-      if (t2 > t1 && (lpData.body_content || lpData.html_content)) {
+      if (lpData && (lpData.body_content || lpData.html_content)) {
         page = {
           ...lpData,
           html_content: lpData.body_content || lpData.html_content
         }
-      } else {
-        page = pData
-      }
-    } else if (pData) {
-      page = pData
-    } else if (lpData && (lpData.card_style === 'uploaded_html_index' || lpData.body_content)) {
-      page = {
-        ...lpData,
-        html_content: lpData.body_content || lpData.html_content
       }
     }
 
@@ -380,7 +380,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0',
         'Pragma': 'no-cache',
         'Expires': '0',
         'Surrogate-Control': 'no-store'

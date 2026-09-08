@@ -188,25 +188,37 @@ export async function POST(req: NextRequest) {
 
     const isEditMode = Boolean(id)
 
-    // Check slug duplication
-    // In uploaded_index_pages
-    const { data: dup1 } = await supabase
-      .from('uploaded_index_pages')
-      .select('id')
-      .eq('slug', cleanSlug)
-      .neq('id', id || '00000000-0000-0000-0000-000000000000')
-      .maybeSingle()
+    // Check slug duplication (distinguish new vs edit mode)
+    if (!isEditMode) {
+      const { data: dup1 } = await supabase
+        .from('uploaded_index_pages')
+        .select('id')
+        .eq('slug', cleanSlug)
+        .maybeSingle()
 
-    // In landing_pages
-    const { data: dup2 } = await supabase
-      .from('landing_pages')
-      .select('id')
-      .eq('slug', cleanSlug)
-      .neq('id', id || '00000000-0000-0000-0000-000000000000')
-      .maybeSingle()
+      const { data: dup2 } = await supabase
+        .from('landing_pages')
+        .select('id')
+        .eq('slug', cleanSlug)
+        .maybeSingle()
 
-    if (dup1 || dup2) {
-      return NextResponse.json({ error: `ชื่อ URL /u/${cleanSlug} นี้ถูกใช้งานแล้ว กรุณาเลือกชื่ออื่น` }, { status: 400 })
+      if (dup1 || dup2) {
+        return NextResponse.json({ error: `ชื่อ URL /u/${cleanSlug} นี้ถูกใช้งานแล้ว กรุณาเลือกชื่ออื่น` }, { status: 400 })
+      }
+    } else {
+      // Edit mode: only check if ANOTHER page in uploaded_index_pages uses this cleanSlug
+      if (id) {
+        const { data: dup1 } = await supabase
+          .from('uploaded_index_pages')
+          .select('id')
+          .eq('slug', cleanSlug)
+          .neq('id', id)
+          .maybeSingle()
+
+        if (dup1) {
+          return NextResponse.json({ error: `ชื่อ URL /u/${cleanSlug} นี้ถูกใช้งานโดยหน้าอื่นแล้ว กรุณาเลือกชื่ออื่น` }, { status: 400 })
+        }
+      }
     }
 
     // =========================================================================
@@ -243,25 +255,27 @@ export async function POST(req: NextRequest) {
         updated_at: new Date().toISOString()
       }
 
-      // Update both tables with service role key (if admin, update without user_id restriction)
-      let q1 = supabase.from('uploaded_index_pages').update(updatePayload).eq('id', id)
-      let q2 = supabase.from('landing_pages').update(lpUpdate).eq('id', id)
-
-      if (!isAdmin) {
-        q1 = q1.eq('user_id', user_id)
-        q2 = q2.eq('user_id', user_id)
-      }
-
-      const [res1, res2] = await Promise.allSettled([
-        q1.select().maybeSingle(),
-        q2.select().maybeSingle()
+      // Update both tables with service role key by ID AND by slug
+      await Promise.allSettled([
+        supabase.from('uploaded_index_pages').update(updatePayload).eq('id', id),
+        supabase.from('uploaded_index_pages').update(updatePayload).eq('slug', cleanSlug),
+        supabase.from('landing_pages').update(lpUpdate).eq('id', id),
+        supabase.from('landing_pages').update(lpUpdate).eq('slug', cleanSlug)
       ])
 
-      if (res1.status === 'fulfilled' && res1.value.data) {
-        updatedPage = res1.value.data
-      } else if (res2.status === 'fulfilled' && res2.value.data) {
-        updatedPage = { ...res2.value.data, html_content: res2.value.data.body_content }
+      // Upsert into uploaded_index_pages on conflict (slug) to guarantee 100% updated content
+      const upsertRecord: any = {
+        id,
+        user_id,
+        ...updatePayload
       }
+      const { data: finalRecord } = await supabase
+        .from('uploaded_index_pages')
+        .upsert([upsertRecord], { onConflict: 'slug' })
+        .select()
+        .maybeSingle()
+
+      updatedPage = finalRecord || upsertRecord
 
       return NextResponse.json({
         success: true,
