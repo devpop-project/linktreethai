@@ -2,6 +2,7 @@ import './globals.css'
 import type { Metadata, Viewport } from 'next'
 import { createClient } from '@supabase/supabase-js'
 import DynamicSiteHead from '@/components/DynamicSiteHead'
+import CookieConsent from '@/components/CookieConsent'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -162,6 +163,7 @@ export default async function RootLayout({
       <body className="bg-[#0B0F17] text-slate-100 min-h-screen antialiased selection:bg-[#A78BFA] selection:text-white">
         <DynamicSiteHead />
         {children}
+        <CookieConsent />
       </body>
     </html>
   )

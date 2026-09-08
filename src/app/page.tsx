@@ -1018,6 +1018,8 @@ export default function HomePage() {
                 <FileCode className="w-3.5 h-3.5" /> <span>โฮสต์ Index.html</span>
               </Link>
               <Link href="/services" className="hover:text-purple-600 transition">บริการเสริม</Link>
+              <Link href="/privacy" className="hover:text-purple-600 transition">นโยบายความเป็นส่วนตัว</Link>
+              <Link href="/terms" className="hover:text-purple-600 transition">ข้อกำหนดการใช้งาน</Link>
               <Link href="/login" className="hover:text-purple-600 transition">เข้าสู่ระบบ</Link>
               <Link href="/register" className="hover:text-purple-600 transition text-purple-500 font-bold">สมัครสมาชิกฟรี</Link>
             </div>
@@ -1025,7 +1027,19 @@ export default function HomePage() {
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px]">
             <p>{siteSettings?.site_footer_text || '© 2026 LinkTreeThai. All rights reserved. สร้าง Bio Link & เซลเพจขายของยิงแอดครบวงจร'}</p>
-            <div className="flex items-center gap-4 text-slate-400">
+            <div className="flex items-center gap-3 sm:gap-4 text-slate-400 flex-wrap justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('open-cookie-settings'))
+                  }
+                }}
+                className="hover:text-purple-400 transition cursor-pointer flex items-center gap-1"
+              >
+                <span>🍪 ตั้งค่าคุกกี้</span>
+              </button>
+              <span>•</span>
               <span>Made with ❤️ in Thailand</span>
               <span>•</span>
               <a href="https://line.me/ti/p/@amth" target="_blank" rel="noreferrer" className="hover:text-emerald-500 transition">
