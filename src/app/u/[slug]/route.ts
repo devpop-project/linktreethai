@@ -248,29 +248,34 @@ export async function GET(
 
     const supabase = getSupabaseAdmin()
 
-    // 1. Check in uploaded_index_pages first
+    // Query both tables concurrently to find the most up-to-date HTML
     let page: any = null
-    const { data: pData, error: pErr } = await supabase
-      .from('uploaded_index_pages')
-      .select('*')
-      .eq('slug', slug)
-      .maybeSingle()
+    const [pRes, lpRes] = await Promise.all([
+      supabase.from('uploaded_index_pages').select('*').eq('slug', slug).maybeSingle(),
+      supabase.from('landing_pages').select('*').eq('slug', slug).maybeSingle()
+    ])
 
-    if (!pErr && pData) {
-      page = pData
-    } else {
-      // 2. Fallback to landing_pages where card_style = 'uploaded_html_index' or matching slug
-      const { data: lpData, error: lpErr } = await supabase
-        .from('landing_pages')
-        .select('*')
-        .eq('slug', slug)
-        .maybeSingle()
+    const pData = pRes.data
+    const lpData = lpRes.data
 
-      if (!lpErr && lpData && (lpData.card_style === 'uploaded_html_index' || lpData.body_content)) {
+    if (pData && lpData) {
+      // Pick whichever was updated or created most recently!
+      const t1 = new Date(pData.updated_at || pData.created_at || 0).getTime()
+      const t2 = new Date(lpData.updated_at || lpData.created_at || 0).getTime()
+      if (t2 > t1 && (lpData.body_content || lpData.html_content)) {
         page = {
           ...lpData,
-          html_content: lpData.body_content
+          html_content: lpData.body_content || lpData.html_content
         }
+      } else {
+        page = pData
+      }
+    } else if (pData) {
+      page = pData
+    } else if (lpData && (lpData.card_style === 'uploaded_html_index' || lpData.body_content)) {
+      page = {
+        ...lpData,
+        html_content: lpData.body_content || lpData.html_content
       }
     }
 
@@ -375,7 +380,10 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=60, s-maxage=60, stale-while-revalidate=300'
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
       }
     })
   } catch (err: any) {

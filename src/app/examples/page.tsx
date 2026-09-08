@@ -11,118 +11,6 @@ import {
   FileCode, Grid, LayoutList
 } from 'lucide-react'
 
-// Curated high-fidelity showcase items to supplement when DB has few records
-const CURATED_FALLBACK_SHOWCASE = [
-  {
-    id: 'curated-amanita-bio',
-    type: 'bio',
-    title: 'Amanita Thailand',
-    username: 'amanita',
-    description: 'แบรนด์สมุนไพรธรรมชาติ และสารสกัดพฤกษศาสตร์พรีเมียม สไตล์ Botanical Wellness',
-    templateName: 'Template 9 (Luxury Gold)',
-    avatarUrl: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=150&auto=format&fit=crop&q=80',
-    coverUrl: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=800&auto=format&fit=crop&q=80',
-    liveUrl: '/amanita',
-    displayUrl: '/amanita',
-    role: 'admin',
-    points: 1022,
-    isSalepage: false,
-    price: null,
-    ownerUsername: 'amanita',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'curated-amanita-custom-salepage',
-    type: 'salepage',
-    title: 'Amanita Muscaria Extract (COD + QR)',
-    username: 'c/enter-the-amanita-th-775',
-    description: 'Custom Salepage 13 บล็อก สไตล์ Mobile App หรูหรา พร้อมระบบชำระเงิน Dynamic PromptPay และเก็บเงินปลายทาง',
-    templateName: '✨ Custom Salepage',
-    avatarUrl: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=150&auto=format&fit=crop&q=80',
-    coverUrl: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=800&auto=format&fit=crop&q=80',
-    liveUrl: '/c/enter-the-amanita-th-775',
-    displayUrl: '/c/enter-the-amanita-th-775',
-    role: 'salepage',
-    points: 0,
-    isSalepage: true,
-    price: '450',
-    ownerUsername: 'amanita',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'curated-coffee-salepage',
-    type: 'salepage',
-    title: 'Specialty Craft Coffee Roasters',
-    username: 'p/specialty-coffee-beans',
-    description: 'เมล็ดกาแฟคั่วสดเกรด Single Origin ดอยช้าง เซ็ตโปรโมชั่นยิงแอด 1 แถม 1 พร้อมระบบจัดส่งปลายทาง',
-    templateName: '🚀 เซลเพจ Flash Sale',
-    avatarUrl: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=150&auto=format&fit=crop&q=80',
-    coverUrl: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&auto=format&fit=crop&q=80',
-    liveUrl: '/p/specialty-coffee-beans',
-    displayUrl: '/p/specialty-coffee-beans',
-    role: 'salepage',
-    points: 0,
-    isSalepage: true,
-    price: '390',
-    ownerUsername: 'coffee_specialty',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'curated-html-index',
-    type: 'uploaded',
-    title: 'Brand Showcase Index Page',
-    username: 'u/summer-sale-pro',
-    description: 'หน้าแลนดิ้งเพจนำเข้าด้วยไฟล์ index.html โฮสต์ส่วนตัว พร้อมฝัง Meta Conversions API ยิงแอด 100%',
-    templateName: '📄 โฮสต์ HTML (/u/)',
-    avatarUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=150&auto=format&fit=crop&q=80',
-    coverUrl: null,
-    liveUrl: '/u/summer-sale-pro',
-    displayUrl: '/u/summer-sale-pro',
-    role: 'uploaded',
-    points: 0,
-    isSalepage: true,
-    price: null,
-    ownerUsername: 'digital_master',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'curated-creator-bio',
-    type: 'bio',
-    title: 'Minimal Creator Studio',
-    username: 'creator_studio',
-    description: 'ครีเอเตอร์สายเทคโนโลยีและรีวิวแกดเจ็ต รวมผลงานคลิป TikTok, พอดแคสต์ และสปอนเซอร์ชิป',
-    templateName: 'Template 6 (Bento Grid)',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-    coverUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&auto=format&fit=crop&q=80',
-    liveUrl: '/creator_studio',
-    displayUrl: '/creator_studio',
-    role: 'vip',
-    points: 299,
-    isSalepage: false,
-    price: null,
-    ownerUsername: 'creator_studio',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'curated-fashion-store',
-    type: 'bio',
-    title: 'Nordic Streetwear Bangkok',
-    username: 'nordic_bkk',
-    description: 'แบรนด์เสื้อผ้าสตรีตแวร์นำเข้า วางขายสินค้า 10 รายการ รับชำระผ่าน PromptPay และเชื่อมต่อ Shopee',
-    templateName: 'Template 5 (Neo Brutalism)',
-    avatarUrl: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=150&auto=format&fit=crop&q=80',
-    coverUrl: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=800&auto=format&fit=crop&q=80',
-    liveUrl: '/nordic_bkk',
-    displayUrl: '/nordic_bkk',
-    role: 'pro',
-    points: 299,
-    isSalepage: false,
-    price: null,
-    ownerUsername: 'nordic_bkk',
-    createdAt: new Date().toISOString()
-  }
-]
-
 export default function ExamplesShowcasePage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState<string>('')
@@ -313,10 +201,8 @@ export default function ExamplesShowcasePage() {
     }))
   ]
 
-  // If real items are few, merge with curated showcase items avoiding duplicates
-  const existingSlugs = new Set(realMappedItems.map(i => i.username))
-  const supplementalCurated = CURATED_FALLBACK_SHOWCASE.filter(c => !existingSlugs.has(c.username))
-  const combinedItems = [...realMappedItems, ...supplementalCurated]
+  // Strictly ONLY real items from the database (No mock/fake fallback data)
+  const combinedItems = realMappedItems
 
   const filteredItems = combinedItems.filter((item) => {
     const matchCategory = 

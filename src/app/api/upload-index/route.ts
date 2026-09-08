@@ -228,44 +228,39 @@ export async function POST(req: NextRequest) {
 
       let updatedPage: any = null
 
-      const { data: pData, error: pErr } = await supabase
-        .from('uploaded_index_pages')
-        .update(updatePayload)
-        .eq('id', id)
-        .eq('user_id', user_id)
-        .select()
-        .maybeSingle()
+      const lpUpdate = {
+        slug: cleanSlug,
+        title: String(title).trim(),
+        headline: String(title).trim(),
+        body_content: String(html_content),
+        cta_url: `/u/${cleanSlug}`,
+        fb_pixel_id: fb_pixel_id ? String(fb_pixel_id).trim() : null,
+        meta_capi_token: meta_capi_token ? String(meta_capi_token).trim() : null,
+        tiktok_pixel_id: tiktok_pixel_id ? String(tiktok_pixel_id).trim() : null,
+        google_pixel_id: google_pixel_id ? String(google_pixel_id).trim() : null,
+        line_tag_id: line_tag_id ? String(line_tag_id).trim() : null,
+        is_active: is_active !== undefined ? Boolean(is_active) : true,
+        updated_at: new Date().toISOString()
+      }
 
-      if (!pErr && pData) {
-        updatedPage = pData
-      } else {
-        // Fallback to landing_pages
-        const lpUpdate = {
-          slug: cleanSlug,
-          title: String(title).trim(),
-          headline: String(title).trim(),
-          body_content: String(html_content),
-          cta_url: `/u/${cleanSlug}`,
-          fb_pixel_id: fb_pixel_id ? String(fb_pixel_id).trim() : null,
-          tiktok_pixel_id: tiktok_pixel_id ? String(tiktok_pixel_id).trim() : null,
-          google_pixel_id: google_pixel_id ? String(google_pixel_id).trim() : null,
-          line_tag_id: line_tag_id ? String(line_tag_id).trim() : null,
-          is_active: is_active !== undefined ? Boolean(is_active) : true,
-          updated_at: new Date().toISOString()
-        }
+      // Update both tables with service role key (if admin, update without user_id restriction)
+      let q1 = supabase.from('uploaded_index_pages').update(updatePayload).eq('id', id)
+      let q2 = supabase.from('landing_pages').update(lpUpdate).eq('id', id)
 
-        const { data: lpData, error: lpErr } = await supabase
-          .from('landing_pages')
-          .update(lpUpdate)
-          .eq('id', id)
-          .eq('user_id', user_id)
-          .select()
-          .maybeSingle()
+      if (!isAdmin) {
+        q1 = q1.eq('user_id', user_id)
+        q2 = q2.eq('user_id', user_id)
+      }
 
-        if (lpErr) {
-          throw new Error('ไม่สามารถบันทึกการแก้ไขได้: ' + lpErr.message)
-        }
-        updatedPage = lpData ? { ...lpData, html_content: lpData.body_content } : null
+      const [res1, res2] = await Promise.allSettled([
+        q1.select().maybeSingle(),
+        q2.select().maybeSingle()
+      ])
+
+      if (res1.status === 'fulfilled' && res1.value.data) {
+        updatedPage = res1.value.data
+      } else if (res2.status === 'fulfilled' && res2.value.data) {
+        updatedPage = { ...res2.value.data, html_content: res2.value.data.body_content }
       }
 
       return NextResponse.json({

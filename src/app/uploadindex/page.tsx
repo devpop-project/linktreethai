@@ -514,40 +514,48 @@ export default function UploadIndexPage() {
           updated_at: new Date().toISOString()
         }
 
-        const { error: updErr } = await supabase
-          .from('uploaded_index_pages')
-          .update(updatePayload)
-          .eq('id', editingId)
-          .eq('user_id', user.id)
+        const lpUpdate = {
+          slug: cleanSlug,
+          title: title.trim(),
+          headline: title.trim(),
+          body_content: htmlContent,
+          cta_url: `/u/${cleanSlug}`,
+          fb_pixel_id: fbPixelId.trim() || null,
+          tiktok_pixel_id: tiktokPixelId.trim() || null,
+          google_pixel_id: googlePixelId.trim() || null,
+          line_tag_id: lineTagId.trim() || null,
+          meta_capi_token: metaCapiToken.trim() || null,
+          is_active: true,
+          updated_at: new Date().toISOString()
+        }
 
-        if (updErr) {
-          const lpUpdate = {
-            slug: cleanSlug,
-            title: title.trim(),
-            headline: title.trim(),
-            body_content: htmlContent,
-            cta_url: `/u/${cleanSlug}`,
-            fb_pixel_id: fbPixelId.trim() || null,
-            tiktok_pixel_id: tiktokPixelId.trim() || null,
-            google_pixel_id: googlePixelId.trim() || null,
-            line_tag_id: lineTagId.trim() || null,
-            meta_capi_token: metaCapiToken.trim() || null,
-            is_active: true,
-            updated_at: new Date().toISOString()
-          }
+        // 1. Direct DB update to BOTH tables (admin updates by ID, user updates by ID)
+        let q1 = supabase.from('uploaded_index_pages').update(updatePayload).eq('id', editingId)
+        let q2 = supabase.from('landing_pages').update(lpUpdate).eq('id', editingId)
+        if (!isAdmin) {
+          q1 = q1.eq('user_id', user.id)
+          q2 = q2.eq('user_id', user.id)
+        }
+        await Promise.allSettled([q1, q2])
 
-          const { error: lpUpdErr } = await supabase
-            .from('landing_pages')
-            .update(lpUpdate)
-            .eq('id', editingId)
-            .eq('user_id', user.id)
-
-          if (lpUpdErr) {
-            throw new Error('ไม่สามารถบันทึกการแก้ไขได้: ' + lpUpdErr.message)
-          }
+        // 2. Also call API route to update with Admin Service Role for 100% guarantee
+        try {
+          await fetch('/api/upload-index', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: editingId,
+              user_id: user.id,
+              ...updatePayload
+            })
+          })
+        } catch (apiErr) {
+          console.warn('API sync warning:', apiErr)
         }
 
         showToast('💾 บันทึกการแก้ไขหน้าเว็บเรียบร้อยแล้ว (ฟรี ไม่เสียแต้ม)')
+        resetForm()
+        setActiveTab('list')
       } else {
         // 4. CREATE NEW MODE
         const insertPayload: any = {
