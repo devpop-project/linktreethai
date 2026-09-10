@@ -469,35 +469,23 @@ export default function UploadIndexPage() {
         throw new Error('ชื่อ URL (slug) ต้องมีความยาวอย่างน้อย 2 ตัวอักษร (ใช้ a-z, 0-9, ขีดกลาง)')
       }
 
-      // 1. Check duplicate slug (differentiate new vs edit mode)
-      if (!editingId) {
-        const { data: dup1 } = await supabase
-          .from('uploaded_index_pages')
-          .select('id')
-          .eq('slug', cleanSlug)
-          .maybeSingle()
+      // 1. Check duplicate slug
+      const { data: dup1 } = await supabase
+        .from('uploaded_index_pages')
+        .select('id')
+        .eq('slug', cleanSlug)
+        .neq('id', editingId || '00000000-0000-0000-0000-000000000000')
+        .maybeSingle()
 
-        const { data: dup2 } = await supabase
-          .from('landing_pages')
-          .select('id')
-          .eq('slug', cleanSlug)
-          .maybeSingle()
+      const { data: dup2 } = await supabase
+        .from('landing_pages')
+        .select('id')
+        .eq('slug', cleanSlug)
+        .neq('id', editingId || '00000000-0000-0000-0000-000000000000')
+        .maybeSingle()
 
-        if (dup1 || dup2) {
-          throw new Error(`ชื่อ URL /u/${cleanSlug} นี้ถูกใช้งานแล้ว กรุณาเลือกชื่ออื่น`)
-        }
-      } else {
-        // Edit mode: only check if ANOTHER page in uploaded_index_pages has this slug
-        const { data: dup1 } = await supabase
-          .from('uploaded_index_pages')
-          .select('id')
-          .eq('slug', cleanSlug)
-          .neq('id', editingId)
-          .maybeSingle()
-
-        if (dup1) {
-          throw new Error(`ชื่อ URL /u/${cleanSlug} นี้ถูกใช้งานโดยหน้าอื่นแล้ว กรุณาเลือกชื่ออื่น`)
-        }
+      if (dup1 || dup2) {
+        throw new Error(`ชื่อ URL /u/${cleanSlug} นี้ถูกใช้งานแล้ว กรุณาเลือกชื่ออื่น`)
       }
 
       // 2. Strict Point Check for New Page
@@ -526,57 +514,40 @@ export default function UploadIndexPage() {
           updated_at: new Date().toISOString()
         }
 
-        const lpUpdate = {
-          slug: cleanSlug,
-          title: title.trim(),
-          headline: title.trim(),
-          body_content: htmlContent,
-          cta_url: `/u/${cleanSlug}`,
-          fb_pixel_id: fbPixelId.trim() || null,
-          tiktok_pixel_id: tiktokPixelId.trim() || null,
-          google_pixel_id: googlePixelId.trim() || null,
-          line_tag_id: lineTagId.trim() || null,
-          meta_capi_token: metaCapiToken.trim() || null,
-          is_active: true,
-          updated_at: new Date().toISOString()
-        }
+        const { error: updErr } = await supabase
+          .from('uploaded_index_pages')
+          .update(updatePayload)
+          .eq('id', editingId)
+          .eq('user_id', user.id)
 
-        // 1. Direct DB update to BOTH tables by ID AND by slug
-        await Promise.allSettled([
-          supabase.from('uploaded_index_pages').update(updatePayload).eq('id', editingId),
-          supabase.from('uploaded_index_pages').update(updatePayload).eq('slug', cleanSlug),
-          supabase.from('landing_pages').update(lpUpdate).eq('id', editingId),
-          supabase.from('landing_pages').update(lpUpdate).eq('slug', cleanSlug)
-        ])
-
-        // 2. Call API route with Admin Service Role to guarantee 100% DB upsert
-        try {
-          const apiRes = await fetch('/api/upload-index', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              id: editingId,
-              user_id: user.id,
-              ...updatePayload
-            })
-          })
-          const apiData = await apiRes.json()
-          if (!apiRes.ok || apiData.error) {
-            console.warn('API sync warning:', apiData?.error)
+        if (updErr) {
+          const lpUpdate = {
+            slug: cleanSlug,
+            title: title.trim(),
+            headline: title.trim(),
+            body_content: htmlContent,
+            cta_url: `/u/${cleanSlug}`,
+            fb_pixel_id: fbPixelId.trim() || null,
+            tiktok_pixel_id: tiktokPixelId.trim() || null,
+            google_pixel_id: googlePixelId.trim() || null,
+            line_tag_id: lineTagId.trim() || null,
+            meta_capi_token: metaCapiToken.trim() || null,
+            is_active: true,
+            updated_at: new Date().toISOString()
           }
-        } catch (apiErr) {
-          console.warn('API sync warning:', apiErr)
-        }
 
-        // Immediately update state in memory
-        setMyPages(prev => prev.map(p => (p.id === editingId || p.slug === cleanSlug) ? { ...p, ...updatePayload } : p))
-        setAdminAllPages(prev => prev.map(p => (p.id === editingId || p.slug === cleanSlug) ? { ...p, ...updatePayload } : p))
+          const { error: lpUpdErr } = await supabase
+            .from('landing_pages')
+            .update(lpUpdate)
+            .eq('id', editingId)
+            .eq('user_id', user.id)
+
+          if (lpUpdErr) {
+            throw new Error('ไม่สามารถบันทึกการแก้ไขได้: ' + lpUpdErr.message)
+          }
+        }
 
         showToast('💾 บันทึกการแก้ไขหน้าเว็บเรียบร้อยแล้ว (ฟรี ไม่เสียแต้ม)')
-        resetForm()
-        setActiveTab('list')
-        fetchMyPages(user.id)
-        if (isAdmin) fetchAdminAllPages()
       } else {
         // 4. CREATE NEW MODE
         const insertPayload: any = {
@@ -789,52 +760,37 @@ export default function UploadIndexPage() {
         updated_at: new Date().toISOString()
       }
 
-      const lpPayload = {
-        title: payload.title,
-        headline: payload.title,
-        slug: payload.slug,
-        body_content: payload.html_content,
-        cta_url: `/u/${payload.slug}`,
-        fb_pixel_id: payload.fb_pixel_id,
-        tiktok_pixel_id: payload.tiktok_pixel_id,
-        google_pixel_id: payload.google_pixel_id,
-        line_tag_id: payload.line_tag_id,
-        meta_capi_token: payload.meta_capi_token,
-        views: payload.views,
-        is_active: payload.is_active,
-        updated_at: payload.updated_at
-      }
+      // Update uploaded_index_pages
+      await supabase
+        .from('uploaded_index_pages')
+        .update(payload)
+        .eq('id', adminEditModalPage.id)
 
-      // Update both tables by ID AND by slug
-      await Promise.allSettled([
-        supabase.from('uploaded_index_pages').update(payload).eq('id', adminEditModalPage.id),
-        supabase.from('uploaded_index_pages').update(payload).eq('slug', cleanSlug),
-        supabase.from('landing_pages').update(lpPayload).eq('id', adminEditModalPage.id),
-        supabase.from('landing_pages').update(lpPayload).eq('slug', cleanSlug)
-      ])
-
-      // Also call API route to persist with Admin Service Role
-      try {
-        await fetch('/api/upload-index', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: adminEditModalPage.id,
-            user_id: adminEditModalPage.user_id || user.id,
-            ...payload
-          })
+      // Fallback update landing_pages
+      await supabase
+        .from('landing_pages')
+        .update({
+          title: payload.title,
+          headline: payload.title,
+          slug: payload.slug,
+          body_content: payload.html_content,
+          cta_url: `/u/${payload.slug}`,
+          fb_pixel_id: payload.fb_pixel_id,
+          tiktok_pixel_id: payload.tiktok_pixel_id,
+          google_pixel_id: payload.google_pixel_id,
+          line_tag_id: payload.line_tag_id,
+          meta_capi_token: payload.meta_capi_token,
+          views: payload.views,
+          is_active: payload.is_active,
+          updated_at: payload.updated_at
         })
-      } catch (apiErr) {
-        console.warn('Admin API sync warning:', apiErr)
-      }
+        .eq('id', adminEditModalPage.id)
 
-      setAdminAllPages(adminAllPages.map((p) => (p.id === adminEditModalPage.id || p.slug === cleanSlug ? { ...p, ...payload } : p)))
-      setMyPages(myPages.map((p) => (p.id === adminEditModalPage.id || p.slug === cleanSlug ? { ...p, ...payload } : p)))
+      setAdminAllPages(adminAllPages.map((p) => (p.id === adminEditModalPage.id ? { ...p, ...payload } : p)))
+      setMyPages(myPages.map((p) => (p.id === adminEditModalPage.id ? { ...p, ...payload } : p)))
 
       setAdminEditModalPage(null)
       showToast('✅ บันทึกการแก้ไขในฐานะ Admin เรียบร้อยแล้ว')
-      fetchMyPages(user.id)
-      fetchAdminAllPages()
     } catch (err: any) {
       showToast('❌ ข้อผิดพลาด: ' + err.message)
     }

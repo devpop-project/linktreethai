@@ -4,12 +4,19 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
   try {
+    let body: any = {}
+    try {
+      body = await request.json()
+    } catch {
+      body = {}
+    }
+
     const { 
       token, 
       webhook_url, 
       channel_access_token, 
       user_id 
-    } = await request.json()
+    } = body
 
     if (!channel_access_token && !user_id && !token && !webhook_url) {
       return NextResponse.json({ 
@@ -52,15 +59,22 @@ export async function POST(request: Request) {
         if (res.ok) {
           success = true
         } else {
-          const errData = await res.json()
+          let errData: any = {}
+          try {
+            const raw = await res.text()
+            if (raw && !raw.trim().startsWith('<')) {
+              errData = JSON.parse(raw)
+            }
+          } catch {}
+
           if (res.status === 401) {
             errorMsg = `LINE API Error (401): Token ไม่ถูกต้อง กรุณาไปที่แท็บ "Messaging API" ใน LINE Developers เลื่อนลงล่างสุดแล้วกด Issue เพื่อคัดลอก Channel Access Token (Long-lived) ตัวยาวมาใส่ครับ`
           } else {
-            errorMsg = `LINE API Error (${res.status}): ${errData.message || 'Token หรือ User ID ไม่ถูกต้อง'}`
+            errorMsg = `LINE API Error (${res.status}): ${errData?.message || 'Token หรือ User ID ไม่ถูกต้อง'}`
           }
         }
       } catch (lineErr: any) {
-        errorMsg = `LINE API Error: ${lineErr.message}`
+        errorMsg = `LINE API Error: ${lineErr.message || 'ไม่สามารถเชื่อมต่อ LINE API ได้'}`
       }
     }
 
@@ -79,7 +93,7 @@ export async function POST(request: Request) {
         if (res.ok) {
           success = true
         } else {
-          if (!errorMsg) errorMsg = 'Webhook URL ตอบกลับสถานะไม่สำเร็จ'
+          if (!errorMsg) errorMsg = `Webhook ตอบกลับรหัส ${res.status}`
         }
       } catch (wErr: any) {
         if (!errorMsg) errorMsg = `Webhook Error: ${wErr.message}`
@@ -98,11 +112,19 @@ export async function POST(request: Request) {
           },
           body: new URLSearchParams({ message: testMsg }).toString()
         })
-        const data = await res.json()
-        if (res.ok && data.status === 200) {
+
+        let data: any = null
+        try {
+          const raw = await res.text()
+          if (raw && !raw.trim().startsWith('<')) {
+            data = JSON.parse(raw)
+          }
+        } catch {}
+
+        if (res.ok && data?.status === 200) {
           success = true
         } else {
-          if (!errorMsg) errorMsg = data.message || 'Token LINE Notify ไม่ถูกต้อง'
+          if (!errorMsg) errorMsg = data?.message || `LINE Notify ตอบกลับรหัส ${res.status}`
         }
       } catch (nErr: any) {
         if (!errorMsg) errorMsg = `LINE Notify Error: ${nErr.message}`

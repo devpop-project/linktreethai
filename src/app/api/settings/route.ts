@@ -80,7 +80,12 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const supabase = getSupabaseAdmin()
-    const body = await request.json()
+    let body: any = {}
+    try {
+      body = await request.json()
+    } catch {
+      body = {}
+    }
     const { settings } = body
 
     if (!settings || typeof settings !== 'object') {

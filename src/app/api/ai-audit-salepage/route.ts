@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
+    let body: any = {}
+    try {
+      body = await req.json()
+    } catch {
+      body = {}
+    }
     const { pageTitle, sections, productName, apiKey } = body
 
     const key = (apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || process.env.OPENAI_API_KEY || "").trim()
@@ -45,7 +50,11 @@ export async function POST(req: NextRequest) {
         })
 
         if (res.ok) {
-          const data = await res.json()
+          let data: any = {}
+        try {
+          const raw = await res.text()
+          if (raw && !raw.trim().startsWith('<')) data = JSON.parse(raw)
+        } catch {}
           const parsed = JSON.parse(data.choices[0].message.content)
           return NextResponse.json({ success: true, audit: parsed })
         }
@@ -94,7 +103,11 @@ export async function POST(req: NextRequest) {
             })
           })
           if (res.ok) {
-            const data = await res.json()
+            let data: any = {}
+        try {
+          const raw = await res.text()
+          if (raw && !raw.trim().startsWith('<')) data = JSON.parse(raw)
+        } catch {}
             const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || ""
             const clean = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```$/i, "").trim()
             const parsed = JSON.parse(clean)

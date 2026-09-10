@@ -107,7 +107,12 @@ function extractJsonFromText(raw: string): any {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
+    let body: any = {}
+    try {
+      body = await req.json()
+    } catch {
+      body = {}
+    }
     const { imageUrl, imageBase64, userApiKey, productHint } = body
 
     const apiKey = (userApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || process.env.OPENAI_API_KEY || '').trim()
@@ -214,7 +219,11 @@ ${productHint ? `ข้อมูลเสริมเพิ่มเติม: "
       try {
         const modelsRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`)
         if (modelsRes.ok) {
-          const modelsData = await modelsRes.json()
+          let modelsData: any = {}
+        try {
+          const raw = await modelsRes.text()
+          if (raw && !raw.trim().startsWith('<')) modelsData = JSON.parse(raw)
+        } catch {}
           if (modelsData.models && Array.isArray(modelsData.models)) {
             availableModels = modelsData.models
               .filter((m: any) => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
@@ -260,7 +269,11 @@ ${productHint ? `ข้อมูลเสริมเพิ่มเติม: "
           )
 
           if (geminiRes.ok) {
-            const geminiData = await geminiRes.json()
+            let geminiData: any = {}
+          try {
+            const raw = await geminiRes.text()
+            if (raw && !raw.trim().startsWith('<')) geminiData = JSON.parse(raw)
+          } catch {}
             const partsArr = geminiData.candidates?.[0]?.content?.parts || []
             const rawText = partsArr.map((p: any) => p.text || '').join('\n')
             const parsed = extractJsonFromText(rawText)
@@ -312,7 +325,11 @@ ${productHint ? `ข้อมูลเสริมเพิ่มเติม: "
         })
 
         if (openAiRes.ok) {
-          const openAiData = await openAiRes.json()
+          let openAiData: any = {}
+          try {
+            const raw = await openAiRes.text()
+            if (raw && !raw.trim().startsWith('<')) openAiData = JSON.parse(raw)
+          } catch {}
           const parsed = extractJsonFromText(openAiData.choices[0].message.content)
           if (parsed) {
             return NextResponse.json({ success: true, analysis: parsed, provider: 'OpenAI GPT-4o' })

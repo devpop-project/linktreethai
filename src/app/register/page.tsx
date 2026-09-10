@@ -24,6 +24,34 @@ import {
   Coins
 } from 'lucide-react'
 
+function hasLocalSupabaseSession(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    // 1. Check cookies (where @supabase/ssr stores auth tokens)
+    if (document.cookie) {
+      const cookies = document.cookie.split(';')
+      for (const c of cookies) {
+        const trimmed = c.trim()
+        if (trimmed.startsWith('sb-') && trimmed.includes('-auth-token') && trimmed.length > 25) {
+          return true
+        }
+        if (trimmed.startsWith('supabase-auth-token=') && trimmed.length > 25) {
+          return true
+        }
+      }
+    }
+    // 2. Check localStorage (where standard supabase-js stores auth tokens)
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) || ''
+      if ((key.startsWith('sb-') && key.includes('token')) || key.includes('supabase.auth.token')) {
+        const raw = localStorage.getItem(key) || ''
+        if (raw.length > 20) return true
+      }
+    }
+  } catch (e) {}
+  return false
+}
+
 function RegisterForm() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
@@ -33,45 +61,73 @@ function RegisterForm() {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [isEmailSent, setIsEmailSent] = useState(false)
-  const [checkingSession, setCheckingSession] = useState(true)
 
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
 
-  // Auto redirect to dashboard if user is already logged in (Prevents navigating back to register when authenticated)
+  const [checkingAuth, setCheckingAuth] = useState(true)
+
+  // Redirect to /dashboard immediately if user is already logged in
   useEffect(() => {
+    if (hasLocalSupabaseSession()) {
+      window.location.replace('/dashboard')
+      return
+    }
+
     let isMounted = true
 
-    const checkAuth = async () => {
+    const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        if (session && isMounted) {
-          router.replace('/dashboard')
+        if (session?.user) {
+          window.location.replace('/dashboard')
           return
         }
-      } catch (err) {
-        console.warn('Session check error:', err)
-      } finally {
         if (isMounted) {
-          setCheckingSession(false)
+          setCheckingAuth(false)
+        }
+      } catch (err) {
+        console.error('Session check note:', err)
+        if (isMounted) {
+          setCheckingAuth(false)
         }
       }
     }
 
-    checkAuth()
+    checkSession()
+
+    // Listen to bfcache restore (browser back/forward button)
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (hasLocalSupabaseSession() || event.persisted) {
+        window.location.replace('/dashboard')
+        return
+      }
+      checkSession()
+    }
+    window.addEventListener('pageshow', handlePageShow)
+
+    const handlePopState = () => {
+      if (hasLocalSupabaseSession()) {
+        window.location.replace('/dashboard')
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session && isMounted && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
-        router.replace('/dashboard')
+      if (session?.user) {
+        window.location.replace('/dashboard')
       }
     })
 
     return () => {
       isMounted = false
-      subscription?.unsubscribe()
+      window.removeEventListener('pageshow', handlePageShow)
+      window.removeEventListener('popstate', handlePopState)
+      subscription.unsubscribe()
     }
   }, [router, supabase])
+
 
   useEffect(() => {
     const prefill = searchParams.get('username')
@@ -162,40 +218,11 @@ function RegisterForm() {
       if (error) throw error
 
       if (data?.session) {
-        router.replace('/dashboard')
+        window.location.replace('/dashboard')
       } else {
-        // Try immediate auto-login if email confirmation is disabled on Supabase
-        try {
-          const { data: loginData } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
-            password
-          })
-          if (loginData?.session) {
-            router.replace('/dashboard')
-            return
-          }
-        } catch (e) {}
-
         setIsEmailSent(true)
       }
     } catch (err: any) {
-      // If 504 Gateway Timeout happens, often Supabase created the user, but SMTP confirmation hung
-      if (err.message?.includes('504') || err.message?.includes('Gateway Timeout') || err.status === 504) {
-        try {
-          const { data: autoLogin } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
-            password
-          })
-          if (autoLogin?.session) {
-            router.replace('/dashboard')
-            return
-          }
-        } catch (e) {}
-        
-        setErrorMsg('⚠️ ระบบส่งอีเมลยืนยันของ Supabase เกิด Gateway Timeout (504) แนะนำให้ไปที่ Supabase Dashboard > Authentication > Providers > Email แล้วปิด "Confirm email" หรือสมัครผ่านปุ่ม Google ด้านบน')
-        return
-      }
-
       let msg = err.message || 'เกิดข้อผิดพลาดในการสมัครสมาชิก'
       if (msg.includes('User already registered')) {
         msg = 'อีเมลนี้ถูกใช้งานแล้ว กรุณาใช้อีเมลอื่นหรือเข้าสู่ระบบ'
@@ -207,17 +234,15 @@ function RegisterForm() {
       setLoading(false)
     }
   }
-
-  if (checkingSession) {
+  if (checkingAuth || (typeof window !== 'undefined' && hasLocalSupabaseSession())) {
     return (
-      <div className="w-full max-w-md mx-auto bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-800 rounded-3xl p-12 shadow-xl flex items-center justify-center font-sans">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">กำลังตรวจสอบสถานะการเข้าสู่ระบบ...</p>
-        </div>
+      <div className="w-full max-w-md mx-auto p-8 flex flex-col items-center justify-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl my-12">
+        <div className="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">กำลังตรวจสอบสถานะการเข้าสู่ระบบ...</p>
       </div>
     )
   }
+
 
   return (
     <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl overflow-hidden">

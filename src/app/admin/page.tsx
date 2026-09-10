@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { getPromptPayQRImageUrl } from '@/lib/promptpay'
 import SiteLogo from '@/components/SiteLogo'
 import { DEFAULT_SERVICES_LIST, ServiceItemDTO } from '@/types/services'
@@ -11,17 +10,117 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { 
   LayoutTemplate, FileCode, ShieldCheck, Users, Rocket, Sun, Moon, Coins, Crown, Zap, Search, Plus, 
-  Edit3, Edit2, ArrowLeft, Check, AlertCircle, Lock, RefreshCw, Eye, X, 
+  Edit3, Edit2, ArrowLeft, Check, AlertCircle, Lock, RefreshCw, Eye, EyeOff, Loader2, X, 
   Trash2, ExternalLink, Link2, ShoppingBag, Settings, Scissors, 
   Copy, BarChart3, Database, Filter, Download, CheckCircle2, 
   UserPlus, PackagePlus, Globe, Sparkles, Activity, Clock, Send, CreditCard, MessageCircle, Image as ImageIcon,
-  Palette, Share2, Upload
+  Palette, Share2, Upload, KeyRound, Key
 } from 'lucide-react'
 
 type AdminTab = 'users' | 'services' | 'landing_pages' | 'pixels' | 'payments' | 'payment_settings' | 'site_settings' | 'shortlinks' | 'links' | 'products' | 'leads' | 'system'
 
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true)
+  // --- ADMIN CHANGE USER PASSWORD MODAL STATE ---
+  const [adminPasswordUser, setAdminPasswordUser] = useState<any>(null)
+  const [adminNewPassword, setAdminNewPassword] = useState('')
+  const [adminConfirmPassword, setAdminConfirmPassword] = useState('')
+  const [showAdminNewPassword, setShowAdminNewPassword] = useState(false)
+  const [showAdminConfirmPassword, setShowAdminConfirmPassword] = useState(false)
+  const [savingAdminPassword, setSavingAdminPassword] = useState(false)
+  const [adminPasswordMsg, setAdminPasswordMsg] = useState('')
+
+  const handleOpenChangePasswordModal = (user: any) => {
+    if (!user) return
+    setAdminPasswordUser(user)
+    setAdminNewPassword('')
+    setAdminConfirmPassword('')
+    setShowAdminNewPassword(false)
+    setShowAdminConfirmPassword(false)
+    setAdminPasswordMsg('')
+  }
+
+  const handleGenerateRandomPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*'
+    let pwd = ''
+    for (let i = 0; i < 10; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    setAdminNewPassword(pwd)
+    setAdminConfirmPassword(pwd)
+    setShowAdminNewPassword(true)
+    setShowAdminConfirmPassword(true)
+  }
+
+    const handleAdminChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!adminPasswordUser) return
+    if (!adminNewPassword || adminNewPassword.length < 6) {
+      setAdminPasswordMsg('❌ รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร')
+      return
+    }
+    if (adminNewPassword !== adminConfirmPassword) {
+      setAdminPasswordMsg('❌ รหัสผ่านทั้งสองช่องไม่ตรงกัน')
+      return
+    }
+
+    setSavingAdminPassword(true)
+    setAdminPasswordMsg('')
+
+    try {
+      let json: any = null
+
+      try {
+        const res = await fetch('/api/admin/change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: adminPasswordUser.id,
+            newPassword: adminNewPassword
+          })
+        })
+
+        const text = await res.text()
+        try {
+          json = JSON.parse(text)
+        } catch (parseErr) {
+          json = { error: res.ok ? '' : `Server error (${res.status})` }
+        }
+
+        if (res.ok && (json?.success || !json?.error)) {
+          showNotification(`✅ เปลี่ยนรหัสผ่านให้ @${adminPasswordUser.username} เรียบร้อยแล้ว!`)
+          setAdminPasswordMsg(`✅ เปลี่ยนรหัสผ่านให้ @${adminPasswordUser.username} สำเร็จ!`)
+          setTimeout(() => {
+            setAdminPasswordUser(null)
+          }, 1400)
+          return
+        }
+      } catch (fetchErr: any) {
+        console.warn('API route call error, falling back to direct RPC:', fetchErr.message)
+      }
+
+      // Fallback: Direct RPC call via Supabase client
+      const { error: rpcError } = await supabase.rpc('admin_set_user_password', {
+        target_user_id: adminPasswordUser.id,
+        new_password: adminNewPassword
+      })
+
+      if (rpcError) {
+        throw new Error(json?.error || rpcError.message || 'ไม่สามารถเปลี่ยนรหัสผ่านได้')
+      }
+
+      showNotification(`✅ เปลี่ยนรหัสผ่านให้ @${adminPasswordUser.username} เรียบร้อยแล้ว!`)
+      setAdminPasswordMsg(`✅ เปลี่ยนรหัสผ่านให้ @${adminPasswordUser.username} สำเร็จ!`)
+      setTimeout(() => {
+        setAdminPasswordUser(null)
+      }, 1400)
+    } catch (err: any) {
+      setAdminPasswordMsg(`❌ เกิดข้อผิดพลาด: ${err.message}`)
+    } finally {
+      setSavingAdminPassword(false)
+    }
+  }
+
   // --- ADMIN SERVICES HUB CRUD STATE ---
   const [adminServicesList, setAdminServicesList] = useState<ServiceItemDTO[]>(() => {
     if (typeof window !== 'undefined') {
@@ -662,7 +761,7 @@ export default function AdminDashboardPage() {
     const { data: { session } } = await supabase.auth.getSession()
     
     if (!session) {
-      router.push('/login')
+      router.replace('/login')
       return
     }
 
@@ -787,8 +886,12 @@ export default function AdminDashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ settings: siteSettings })
       })
-      const data = await res.json()
-      if (res.ok && data.success) {
+      let data: any = null
+      try {
+        const text = await res.text()
+        if (text && !text.trim().startsWith('<')) data = JSON.parse(text)
+      } catch {}
+      if (res.ok && data?.success) {
         showNotification('✅ บันทึกการตั้งค่าโลโก้ และ SEO เว็บไซต์เรียบร้อยแล้ว!')
         
         // Immediately apply live favicon and title
@@ -826,11 +929,15 @@ export default function AdminDashboardPage() {
           token: paymentSettings.line_notify_token
         })
       })
-      const data = await res.json()
-      if (res.ok && data.success) {
-        showNotification('✅ ' + data.message)
+      let data: any = null
+      try {
+        const text = await res.text()
+        if (text && !text.trim().startsWith('<')) data = JSON.parse(text)
+      } catch {}
+      if (res.ok && data?.success) {
+        showNotification('✅ ' + (data.message || 'ส่งข้อความทดสอบสำเร็จ'))
       } else {
-        alert('❌ ' + (data.error || 'ส่งข้อความทดสอบไม่สำเร็จ'))
+        alert('❌ ' + (data?.error || `ส่งข้อความทดสอบไม่สำเร็จ (HTTP ${res.status})`))
       }
     } catch (err: any) {
       alert('❌ ข้อผิดพลาด: ' + err.message)
@@ -861,8 +968,12 @@ export default function AdminDashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ settings: paymentSettings })
       })
-      const data = await res.json()
-      if (res.ok && data.success) {
+      let data: any = null
+      try {
+        const text = await res.text()
+        if (text && !text.trim().startsWith('<')) data = JSON.parse(text)
+      } catch {}
+      if (res.ok && data?.success) {
         showNotification('✅ บันทึกการตั้งค่าราคาแพ็กเกจ แต้มระบบ และบัญชีรับเงินลง SQL เรียบร้อยแล้ว!')
       } else {
         alert('❌ เกิดข้อผิดพลาด: ' + (data.error || 'บันทึกไม่สำเร็จ'))
@@ -1330,6 +1441,24 @@ export default function AdminDashboardPage() {
       await loadAllData()
     } catch (err: any) {
       alert(`❌ เกิดข้อผิดพลาด: ${err.message}`)
+    }
+  }
+
+  
+  const handleResetUserPassword = async (user: any) => {
+    if (!user) return
+    const targetEmail = prompt(`ระบุอีเมลสำหรับรีเซ็ตรหัสผ่านของ @${user.username}:`, user.email || '')
+    if (!targetEmail || !targetEmail.trim()) return
+
+    try {
+      const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/auth/callback?next=/dashboard` : 'https://linktreethai.in.th/auth/callback?next=/dashboard'
+      const { error } = await supabase.auth.resetPasswordForEmail(targetEmail.trim(), {
+        redirectTo: redirectUrl
+      })
+      if (error) throw error
+      showNotification(`✅ ส่งลิงก์รีเซ็ตรหัสผ่านไปยัง ${targetEmail} ของ @${user.username} สำเร็จ!`)
+    } catch (err: any) {
+      showNotification(`❌ ไม่สามารถส่งลิงก์ได้: ${err.message}`)
     }
   }
 
@@ -2160,112 +2289,65 @@ export default function AdminDashboardPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredLandingPages.map((lp) => {
-                      const isModular =
-                        lp.slug === 'enter-the-amanita-th-775' ||
-                        (lp.slug && lp.slug.includes('-775')) ||
-                        lp.page_type === 'c' ||
-                        lp.page_type === 'custom' ||
-                        lp.page_type === 'modular' ||
-                        lp.template_type === 'custom' ||
-                        lp.card_style === 'custom_modular' ||
-                        (Array.isArray(lp.features) && lp.features.length > 0 && typeof lp.features[0] === 'object' && lp.features[0] !== null && (lp.features[0].type || lp.features[0].id))
-
-                      const isUploadedHtml =
-                        lp.card_style === 'uploaded_html_index' ||
-                        lp.page_type === 'u'
-
-                      const routePrefix = isUploadedHtml ? 'u' : isModular ? 'c' : 'p'
-                      const realUrl = `/${routePrefix}/${lp.slug}`
-
-                      return (
-                        <tr key={lp.id} className="hover:bg-slate-800/40 transition">
-                          <td className="py-3 px-2">
-                            <p className="font-bold text-white text-sm">{lp.title}</p>
-                            <p className="text-[11px] text-purple-400 font-mono">@{lp.profiles?.username || 'unknown'}</p>
-                          </td>
-                          <td className="py-3 px-2">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className={`text-[10px] font-mono font-black px-2 py-0.5 rounded-full border ${
-                                routePrefix === 'c'
-                                  ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
-                                  : routePrefix === 'u'
-                                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                                  : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                              }`}>
-                                {routePrefix === 'c' ? '✨ Custom' : routePrefix === 'u' ? '📄 Host' : '⚡ Flash'}
-                              </span>
-                              <a
-                                href={realUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="font-mono font-bold text-xs text-rose-400 hover:text-rose-300 hover:underline"
-                              >
-                                /{routePrefix}/{lp.slug}
-                              </a>
-                            </div>
-                          </td>
-                          <td className="py-3 px-2 font-mono font-bold text-emerald-400 text-sm">
-                            ฿{lp.offer_price ? parseFloat(lp.offer_price).toLocaleString() : '0'}
-                          </td>
-                          <td className="py-3 px-2 text-slate-300 font-mono">
-                            👁️ {lp.views || 0} | 🛒 {lp.clicks || 0}
-                          </td>
-                          <td className="py-3 px-2">
-                            <div className="space-y-0.5 font-mono text-[10px]">
-                              {lp.fb_pixel_id && <p className="text-blue-400">FB: {lp.fb_pixel_id}</p>}
-                              {lp.tiktok_pixel_id && <p className="text-pink-400">TT: {lp.tiktok_pixel_id}</p>}
-                              {!lp.fb_pixel_id && !lp.tiktok_pixel_id && <span className="text-slate-500">ใช้ค่าหลักโปรไฟล์</span>}
-                            </div>
-                          </td>
-                          <td className="py-3 px-2 text-right space-x-1.5 whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setLpExpiryModal(lp)
-                                setLpCustomExpiryInput(lp.expires_at ? lp.expires_at.split('T')[0] : '')
-                              }}
-                              className="px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 rounded-xl text-xs font-extrabold transition shadow cursor-pointer"
-                              title="จัดการวันหมดอายุของเซลเพจนี้"
-                            >
-                              ⏳ วันหมดอายุ
-                            </button>
-                            {isModular ? (
-                              <Link
-                                href={`/custom-salepage?id=${lp.id}&slug=${lp.slug}`}
-                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black transition shadow inline-block"
-                                title="แก้ไขใน Custom Salepage Builder"
-                              >
-                                ✏️ แก้ไข Custom
-                              </Link>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => setEditingLp({ ...lp })}
-                                className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black transition shadow cursor-pointer"
-                              >
-                                ✏️ แก้ไข (Admin)
-                              </button>
-                            )}
-                            <a
-                              href={realUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition inline-block"
-                            >
-                              เปิดดู ↗
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteLandingPageAdmin(lp.id, lp.title)}
-                              className="px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 rounded-xl text-xs font-bold transition"
-                            >
-                              ลบ
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    })
+                    filteredLandingPages.map((lp) => (
+                      <tr key={lp.id} className="hover:bg-slate-800/40 transition">
+                        <td className="py-3 px-2">
+                          <p className="font-bold text-white text-sm">{lp.title}</p>
+                          <p className="text-[11px] text-purple-400 font-mono">@{lp.profiles?.username || 'unknown'}</p>
+                        </td>
+                        <td className="py-3 px-2 font-mono font-bold text-rose-400">
+                          /p/{lp.slug}
+                        </td>
+                        <td className="py-3 px-2 font-mono font-bold text-emerald-400 text-sm">
+                          ฿{lp.offer_price ? parseFloat(lp.offer_price).toLocaleString() : '0'}
+                        </td>
+                        <td className="py-3 px-2 text-slate-300 font-mono">
+                          👁️ {lp.views || 0} | 🛒 {lp.clicks || 0}
+                        </td>
+                        <td className="py-3 px-2">
+                          <div className="space-y-0.5 font-mono text-[10px]">
+                            {lp.fb_pixel_id && <p className="text-blue-400">FB: {lp.fb_pixel_id}</p>}
+                            {lp.tiktok_pixel_id && <p className="text-pink-400">TT: {lp.tiktok_pixel_id}</p>}
+                            {!lp.fb_pixel_id && !lp.tiktok_pixel_id && <span className="text-slate-500">ใช้ค่าหลักโปรไฟล์</span>}
+                          </div>
+                        </td>
+                        <td className="py-3 px-2 text-right space-x-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLpExpiryModal(lp)
+                              setLpCustomExpiryInput(lp.expires_at ? lp.expires_at.split('T')[0] : '')
+                            }}
+                            className="px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 rounded-xl text-xs font-extrabold transition shadow cursor-pointer"
+                            title="จัดการวันหมดอายุของเซลเพจนี้"
+                          >
+                            ⏳ วันหมดอายุ
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingLp({ ...lp })}
+                            className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black transition shadow cursor-pointer"
+                          >
+                            ✏️ แก้ไข (Admin)
+                          </button>
+                          <a
+                            href={`/p/${lp.slug}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition inline-block"
+                          >
+                            เปิดดู
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteLandingPageAdmin(lp.id, lp.title)}
+                            className="px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900 text-rose-300 rounded-xl text-xs font-bold transition"
+                          >
+                            ลบ
+                          </button>
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
@@ -3841,6 +3923,14 @@ export default function AdminDashboardPage() {
                               </button>
 
                               <button
+                                onClick={() => handleOpenChangePasswordModal(u)}
+                                className="p-2 bg-slate-800 hover:bg-amber-950/40 text-amber-400 rounded-xl transition"
+                                title="จัดการรหัสผ่านผู้ใช้นี้"
+                              >
+                                <KeyRound className="w-4 h-4" />
+                              </button>
+
+                              <button
                                 onClick={() => setEditingUser({ ...u })}
                                 className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl transition"
                                 title="แก้ไขข้อมูลโปรไฟล์"
@@ -3928,13 +4018,13 @@ export default function AdminDashboardPage() {
                       </div>
 
                       {/* Action buttons (Touch targets >= 40px) */}
-                      <div className="grid grid-cols-4 gap-2 pt-1">
+                      <div className="grid grid-cols-5 gap-1.5 pt-1">
                         <button
                           onClick={() => {
-                            setSelectedUser(u)
-                            setAdjustPointsModalOpen(true)
+                            setPointsModalUser(u)
+                            setCustomPointsInput('100')
                           }}
-                          className="min-h-[40px] px-2 py-2 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 active:scale-95"
+                          className="min-h-[40px] px-1.5 py-2 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 rounded-xl text-[11px] font-bold transition flex flex-col items-center justify-center gap-0.5 active:scale-95"
                           title="ปรับแต้ม"
                         >
                           <Coins className="w-3.5 h-3.5" />
@@ -3943,10 +4033,10 @@ export default function AdminDashboardPage() {
 
                         <button
                           onClick={() => {
-                            setSelectedUser(u)
-                            setAdjustVipModalOpen(true)
+                            setGrantModalUser(u)
+                            setGrantDaysInput('30')
                           }}
-                          className="min-h-[40px] px-2 py-2 bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 active:scale-95"
+                          className="min-h-[40px] px-1.5 py-2 bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 rounded-xl text-[11px] font-bold transition flex flex-col items-center justify-center gap-0.5 active:scale-95"
                           title="มอบสิทธิ์ VIP"
                         >
                           <Crown className="w-3.5 h-3.5" />
@@ -3954,11 +4044,17 @@ export default function AdminDashboardPage() {
                         </button>
 
                         <button
-                          onClick={() => {
-                            setSelectedUser(u)
-                            setEditUserModalOpen(true)
-                          }}
-                          className="min-h-[40px] px-2 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 active:scale-95"
+                          onClick={() => handleOpenChangePasswordModal(u)}
+                          className="min-h-[40px] px-1.5 py-2 bg-amber-400/15 hover:bg-amber-400/25 text-amber-400 border border-amber-400/30 rounded-xl text-[11px] font-bold transition flex flex-col items-center justify-center gap-0.5 active:scale-95"
+                          title="จัดการรหัสผ่านผู้ใช้นี้"
+                        >
+                          <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                          <span>รหัสผ่าน</span>
+                        </button>
+
+                        <button
+                          onClick={() => setEditingUser({ ...u })}
+                          className="min-h-[40px] px-1.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-[11px] font-bold transition flex flex-col items-center justify-center gap-0.5 active:scale-95"
                           title="แก้ไขข้อมูล"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
@@ -3966,11 +4062,8 @@ export default function AdminDashboardPage() {
                         </button>
 
                         <button
-                          onClick={() => {
-                            setSelectedUser(u)
-                            setDeleteUserModalOpen(true)
-                          }}
-                          className="min-h-[40px] px-2 py-2 bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 active:scale-95"
+                          onClick={() => setDeleteUserModal(u)}
+                          className="min-h-[40px] px-1.5 py-2 bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 rounded-xl text-[11px] font-bold transition flex flex-col items-center justify-center gap-0.5 active:scale-95"
                           title="ลบผู้ใช้"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -6893,6 +6986,152 @@ WHERE username = 'YOUR_USERNAME';`}
           <span>{toastMsg}</span>
         </div>
       )}
-    </div>
+    
+      {/* 🔑 ADMIN CHANGE USER PASSWORD MODAL */}
+      {adminPasswordUser && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 text-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 animate-in zoom-in-95">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-white">เปลี่ยนรหัสผ่านให้ผู้ใช้</h3>
+                  <p className="text-xs text-slate-400">กำหนดรหัสผ่านใหม่ได้ทันที ไม่ต้องส่งอีเมล</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  if (!savingAdminPassword) setAdminPasswordUser(null)
+                }}
+                className="p-1.5 text-slate-400 hover:text-white rounded-xl bg-slate-800 hover:bg-slate-700 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Target User Info Banner */}
+            <div className="p-3.5 bg-slate-800/80 border border-slate-700/60 rounded-2xl space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-medium">ผู้ใช้งาน:</span>
+                <span className="font-bold text-amber-300 font-mono text-sm">@{adminPasswordUser.username}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-medium">อีเมล:</span>
+                <span className="font-mono text-slate-200">{adminPasswordUser.email || '-'}</span>
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-slate-700/40 text-[11px]">
+                <span className="text-slate-400">ระดับ / สิทธิ์:</span>
+                <span className="text-purple-300 font-bold uppercase">{adminPasswordUser.role} • {adminPasswordUser.tier}</span>
+              </div>
+            </div>
+
+            <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-2xl text-[11px] text-amber-200/90 leading-relaxed">
+              ⚡ <strong>โหมด Admin เปลี่ยนรหัสผ่านตรง:</strong> เมื่อบันทึกแล้ว รหัสผ่านจะถูกอัปเดตลงระบบทันที ผู้ใช้จะสามารถนำรหัสผ่านใหม่นี้ไปล็อกอินได้เลยโดยไม่ต้องกดยืนยันในอีเมล
+            </div>
+
+            {adminPasswordMsg && (
+              <div className={`p-3 rounded-xl text-xs font-bold text-center ${
+                adminPasswordMsg.startsWith('✅')
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+              }`}>
+                {adminPasswordMsg}
+              </div>
+            )}
+
+            {/* Password Inputs */}
+            <form onSubmit={handleAdminChangePasswordSubmit} className="space-y-4 text-xs font-bold">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-slate-300">รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร) *</label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateRandomPassword}
+                    className="text-[11px] text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 transition cursor-pointer"
+                  >
+                    <Sparkles className="w-3 h-3" /> สุ่มรหัสผ่านปลอดภัย
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showAdminNewPassword ? "text" : "password"}
+                    required
+                    minLength={6}
+                    placeholder="•••••••• (รหัสผ่านใหม่)"
+                    value={adminNewPassword}
+                    onChange={(e) => setAdminNewPassword(e.target.value)}
+                    className="w-full pl-3.5 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-amber-500 font-mono text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminNewPassword(!showAdminNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-400 transition cursor-pointer p-1"
+                    title={showAdminNewPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+                  >
+                    {showAdminNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 mb-1">ยืนยันรหัสผ่านใหม่อีกครั้ง *</label>
+                <div className="relative">
+                  <input
+                    type={showAdminConfirmPassword ? "text" : "password"}
+                    required
+                    minLength={6}
+                    placeholder="•••••••• (ยืนยันรหัสผ่าน)"
+                    value={adminConfirmPassword}
+                    onChange={(e) => setAdminConfirmPassword(e.target.value)}
+                    className="w-full pl-3.5 pr-10 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-amber-500 font-mono text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminConfirmPassword(!showAdminConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-400 transition cursor-pointer p-1"
+                    title={showAdminConfirmPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+                  >
+                    {showAdminConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={savingAdminPassword}
+                  onClick={() => setAdminPasswordUser(null)}
+                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition cursor-pointer disabled:opacity-50"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingAdminPassword}
+                  className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black rounded-xl text-xs transition flex items-center gap-1.5 shadow-lg shadow-amber-500/20 cursor-pointer disabled:opacity-50 active:scale-95"
+                >
+                  {savingAdminPassword ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      กำลังบันทึก...
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-3.5 h-3.5" />
+                      บันทึกรหัสผ่านใหม่ทันที
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+</div>
   )
 }

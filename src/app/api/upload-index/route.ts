@@ -188,37 +188,25 @@ export async function POST(req: NextRequest) {
 
     const isEditMode = Boolean(id)
 
-    // Check slug duplication (distinguish new vs edit mode)
-    if (!isEditMode) {
-      const { data: dup1 } = await supabase
-        .from('uploaded_index_pages')
-        .select('id')
-        .eq('slug', cleanSlug)
-        .maybeSingle()
+    // Check slug duplication
+    // In uploaded_index_pages
+    const { data: dup1 } = await supabase
+      .from('uploaded_index_pages')
+      .select('id')
+      .eq('slug', cleanSlug)
+      .neq('id', id || '00000000-0000-0000-0000-000000000000')
+      .maybeSingle()
 
-      const { data: dup2 } = await supabase
-        .from('landing_pages')
-        .select('id')
-        .eq('slug', cleanSlug)
-        .maybeSingle()
+    // In landing_pages
+    const { data: dup2 } = await supabase
+      .from('landing_pages')
+      .select('id')
+      .eq('slug', cleanSlug)
+      .neq('id', id || '00000000-0000-0000-0000-000000000000')
+      .maybeSingle()
 
-      if (dup1 || dup2) {
-        return NextResponse.json({ error: `ชื่อ URL /u/${cleanSlug} นี้ถูกใช้งานแล้ว กรุณาเลือกชื่ออื่น` }, { status: 400 })
-      }
-    } else {
-      // Edit mode: only check if ANOTHER page in uploaded_index_pages uses this cleanSlug
-      if (id) {
-        const { data: dup1 } = await supabase
-          .from('uploaded_index_pages')
-          .select('id')
-          .eq('slug', cleanSlug)
-          .neq('id', id)
-          .maybeSingle()
-
-        if (dup1) {
-          return NextResponse.json({ error: `ชื่อ URL /u/${cleanSlug} นี้ถูกใช้งานโดยหน้าอื่นแล้ว กรุณาเลือกชื่ออื่น` }, { status: 400 })
-        }
-      }
+    if (dup1 || dup2) {
+      return NextResponse.json({ error: `ชื่อ URL /u/${cleanSlug} นี้ถูกใช้งานแล้ว กรุณาเลือกชื่ออื่น` }, { status: 400 })
     }
 
     // =========================================================================
@@ -240,42 +228,45 @@ export async function POST(req: NextRequest) {
 
       let updatedPage: any = null
 
-      const lpUpdate = {
-        slug: cleanSlug,
-        title: String(title).trim(),
-        headline: String(title).trim(),
-        body_content: String(html_content),
-        cta_url: `/u/${cleanSlug}`,
-        fb_pixel_id: fb_pixel_id ? String(fb_pixel_id).trim() : null,
-        meta_capi_token: meta_capi_token ? String(meta_capi_token).trim() : null,
-        tiktok_pixel_id: tiktok_pixel_id ? String(tiktok_pixel_id).trim() : null,
-        google_pixel_id: google_pixel_id ? String(google_pixel_id).trim() : null,
-        line_tag_id: line_tag_id ? String(line_tag_id).trim() : null,
-        is_active: is_active !== undefined ? Boolean(is_active) : true,
-        updated_at: new Date().toISOString()
-      }
-
-      // Update both tables with service role key by ID AND by slug
-      await Promise.allSettled([
-        supabase.from('uploaded_index_pages').update(updatePayload).eq('id', id),
-        supabase.from('uploaded_index_pages').update(updatePayload).eq('slug', cleanSlug),
-        supabase.from('landing_pages').update(lpUpdate).eq('id', id),
-        supabase.from('landing_pages').update(lpUpdate).eq('slug', cleanSlug)
-      ])
-
-      // Upsert into uploaded_index_pages on conflict (slug) to guarantee 100% updated content
-      const upsertRecord: any = {
-        id,
-        user_id,
-        ...updatePayload
-      }
-      const { data: finalRecord } = await supabase
+      const { data: pData, error: pErr } = await supabase
         .from('uploaded_index_pages')
-        .upsert([upsertRecord], { onConflict: 'slug' })
+        .update(updatePayload)
+        .eq('id', id)
+        .eq('user_id', user_id)
         .select()
         .maybeSingle()
 
-      updatedPage = finalRecord || upsertRecord
+      if (!pErr && pData) {
+        updatedPage = pData
+      } else {
+        // Fallback to landing_pages
+        const lpUpdate = {
+          slug: cleanSlug,
+          title: String(title).trim(),
+          headline: String(title).trim(),
+          body_content: String(html_content),
+          cta_url: `/u/${cleanSlug}`,
+          fb_pixel_id: fb_pixel_id ? String(fb_pixel_id).trim() : null,
+          tiktok_pixel_id: tiktok_pixel_id ? String(tiktok_pixel_id).trim() : null,
+          google_pixel_id: google_pixel_id ? String(google_pixel_id).trim() : null,
+          line_tag_id: line_tag_id ? String(line_tag_id).trim() : null,
+          is_active: is_active !== undefined ? Boolean(is_active) : true,
+          updated_at: new Date().toISOString()
+        }
+
+        const { data: lpData, error: lpErr } = await supabase
+          .from('landing_pages')
+          .update(lpUpdate)
+          .eq('id', id)
+          .eq('user_id', user_id)
+          .select()
+          .maybeSingle()
+
+        if (lpErr) {
+          throw new Error('ไม่สามารถบันทึกการแก้ไขได้: ' + lpErr.message)
+        }
+        updatedPage = lpData ? { ...lpData, html_content: lpData.body_content } : null
+      }
 
       return NextResponse.json({
         success: true,

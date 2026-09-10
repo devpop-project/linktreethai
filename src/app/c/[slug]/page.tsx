@@ -66,43 +66,13 @@ export default function CustomSalepagePublicRoute() {
   const loadLandingPage = async () => {
     setLoading(true)
 
-    // 1. Fetch Landing Page by slug specifically for /c/ route (page_type = 'c' or modular)
-    let { data: page, error } = await supabase
+    // 1. Fetch Landing Page by slug
+    const { data: page, error } = await supabase
       .from('landing_pages')
       .select('*, profiles(*)')
       .eq('slug', slug)
-      .or('page_type.eq.c,page_type.eq.custom,page_type.eq.modular,card_style.eq.custom_modular')
       .eq('is_active', true)
-      .maybeSingle()
-
-    if (!page) {
-      // Fallback: check if slug exists as a standard /p/ page
-      const { data: anyPage } = await supabase
-        .from('landing_pages')
-        .select('*, profiles(*)')
-        .eq('slug', slug)
-        .eq('is_active', true)
-        .maybeSingle()
-
-      if (anyPage) {
-        const isModular =
-          anyPage.slug === 'enter-the-amanita-th-775' ||
-          anyPage.slug.includes('-775') ||
-          anyPage.page_type === 'c' ||
-          anyPage.page_type === 'custom' ||
-          anyPage.page_type === 'modular' ||
-          anyPage.card_style === 'custom_modular'
-
-        if (isModular) {
-          page = anyPage
-        } else {
-          if (typeof window !== 'undefined') {
-            window.location.replace(`/p/${slug}`)
-            return
-          }
-        }
-      }
-    }
+      .single()
 
     if (page) {
       setPageData(page)
@@ -181,46 +151,13 @@ export default function CustomSalepagePublicRoute() {
 
     setOrdering(true)
 
-    // 1. Resolve Active Sections & Pricing Data
-    const rawFeats = pageData?.features
-    const isModular = Array.isArray(rawFeats) && rawFeats.length > 0 && typeof rawFeats[0] === 'object' && rawFeats[0] !== null && (rawFeats[0].type || rawFeats[0].id)
-    const allSections: PageSection[] = isModular ? (rawFeats as PageSection[]) : default13Sections
-    const activePricingSec = allSections.find(s => s.type === 'pricing')
-    const pricingData = activePricingSec?.data || {}
-
-    // 2. Compute Active Unit Price & Total (Guaranteed matching on-screen display & QR)
-    let unitPrice = 490
-    if (pricingData?.offer_price) {
-      unitPrice = parseFloat(pricingData.offer_price)
-    } else if (pageData?.offer_price) {
-      unitPrice = parseFloat(pageData.offer_price)
+    // Calculate total
+    let activePrice = pageData?.offer_price || 490
+    const pricingSec = (pageData?.features || []).find((s: any) => s.type === 'pricing')
+    if (pricingSec?.layoutStyle === '3_tier_comparison_cards' && pricingSec.data?.tiers && pricingSec.data.tiers[selectedTierIndex]) {
+      activePrice = pricingSec.data.tiers[selectedTierIndex].price || activePrice
     }
-
-    const tiersList = Array.isArray(pricingData?.tiers) ? pricingData.tiers : []
-    const selectedTier = tiersList[selectedTierIndex] || (tiersList.length > 0 ? tiersList[0] : null)
-    if (selectedTier && selectedTier.price) {
-      unitPrice = parseFloat(selectedTier.price)
-    }
-
-    const currentTotal = unitPrice * Math.max(1, quantity)
-
-    // 3. Resolve Accurate, Professional Package / Item Name (NOT marketing headline)
-    let resolvedPackageName = ''
-    if (selectedTier && selectedTier.name) {
-      resolvedPackageName = `${selectedTier.name} (฿${unitPrice.toLocaleString()})`
-      if (quantity > 1) {
-        resolvedPackageName += ` x ${quantity} ชุด`
-      }
-    } else if (pricingData?.tier_name) {
-      resolvedPackageName = `${pricingData.tier_name} (฿${unitPrice.toLocaleString()})`
-    } else if (pricingData?.badge && pricingData.badge !== '🔥 โปรโมชั่นพิเศษ') {
-      resolvedPackageName = `${pricingData.badge} (฿${unitPrice.toLocaleString()})`
-    }
-
-    if (!resolvedPackageName) {
-      const productTitle = pageData.title || pageData.seo_title || 'สินค้า'
-      resolvedPackageName = `${productTitle} (฿${unitPrice.toLocaleString()})${quantity > 1 ? ` x ${quantity} ชิ้น` : ''}`
-    }
+    const currentTotal = activePrice * Math.max(1, quantity)
 
     try {
       const payload = {
@@ -237,7 +174,7 @@ export default function CustomSalepagePublicRoute() {
         note: orderForm.note ? orderForm.note.trim() : null,
         order_note: orderForm.note ? orderForm.note.trim() : null,
         payment_method: orderForm.payment_method,
-        package_name: resolvedPackageName,
+        package_name: pricingSec?.data?.tiers?.[selectedTierIndex]?.name || `${pageData.headline || pageData.title} (${quantity} ชิ้น)`,
         amount: currentTotal,
         quantity: quantity,
         slip_url: orderForm.slip_url || null,
@@ -515,7 +452,7 @@ export default function CustomSalepagePublicRoute() {
   const pricingSec = sections.find(s => s.type === 'pricing')
   const pricingData = pricingSec?.data || {}
   let activeUnitPrice = pricingData.offer_price ? parseFloat(pricingData.offer_price) : (pageData.offer_price || 490)
-  if (pricingData.tiers && Array.isArray(pricingData.tiers) && pricingData.tiers[selectedTierIndex]) {
+  if (pricingSec?.layoutStyle === '3_tier_comparison_cards' && pricingData.tiers && pricingData.tiers[selectedTierIndex]) {
     activeUnitPrice = pricingData.tiers[selectedTierIndex].price || activeUnitPrice
   }
   const total = activeUnitPrice * Math.max(1, quantity)

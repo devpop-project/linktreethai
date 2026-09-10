@@ -64,43 +64,13 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
   const loadLandingPage = async () => {
     setLoading(true)
 
-    // 1. Fetch Landing Page by slug specifically for /p/ route (page_type = 'p' or legacy null)
-    let { data: page } = await supabase
+    // 1. Fetch Landing Page by slug
+    const { data: page } = await supabase
       .from('landing_pages')
       .select('*, profiles(*)')
       .eq('slug', slug)
-      .or('page_type.eq.p,page_type.is.null')
       .eq('is_active', true)
-      .maybeSingle()
-
-    if (!page) {
-      // Check if this slug is a Custom Modular Salepage (/c/) or other format
-      const { data: anyPage } = await supabase
-        .from('landing_pages')
-        .select('*, profiles(*)')
-        .eq('slug', slug)
-        .eq('is_active', true)
-        .maybeSingle()
-
-      if (anyPage) {
-        const isModular =
-          anyPage.slug === 'enter-the-amanita-th-775' ||
-          anyPage.slug.includes('-775') ||
-          anyPage.page_type === 'c' ||
-          anyPage.page_type === 'custom' ||
-          anyPage.page_type === 'modular' ||
-          anyPage.card_style === 'custom_modular'
-
-        if (isModular) {
-          if (typeof window !== 'undefined') {
-            window.location.replace(`/c/${slug}`)
-            return
-          }
-        } else {
-          page = anyPage
-        }
-      }
-    }
+      .single()
 
     if (page) {
       setPageData(page)

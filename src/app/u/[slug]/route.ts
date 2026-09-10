@@ -2,17 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
-export const fetchCache = 'force-no-store'
 
 function getSupabaseAdmin() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dkidksohprjhkcokdbja.supabase.co'
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_rV42rP4GC0GQaI7eK56X9Q_ADKY96PU'
   return createClient(supabaseUrl, supabaseKey, {
-    auth: { persistSession: false },
-    global: {
-      fetch: (url, init) => fetch(url, { ...init, cache: 'no-store' })
-    }
+    auth: { persistSession: false }
   })
 }
 
@@ -253,28 +248,28 @@ export async function GET(
 
     const supabase = getSupabaseAdmin()
 
-    // Primary table for /u/[slug] is uploaded_index_pages
+    // 1. Check in uploaded_index_pages first
     let page: any = null
-    const { data: pData } = await supabase
+    const { data: pData, error: pErr } = await supabase
       .from('uploaded_index_pages')
       .select('*')
       .eq('slug', slug)
       .maybeSingle()
 
-    if (pData && pData.html_content) {
+    if (!pErr && pData) {
       page = pData
     } else {
-      // Fallback to landing_pages only if uploaded_index_pages does not exist
-      const { data: lpData } = await supabase
+      // 2. Fallback to landing_pages where card_style = 'uploaded_html_index' or matching slug
+      const { data: lpData, error: lpErr } = await supabase
         .from('landing_pages')
         .select('*')
         .eq('slug', slug)
         .maybeSingle()
 
-      if (lpData && (lpData.body_content || lpData.html_content)) {
+      if (!lpErr && lpData && (lpData.card_style === 'uploaded_html_index' || lpData.body_content)) {
         page = {
           ...lpData,
-          html_content: lpData.body_content || lpData.html_content
+          html_content: lpData.body_content
         }
       }
     }
@@ -380,10 +375,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'Surrogate-Control': 'no-store'
+        'Cache-Control': 'public, max-age=60, s-maxage=60, stale-while-revalidate=300'
       }
     })
   } catch (err: any) {

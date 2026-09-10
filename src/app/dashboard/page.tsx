@@ -400,55 +400,30 @@ function DashboardContent() {
   const [uploading, setUploading] = useState<string | null>(null)
   const [savedMsg, setSavedMsg] = useState('')
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
-  const [dashboardSlugStatus, setDashboardSlugStatus] = useState<{ checked: boolean; available: boolean; isOwn: boolean; msg: string }>({ checked: false, available: true, isOwn: false, msg: '' })
-  const [checkingDashboardSlug, setCheckingDashboardSlug] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [siteSettings, setSiteSettings] = useState<any>(null)
 
   const router = useRouter()
-  const supabase = createClient()
 
-  // Real-time Slug Validation for /p/ and /c/
+  // Prevent browser back navigation from returning to /login or /register
   useEffect(() => {
-    const clean = (newLandingPage?.slug || '').toLowerCase().trim().replace(/[^a-z0-9-_]/g, '')
-    if (!clean) {
-      setDashboardSlugStatus({ checked: false, available: true, isOwn: false, msg: '' })
-      return
+    if (typeof window === 'undefined') return
+
+    // Push state so pressing Back stays on dashboard
+    window.history.pushState({ page: 'dashboard' }, '', window.location.href)
+
+    const handleDashboardPopState = (e: PopStateEvent) => {
+      // Keep user on dashboard instead of falling back to login
+      window.history.pushState({ page: 'dashboard' }, '', window.location.href)
     }
 
-    const targetType = newLandingPage?.page_type === 'c' ? 'c' : 'p'
-    const timer = setTimeout(async () => {
-      setCheckingDashboardSlug(true)
-      try {
-        const supabaseClient = createClient()
-        let q = supabaseClient
-          .from('landing_pages')
-          .select('id, user_id, page_type')
-          .eq('slug', clean)
+    window.addEventListener('popstate', handleDashboardPopState)
+    return () => {
+      window.removeEventListener('popstate', handleDashboardPopState)
+    }
+  }, [])
 
-        if (targetType === 'c') {
-          q = q.or('page_type.eq.c,page_type.eq.custom,page_type.eq.modular,card_style.eq.custom_modular')
-        } else {
-          q = q.or('page_type.eq.p,page_type.is.null')
-        }
-
-        const { data: existing } = await q.maybeSingle()
-
-        if (!existing) {
-          setDashboardSlugStatus({ checked: true, available: true, isOwn: false, msg: `✓ ชื่อ /${targetType}/${clean} ว่าง สามารถใช้งานได้` })
-        } else if (user && existing.user_id === user.id) {
-          setDashboardSlugStatus({ checked: true, available: true, isOwn: true, msg: `📝 กำลังแก้ไขหน้า /${targetType}/${clean} เดิมของคุณ (จะบันทึกทับหน้านี้)` })
-        } else {
-          setDashboardSlugStatus({ checked: true, available: false, isOwn: false, msg: `✕ ชื่อ /${targetType}/${clean} นี้มีผู้ใช้งานในระบบแล้ว` })
-        }
-      } catch (e) {
-      } finally {
-        setCheckingDashboardSlug(false)
-      }
-    }, 350)
-
-    return () => clearTimeout(timer)
-  }, [newLandingPage?.slug, newLandingPage?.page_type, user?.id])
+  const supabase = createClient()
 
   // Initialize Dark / Light Theme
   useEffect(() => {
@@ -498,7 +473,7 @@ function DashboardContent() {
 
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
-      router.push('/login')
+      router.replace('/login')
       return
     }
     setUser(session.user)
@@ -1017,11 +992,16 @@ function DashboardContent() {
           webhook_url: profile.line_webhook_url
         })
       })
-      const data = await res.json()
-      if (res.ok && data.success) {
-        showToast('🔔 ' + data.message)
+      let data: any = null
+      try {
+        const text = await res.text()
+        if (text && !text.trim().startsWith('<')) data = JSON.parse(text)
+      } catch {}
+
+      if (res.ok && data?.success) {
+        showToast('🔔 ' + (data.message || 'ส่งข้อความทดสอบสำเร็จ'))
       } else {
-        showToast('❌ ' + (data.error || 'ส่งข้อความไม่สำเร็จ กรุณาตรวจสอบ Token'))
+        showToast('❌ ' + (data?.error || `ส่งข้อความไม่สำเร็จ (HTTP ${res.status}) กรุณาตรวจสอบ Token`))
       }
     } catch (e: any) {
       showToast('❌ เกิดข้อผิดพลาด: ' + e.message)
@@ -1573,10 +1553,8 @@ function DashboardContent() {
         rawCtaUrl = 'https://' + rawCtaUrl
       }
 
-      const targetPageType = newLandingPage.page_type === 'c' ? 'c' : 'p'
       const payload: any = {
         slug,
-        page_type: targetPageType,
         title: finalTitle,
         headline: finalHeadline,
         subheadline: newLandingPage.subheadline?.trim() || null,
@@ -1637,37 +1615,11 @@ function DashboardContent() {
       const pathPrefix = newLandingPage.page_type === 'c' ? 'c' : 'p'
       const fullUrl = `${originUrl || ''}/${pathPrefix}/${slug}`
 
-      // Pre-check if slug is already registered specifically for this route type (/p vs /c)
-      let effectiveLandingId = editingLandingPageId
-      let dupQuery = supabase
-        .from('landing_pages')
-        .select('id, user_id, slug, page_type')
-        .eq('slug', slug)
-
-      if (targetPageType === 'c') {
-        dupQuery = dupQuery.or('page_type.eq.c,page_type.eq.custom,page_type.eq.modular,card_style.eq.custom_modular')
-      } else {
-        dupQuery = dupQuery.or('page_type.eq.p,page_type.is.null')
-      }
-
-      const { data: existingLanding } = await dupQuery.maybeSingle()
-
-      if (existingLanding) {
-        if (existingLanding.user_id === user.id) {
-          effectiveLandingId = existingLanding.id
-        } else {
-          showToast(`❌ ชื่อ URL "/${targetPageType}/${slug}" นี้มีผู้ใช้งานในระบบแล้ว กรุณาเปลี่ยนชื่อ URL ใหม่`)
-          setIsSavingLandingPage(false)
-          setConfirmSaveLpModal(false)
-          return
-        }
-      }
-
-      if (effectiveLandingId) {
+      if (editingLandingPageId) {
         const { data, error } = await supabase
           .from('landing_pages')
           .update(payload)
-          .eq('id', effectiveLandingId)
+          .eq('id', editingLandingPageId)
           .select()
 
         if (error) {
@@ -2123,7 +2075,7 @@ function DashboardContent() {
             <button
               onClick={async () => {
                 await supabase.auth.signOut()
-                router.push('/login')
+                router.replace('/login')
               }}
               className="p-1.5 sm:p-2 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-rose-500 transition shadow-sm"
               title="ออกจากระบบ"
@@ -4047,33 +3999,6 @@ function DashboardContent() {
                                   className="w-full py-1.5 bg-transparent text-xs text-[#1E1B4B] dark:text-white focus:outline-none font-mono font-bold"
                                 />
                               </div>
-
-                              {/* Real-time Slug Validation Badge */}
-                              {newLandingPage.slug && (
-                                <div className="pt-1 flex items-center gap-1.5 text-[11px] font-bold">
-                                  {checkingDashboardSlug ? (
-                                    <span className="text-slate-400 flex items-center gap-1">
-                                      <Loader2 className="w-3 h-3 animate-spin" /> กำลังตรวจสอบชื่อลิงก์ /{newLandingPage.page_type === 'c' ? 'c' : 'p'}/{newLandingPage.slug}...
-                                    </span>
-                                  ) : dashboardSlugStatus.checked ? (
-                                    dashboardSlugStatus.available ? (
-                                      dashboardSlugStatus.isOwn ? (
-                                        <span className="text-amber-500 flex items-center gap-1">
-                                          <Sparkles className="w-3 h-3" /> {dashboardSlugStatus.msg}
-                                        </span>
-                                      ) : (
-                                        <span className="text-emerald-500 flex items-center gap-1">
-                                          <CheckCircle2 className="w-3 h-3" /> {dashboardSlugStatus.msg}
-                                        </span>
-                                      )
-                                    ) : (
-                                      <span className="text-rose-500 flex items-center gap-1">
-                                        <X className="w-3 h-3" /> {dashboardSlugStatus.msg}
-                                      </span>
-                                    )
-                                  ) : null}
-                                </div>
-                              )}
                             </div>
                           </div>
 
@@ -4673,11 +4598,15 @@ function DashboardContent() {
                                             user_id: newLandingPage.line_user_id
                                           })
                                         })
-                                        const data = await res.json()
-                                        if (res.ok && data.success) {
-                                          showToast('✅ ' + data.message)
+                                        let data: any = null
+                                        try {
+                                          const text = await res.text()
+                                          if (text && !text.trim().startsWith('<')) data = JSON.parse(text)
+                                        } catch {}
+                                        if (res.ok && data?.success) {
+                                          showToast('✅ ' + (data.message || 'ส่งข้อความทดสอบสำเร็จ'))
                                         } else {
-                                          showToast('❌ ' + (data.error || 'ส่งข้อความทดสอบไม่สำเร็จ'))
+                                          showToast('❌ ' + (data?.error || `ส่งข้อความทดสอบไม่สำเร็จ (HTTP ${res.status})`))
                                         }
                                       } catch (e) {}
                                     }}

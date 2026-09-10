@@ -26,57 +26,113 @@ import {
   QrCode
 } from 'lucide-react'
 
-export default function LoginPage() {
-  const router = useRouter()
-  const supabase = createClient()
+function hasLocalSupabaseSession(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    // 1. Check cookies (where @supabase/ssr stores auth tokens)
+    if (document.cookie) {
+      const cookies = document.cookie.split(';')
+      for (const c of cookies) {
+        const trimmed = c.trim()
+        if (trimmed.startsWith('sb-') && trimmed.includes('-auth-token') && trimmed.length > 25) {
+          return true
+        }
+        if (trimmed.startsWith('supabase-auth-token=') && trimmed.length > 25) {
+          return true
+        }
+      }
+    }
+    // 2. Check localStorage (where standard supabase-js stores auth tokens)
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) || ''
+      if ((key.startsWith('sb-') && key.includes('token')) || key.includes('supabase.auth.token')) {
+        const raw = localStorage.getItem(key) || ''
+        if (raw.length > 20) return true
+      }
+    }
+  } catch (e) {}
+  return false
+}
 
+export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
-  const [checkingSession, setCheckingSession] = useState(true)
-
-  // Auto redirect to dashboard if user is already logged in (Prevents navigating back to login when authenticated)
-  useEffect(() => {
-    let isMounted = true
-
-    const checkAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session && isMounted) {
-          router.replace('/dashboard')
-          return
-        }
-      } catch (err) {
-        console.warn('Session check error:', err)
-      } finally {
-        if (isMounted) {
-          setCheckingSession(false)
-        }
-      }
-    }
-
-    checkAuth()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session && isMounted && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
-        router.replace('/dashboard')
-      }
-    })
-
-    return () => {
-      isMounted = false
-      subscription?.unsubscribe()
-    }
-  }, [router, supabase])
 
   // Password Reset Modal
   const [resetModalOpen, setResetModalOpen] = useState(false)
   const [resetEmail, setResetEmail] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
   const [resetMsg, setResetMsg] = useState('')
+
+  const router = useRouter()
+  const supabase = createClient()
+
+  const [checkingAuth, setCheckingAuth] = useState(true)
+
+  // Redirect to /dashboard immediately if user is already logged in
+  useEffect(() => {
+    if (hasLocalSupabaseSession()) {
+      window.location.replace('/dashboard')
+      return
+    }
+
+    let isMounted = true
+
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          window.location.replace('/dashboard')
+          return
+        }
+        if (isMounted) {
+          setCheckingAuth(false)
+        }
+      } catch (err) {
+        console.error('Session check note:', err)
+        if (isMounted) {
+          setCheckingAuth(false)
+        }
+      }
+    }
+
+    checkSession()
+
+    // Listen to bfcache restore (browser back/forward button)
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (hasLocalSupabaseSession() || event.persisted) {
+        window.location.replace('/dashboard')
+        return
+      }
+      checkSession()
+    }
+    window.addEventListener('pageshow', handlePageShow)
+
+    const handlePopState = () => {
+      if (hasLocalSupabaseSession()) {
+        window.location.replace('/dashboard')
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        window.location.replace('/dashboard')
+      }
+    })
+
+    return () => {
+      isMounted = false
+      window.removeEventListener('pageshow', handlePageShow)
+      window.removeEventListener('popstate', handlePopState)
+      subscription.unsubscribe()
+    }
+  }, [router, supabase])
+
 
   const getRedirectUrl = () => {
     if (typeof window !== 'undefined') {
@@ -128,7 +184,7 @@ export default function LoginPage() {
       }
 
       if (data?.session) {
-        router.replace('/dashboard')
+        window.location.replace('/dashboard')
       }
     } catch (err: any) {
       let msg = err.message || 'เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบข้อมูล'
@@ -165,17 +221,17 @@ export default function LoginPage() {
     }
     setResetLoading(false)
   }
-
-  if (checkingSession) {
+  if (checkingAuth || (typeof window !== 'undefined' && hasLocalSupabaseSession())) {
     return (
-      <div className="min-h-screen bg-[#F9F9FF] dark:bg-[#0B0F17] flex items-center justify-center p-4 font-sans">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-xs font-bold text-slate-500 dark:text-slate-400">กำลังตรวจสอบสถานะการเข้าสู่ระบบ...</p>
+      <div className="min-h-screen bg-[#F9F9FF] dark:bg-[#0B0F17] flex items-center justify-center font-sans">
+        <div className="flex flex-col items-center gap-3 p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl">
+          <div className="w-10 h-10 border-4 border-purple-500/20 border-t-purple-600 rounded-full animate-spin" />
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">กำลังตรวจสอบสถานะการเข้าสู่ระบบ...</p>
         </div>
       </div>
     )
   }
+
 
   return (
     <div className="min-h-screen bg-[#F9F9FF] dark:bg-[#0B0F17] flex flex-col justify-between font-sans">

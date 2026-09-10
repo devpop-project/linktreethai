@@ -143,82 +143,6 @@ export const getCardStyleClasses = (style?: string, globalCardStyle = 'glass') =
   }
 }
 
-// Top-Level Customer Inputs Component (Prevents Unmounting & Preserves Input Focus 100%)
-export function CustomerInputsFieldset({
-  orderForm,
-  setOrderForm,
-  compact = false
-}: {
-  orderForm: any
-  setOrderForm?: (fn: any) => void
-  compact?: boolean
-}) {
-  if (!orderForm) return null
-  return (
-    <div className={`space-y-2 text-left w-full max-w-sm mx-auto ${compact ? 'text-[10px]' : 'text-xs'}`}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <div>
-          <label className="text-[10px] font-bold text-slate-300 block mb-1">ชื่อ-นามสกุล ผู้รับ *</label>
-          <input
-            type="text"
-            required
-            value={orderForm.name || ''}
-            onChange={(e) => setOrderForm && setOrderForm((prev: any) => ({ ...prev, name: e.target.value }))}
-            placeholder="สมพงษ์ มีสุข"
-            className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/20 text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
-          />
-        </div>
-        <div>
-          <label className="text-[10px] font-bold text-slate-300 block mb-1">เบอร์โทรศัพท์ติดต่อ *</label>
-          <input
-            type="tel"
-            required
-            value={orderForm.phone || ''}
-            onChange={(e) => setOrderForm && setOrderForm((prev: any) => ({ ...prev, phone: e.target.value }))}
-            placeholder="0812345678"
-            className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/20 text-white font-mono placeholder:text-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="text-[10px] font-bold text-slate-300 block mb-1">ที่อยู่จัดส่งสินค้าโดยละเอียด *</label>
-        <textarea
-          rows={2}
-          required
-          value={orderForm.address || ''}
-          onChange={(e) => setOrderForm && setOrderForm((prev: any) => ({ ...prev, address: e.target.value }))}
-          placeholder="บ้านเลขที่, ถนน/ซอย, แขวง/ตำบล, เขต/อำเภอ, จังหวัด, รหัสไปรษณีย์..."
-          className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/20 text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 leading-relaxed"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <div>
-          <label className="text-[10px] font-bold text-slate-300 block mb-1">LINE ID (แจ้งแทร็กกิ้ง)</label>
-          <input
-            type="text"
-            value={orderForm.line_id || ''}
-            onChange={(e) => setOrderForm && setOrderForm((prev: any) => ({ ...prev, line_id: e.target.value }))}
-            placeholder="@line_id"
-            className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/20 text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
-          />
-        </div>
-        <div>
-          <label className="text-[10px] font-bold text-slate-300 block mb-1">หมายเหตุเพิ่มเติม</label>
-          <input
-            type="text"
-            value={orderForm.note || ''}
-            onChange={(e) => setOrderForm && setOrderForm((prev: any) => ({ ...prev, note: e.target.value }))}
-            placeholder="เช่น ฝากไว้หน้าบ้าน"
-            className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/20 text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
-          />
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function SalepageSectionRenderer({
   section,
   globalThemeColor,
@@ -361,9 +285,69 @@ export default function SalepageSectionRenderer({
   // Active payment method
   const currentPayMethod = orderForm.payment_method || previewPaymentMethod || 'promptpay'
 
-  // Stable Reference to CustomerInputsFieldset
+  // Shared Customer Inputs Component
   const RenderCustomerInputs = ({ compact = false }: { compact?: boolean }) => (
-    <CustomerInputsFieldset orderForm={orderForm} setOrderForm={setOrderForm} compact={compact} />
+    <div className={`space-y-2 text-left w-full max-w-sm mx-auto ${compact ? 'text-[10px]' : 'text-xs'}`}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div>
+          <label className="text-[10px] font-bold text-slate-300 block mb-1">ชื่อ-นามสกุล ผู้รับ *</label>
+          <input
+            type="text"
+            required
+            value={orderForm.name}
+            onChange={(e) => setOrderForm && setOrderForm((prev: any) => ({ ...prev, name: e.target.value }))}
+            placeholder="คุณสมศรี มีสุข"
+            className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/20 text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] font-bold text-slate-300 block mb-1">เบอร์โทรศัพท์ติดต่อ *</label>
+          <input
+            type="tel"
+            required
+            value={orderForm.phone}
+            onChange={(e) => setOrderForm && setOrderForm((prev: any) => ({ ...prev, phone: e.target.value }))}
+            placeholder="0812345678"
+            className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/20 text-white font-mono placeholder:text-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="text-[10px] font-bold text-slate-300 block mb-1">ที่อยู่จัดส่งสินค้าโดยละเอียด *</label>
+        <textarea
+          rows={2}
+          required
+          value={orderForm.address}
+          onChange={(e) => setOrderForm && setOrderForm((prev: any) => ({ ...prev, address: e.target.value }))}
+          placeholder="บ้านเลขที่, ถนน/ซอย, แขวง/ตำบล, เขต/อำเภอ, จังหวัด, รหัสไปรษณีย์..."
+          className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/20 text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 leading-relaxed"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div>
+          <label className="text-[10px] font-bold text-slate-300 block mb-1">LINE ID (แจ้งแทร็กกิ้ง)</label>
+          <input
+            type="text"
+            value={orderForm.line_id || ''}
+            onChange={(e) => setOrderForm && setOrderForm((prev: any) => ({ ...prev, line_id: e.target.value }))}
+            placeholder="@line_id"
+            className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/20 text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] font-bold text-slate-300 block mb-1">หมายเหตุเพิ่มเติม</label>
+          <input
+            type="text"
+            value={orderForm.note || ''}
+            onChange={(e) => setOrderForm && setOrderForm((prev: any) => ({ ...prev, note: e.target.value }))}
+            placeholder="เช่น ฝากไว้หน้าบ้าน"
+            className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/20 text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+          />
+        </div>
+      </div>
+    </div>
   )
   // Shared Slip Upload Box (100% Guaranteed Centered across all variants)
   const RenderSlipUploadBox = () => (
@@ -1437,7 +1421,7 @@ export default function SalepageSectionRenderer({
               <RenderSlipUploadBox />
               <div className="pt-2 border-t border-white/10">
                 <span className="text-[10px] font-bold text-slate-300 block mb-2 text-center">ข้อมูลสำหรับจัดส่งสินค้า:</span>
-                <CustomerInputsFieldset orderForm={orderForm} setOrderForm={setOrderForm} />
+                <RenderCustomerInputs />
               </div>
               <div className="w-full max-w-sm mx-auto pt-2">
                 <button type="submit" disabled={ordering} style={{ backgroundColor: theme }} className="w-full py-3 rounded-2xl text-white font-black text-xs shadow-lg active:scale-95 transition cursor-pointer flex items-center justify-center gap-1.5">
@@ -1471,7 +1455,7 @@ export default function SalepageSectionRenderer({
                   <p className="text-[10px] text-slate-300">ชำระเงินกับพนักงานจัดส่งเมื่อสินค้าถึงหน้าบ้านคุณ</p>
                 </div>
               )}
-              <CustomerInputsFieldset orderForm={orderForm} setOrderForm={setOrderForm} />
+              <RenderCustomerInputs />
               <div className="w-full max-w-sm mx-auto pt-2">
                 <button type="submit" disabled={ordering} className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-600/30 active:scale-95 transition cursor-pointer flex items-center justify-center gap-1.5">
                   {ordering ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
@@ -1488,7 +1472,7 @@ export default function SalepageSectionRenderer({
               </div>
               <RenderPromptPayQRBox size="w-36 h-36" />
               <RenderSlipUploadBox />
-              <CustomerInputsFieldset orderForm={orderForm} setOrderForm={setOrderForm} />
+              <RenderCustomerInputs />
               <div className="w-full max-w-sm mx-auto pt-2">
                 <button type="submit" disabled={ordering} className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 font-black text-xs shadow-xl active:scale-95 transition cursor-pointer flex items-center justify-center gap-1.5">
                   {ordering ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Crown className="w-4 h-4" />}
@@ -1533,7 +1517,7 @@ export default function SalepageSectionRenderer({
                 </div>
               )}
 
-              <CustomerInputsFieldset orderForm={orderForm} setOrderForm={setOrderForm} />
+              <RenderCustomerInputs />
 
               <div className="w-full max-w-sm mx-auto pt-2">
                 <button type="submit" disabled={ordering} style={{ backgroundColor: theme }} className="w-full py-3 rounded-2xl text-white font-black text-xs shadow-lg active:scale-95 transition cursor-pointer flex items-center justify-center gap-1.5 hover:opacity-95">

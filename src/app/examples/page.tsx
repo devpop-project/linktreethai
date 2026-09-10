@@ -7,8 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { 
   ShoppingBag, Check, Sparkles, ArrowRight, Sun, Moon, Rocket, Flame, 
   CheckCircle2, Globe, Heart, Star, ExternalLink, Eye, ArrowLeft,
-  Users, Search, Layers, QrCode, MessageCircle, ShieldCheck, Tag,
-  FileCode, Grid, LayoutList
+  Users, Search, Layers, QrCode, MessageCircle, ShieldCheck, Tag
 } from 'lucide-react'
 
 export default function ExamplesShowcasePage() {
@@ -17,10 +16,8 @@ export default function ExamplesShowcasePage() {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false)
   const [realUsers, setRealUsers] = useState<any[]>([])
   const [realSalepages, setRealSalepages] = useState<any[]>([])
-  const [realUploadedPages, setRealUploadedPages] = useState<any[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [currentPage, setCurrentPage] = useState<number>(1)
-  const [showAll, setShowAll] = useState<boolean>(false)
   const [currentHost, setCurrentHost] = useState<string>('linktreethai.in.th')
 
   useEffect(() => {
@@ -33,83 +30,30 @@ export default function ExamplesShowcasePage() {
       document.documentElement.classList.remove('dark')
     }
 
-    if (typeof window !== 'undefined') {
-      setCurrentHost(window.location.host)
-    }
-
-    // Load REAL users and REAL landing pages from Supabase with safe query fallbacks
+    // Load REAL users and REAL landing pages from Supabase
     const supabase = createClient()
     const loadRealData = async () => {
       setLoading(true)
       try {
-        // 1. Fetch real profiles
         const { data: profs } = await supabase
           .from('profiles')
           .select('id, username, full_name, bio, avatar_url, cover_url, role, points, template_id, created_at')
           .order('created_at', { ascending: false })
 
-        if (profs && Array.isArray(profs)) {
-          setRealUsers(profs)
-        }
+        if (profs) setRealUsers(profs)
 
-        // 2. Fetch real landing pages (Safe select without missing columns like template_type)
-        try {
-          const { data: lps, error: lpErr } = await supabase
-            .from('landing_pages')
-            .select('id, title, slug, headline, offer_price, hero_image_url, hero_media_url, bg_color, theme_color, page_type, card_style, features, is_active, created_at, profiles(username, full_name, avatar_url)')
-            .eq('is_active', true)
-            .order('created_at', { ascending: false })
+        const { data: lps } = await supabase
+          .from('landing_pages')
+          .select('id, title, slug, headline, offer_price, hero_image_url, bg_color, theme_color, created_at, profiles(username, full_name, avatar_url)')
+          .order('created_at', { ascending: false })
 
-          if (!lpErr && lps && Array.isArray(lps)) {
-            setRealSalepages(lps)
-          } else {
-            // Fallback select without profiles join in case schema join is not established
-            const { data: lpsFallback } = await supabase
-              .from('landing_pages')
-              .select('id, title, slug, headline, offer_price, hero_image_url, hero_media_url, bg_color, theme_color, page_type, card_style, features, is_active, created_at')
-              .eq('is_active', true)
-              .order('created_at', { ascending: false })
-
-            if (lpsFallback && Array.isArray(lpsFallback)) {
-              setRealSalepages(lpsFallback)
-            }
-          }
-        } catch (lpCatch) {
-          console.warn('Notice loading landing pages:', lpCatch)
-        }
-
-        // 3. Fetch real uploaded index pages
-        try {
-          const { data: uips, error: uipErr } = await supabase
-            .from('uploaded_index_pages')
-            .select('id, title, slug, views, is_active, created_at, profiles(username, full_name, avatar_url)')
-            .eq('is_active', true)
-            .order('created_at', { ascending: false })
-
-          if (!uipErr && uips && Array.isArray(uips)) {
-            setRealUploadedPages(uips)
-          } else {
-            const { data: uipsFallback } = await supabase
-              .from('uploaded_index_pages')
-              .select('id, title, slug, views, is_active, created_at')
-              .eq('is_active', true)
-              .order('created_at', { ascending: false })
-
-            if (uipsFallback && Array.isArray(uipsFallback)) {
-              setRealUploadedPages(uipsFallback)
-            }
-          }
-        } catch (uipCatch) {
-          console.warn('Notice loading uploaded index pages:', uipCatch)
-        }
-
-      } catch (e) {
-        console.warn('Global showcase loading notice:', e)
-      } finally {
-        setLoading(false)
-      }
+        if (lps) setRealSalepages(lps)
+      } catch (e) {}
+      setLoading(false)
     }
-
+    if (typeof window !== 'undefined') {
+      setCurrentHost(window.location.host)
+    }
     loadRealData()
   }, [])
 
@@ -125,8 +69,8 @@ export default function ExamplesShowcasePage() {
     }
   }
 
-  // Combine real users, salepages & uploaded HTML with proper route prefix (/c/, /p/, /u/, /@username)
-  const realMappedItems = [
+  // Combine real users & salepages with proper cover & avatar mapping
+  const combinedItems = [
     ...realUsers.map(u => ({
       id: u.id,
       type: 'bio',
@@ -134,81 +78,38 @@ export default function ExamplesShowcasePage() {
       username: u.username,
       description: u.bio || 'สมาชิกผู้ใช้งานจริงบน LinkTreeThai Platform',
       templateName: u.template_id ? u.template_id.replace('template_', 'Template ') : 'Template 1',
-      avatarUrl: u.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${u.username || 'user'}` as string,
+      avatarUrl: u.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${u.username || 'user'}`,
       coverUrl: u.cover_url || null,
       liveUrl: `/${u.username}`,
-      displayUrl: `/${u.username}`,
       role: u.role,
       points: u.points || 0,
       isSalepage: false,
-      price: null,
-      ownerUsername: u.username,
       createdAt: u.created_at
     })),
-    ...realSalepages.map(lp => {
-      const isModular =
-        lp.slug === 'enter-the-amanita-th-775' ||
-        (lp.slug && lp.slug.includes('-775')) ||
-        lp.page_type === 'c' ||
-        lp.page_type === 'custom' ||
-        lp.page_type === 'modular' ||
-        lp.card_style === 'custom_modular' ||
-        (Array.isArray(lp.features) && lp.features.length > 0 && typeof lp.features[0] === 'object' && lp.features[0] !== null && (lp.features[0].type || lp.features[0].id))
-
-      const isUploaded =
-        lp.card_style === 'uploaded_html_index' ||
-        lp.page_type === 'u'
-
-      const pathPrefix = isUploaded ? 'u' : isModular ? 'c' : 'p'
-      const realUrl = `/${pathPrefix}/${lp.slug}`
-
-      return {
-        id: lp.id,
-        type: 'salepage',
-        title: lp.title || lp.headline,
-        username: `${pathPrefix}/${lp.slug}`,
-        description: lp.headline || (isModular ? 'Custom Salepage สไตล์ Mobile App หรูหรา' : 'เซลเพจโปรโมชั่นยิงแอด พร้อมระบบชำระเงินและแจ้งเตือนเข้า LINE'),
-        templateName: isModular ? '✨ Custom Salepage' : (isUploaded ? '📄 โฮสต์ HTML' : '🚀 เซลเพจ Flash Sale'),
-        avatarUrl: (lp.hero_image_url || lp.hero_media_url || lp.profiles?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${lp.slug}`) as string,
-        coverUrl: lp.hero_image_url || lp.hero_media_url || null,
-        liveUrl: realUrl,
-        displayUrl: realUrl,
-        role: 'salepage',
-        points: 0,
-        isSalepage: true,
-        price: lp.offer_price,
-        ownerUsername: lp.profiles?.username,
-        createdAt: lp.created_at
-      }
-    }),
-    ...realUploadedPages.map(u => ({
-      id: u.id,
-      type: 'uploaded',
-      title: u.title || `Index ${u.slug}`,
-      username: `u/${u.slug}`,
-      description: 'หน้าเว็บส่วนตัวนำเข้าด้วยไฟล์ index.html พร้อมฝังระบบ Multi-Tracking Pixels',
-      templateName: '📄 โฮสต์ HTML (/u/)',
-      avatarUrl: (u.profiles?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${u.slug}`) as string,
-      coverUrl: null,
-      liveUrl: `/u/${u.slug}`,
-      displayUrl: `/u/${u.slug}`,
-      role: 'uploaded',
+    ...realSalepages.map(lp => ({
+      id: lp.id,
+      type: 'salepage',
+      title: lp.title || lp.headline,
+      username: lp.slug,
+      description: lp.headline || 'เซลเพจโปรโมชั่นยิงแอด พร้อมระบบชำระเงินและแจ้งเตือนเข้า LINE',
+      templateName: '🚀 เซลเพจ Flash Sale',
+      avatarUrl: lp.profiles?.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${lp.profiles?.username || lp.slug}`,
+      coverUrl: lp.hero_image_url || null,
+      liveUrl: `/p/${lp.slug}`,
+      role: 'salepage',
       points: 0,
       isSalepage: true,
-      price: null,
-      ownerUsername: u.profiles?.username,
-      createdAt: u.created_at
+      price: lp.offer_price,
+      ownerUsername: lp.profiles?.username,
+      createdAt: lp.created_at
     }))
   ]
-
-  // Strictly ONLY real items from the database (No mock/fake fallback data)
-  const combinedItems = realMappedItems
 
   const filteredItems = combinedItems.filter((item) => {
     const matchCategory = 
       selectedCategory === 'all' ||
       (selectedCategory === 'salepage' && item.isSalepage) ||
-      (selectedCategory === 'vip' && (item.role === 'admin' || item.role === 'vip' || item.points >= 100)) ||
+      (selectedCategory === 'vip' && (item.role === 'admin' || item.points >= 100)) ||
       (selectedCategory === 'bio' && !item.isSalepage)
 
     const q = searchQuery.toLowerCase().trim()
@@ -220,13 +121,6 @@ export default function ExamplesShowcasePage() {
     return matchCategory && matchQuery
   })
 
-  // Items per page (standard 12 items for 3-column grid)
-  const ITEMS_PER_PAGE = 12
-  const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE) || 1
-  const paginatedItems = showAll 
-    ? filteredItems 
-    : filteredItems.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
-
   return (
     <div className="min-h-screen bg-[#F9F9FF] dark:bg-[#0B0F17] text-[#1E1B4B] dark:text-slate-100 flex flex-col justify-between selection:bg-[#A78BFA] selection:text-white font-sans transition-colors duration-300">
       
@@ -236,7 +130,7 @@ export default function ExamplesShowcasePage() {
           <div className="flex items-center gap-2 sm:gap-3.5 min-w-0">
             <Link 
               href="/" 
-              className="p-1.5 sm:p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition flex items-center gap-1 text-xs font-bold shrink-0 cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition flex items-center gap-1 text-xs font-bold shrink-0"
               title="กลับหน้าแรก"
             >
               <ArrowLeft className="w-4 h-4" /> <span className="hidden sm:inline">หน้าแรก</span>
@@ -249,7 +143,7 @@ export default function ExamplesShowcasePage() {
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <button
               onClick={toggleTheme}
-              className="p-1.5 sm:p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-amber-400 hover:border-purple-300 transition active:scale-95 shadow-sm shrink-0 cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-amber-400 hover:border-purple-300 transition active:scale-95 shadow-sm shrink-0"
               title={isDarkMode ? 'Light Mode' : 'Dark Mode'}
             >
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4 text-slate-700" />}
@@ -257,13 +151,13 @@ export default function ExamplesShowcasePage() {
 
             <Link 
               href="/login" 
-              className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-purple-600 transition whitespace-nowrap cursor-pointer"
+              className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-purple-600 transition whitespace-nowrap"
             >
               เข้าสู่ระบบ
             </Link>
             <Link 
               href="/register" 
-              className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-black bg-[#34D399] hover:bg-[#10B981] text-slate-950 rounded-xl transition shadow-md shadow-emerald-500/20 flex items-center gap-1 active:scale-95 whitespace-nowrap shrink-0 cursor-pointer"
+              className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs font-black bg-[#34D399] hover:bg-[#10B981] text-slate-950 rounded-xl transition shadow-md shadow-emerald-500/20 flex items-center gap-1 active:scale-95 whitespace-nowrap shrink-0"
             >
               <span>สร้างฟรี</span> <ArrowRight className="w-3.5 h-3.5" />
             </Link>
@@ -276,9 +170,9 @@ export default function ExamplesShowcasePage() {
         
         {/* Header Hero Title */}
         <div className="text-center max-w-3xl mx-auto space-y-3 px-2">
-          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[11px] sm:text-xs font-black shadow-sm max-w-full">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-[11px] sm:text-xs font-black shadow-sm max-w-full">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-            <span className="truncate">REAL MEMBERS & SALEPAGES • ตัวอย่างหน้าใช้งานจริงทั้งหมด</span>
+            <span className="truncate">REAL MEMBERS & SALEPAGES • ตัวอย่างผู้ใช้งานจริง</span>
           </div>
 
           <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-[#1E1B4B] dark:text-white tracking-tight leading-tight">
@@ -289,7 +183,7 @@ export default function ExamplesShowcasePage() {
           </h1>
 
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed max-w-2xl mx-auto">
-            แสดงผลงานจริงครบทุกหมวดหมู่ ทั้งหน้า Bio Link รวมลิงก์, Custom Salepage ปิดการขาย COD, และหน้าโฮสต์ Index.html ส่วนตัว คุณสามารถกดเข้าชมหน้าจริง (Live) ได้ทันที
+            แสดงเฉพาะโปรไฟล์และเซลเพจของสมาชิกจริงที่มีอยู่ในฐานข้อมูล คุณสามารถกดเข้าชมหน้าจริง (Live) ได้ทันที
           </p>
         </div>
 
@@ -315,7 +209,7 @@ export default function ExamplesShowcasePage() {
                   : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-emerald-300'
               }`}
             >
-              👤 Bio Link ({combinedItems.filter(i => !i.isSalepage).length})
+              👤 Bio Link ({realUsers.length})
             </button>
             <button
               onClick={() => { setSelectedCategory('salepage'); setCurrentPage(1); }}
@@ -325,7 +219,7 @@ export default function ExamplesShowcasePage() {
                   : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-red-300'
               }`}
             >
-              🚀 เซลเพจ & HTML ({combinedItems.filter(i => i.isSalepage).length})
+              🚀 เซลเพจ ({realSalepages.length})
             </button>
             <button
               onClick={() => { setSelectedCategory('vip'); setCurrentPage(1); }}
@@ -335,35 +229,20 @@ export default function ExamplesShowcasePage() {
                   : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-amber-300'
               }`}
             >
-              👑 สมาชิกระดับ VIP ({combinedItems.filter(i => i.role === 'admin' || i.role === 'vip' || i.points >= 100).length})
+              👑 สมาชิกระดับ VIP ({combinedItems.filter(i => i.role === 'admin' || i.points >= 100).length})
             </button>
           </div>
 
-          {/* Search Box & View Mode Toggle */}
-          <div className="max-w-xl mx-auto flex items-center gap-3">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="ค้นหาชื่อผู้ใช้, ชื่อร้าน, หรือเส้นทาง URL..."
-                value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-500 shadow-sm"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowAll(!showAll)}
-              className={`px-4 py-3 rounded-2xl text-xs font-bold border transition flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm ${
-                showAll
-                  ? 'bg-purple-600 text-white border-purple-600'
-                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-purple-300'
-              }`}
-            >
-              <Layers className="w-4 h-4" />
-              <span>{showAll ? 'แบ่งหน้า' : 'ดูทั้งหมด'}</span>
-            </button>
+          {/* Search Box */}
+          <div className="max-w-md mx-auto relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="ค้นหาชื่อผู้ใช้, ชื่อร้าน, หรือ Slug..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-[#1E1B4B] dark:text-white focus:outline-none focus:border-purple-500 shadow-sm"
+            />
           </div>
         </div>
 
@@ -381,155 +260,153 @@ export default function ExamplesShowcasePage() {
         ) : filteredItems.length === 0 ? (
           <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[32px] space-y-3">
             <Users className="w-12 h-12 text-slate-400 mx-auto" />
-            <h3 className="font-bold text-base text-[#1E1B4B] dark:text-white">ไม่พบข้อมูลตัวอย่างที่ตรงกับคำค้นหา</h3>
-            <p className="text-xs text-slate-500">ลองค้นหาด้วยคำอื่น หรือเลือกหมวดหมู่ทั้งหมด</p>
+            <h3 className="font-bold text-base text-[#1E1B4B] dark:text-white">ไม่พบข้อมูลสมาชิกในหมวดหมู่นี้</h3>
+            <p className="text-xs text-slate-500">คุณสามารถลงทะเบียนเป็นสมาชิกคนแรกได้ทันที!</p>
           </div>
-        ) : (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {paginatedItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-[32px] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between group"
-                >
-                  <div>
-                    {/* Card Top Banner */}
-                    <div 
-                      className="h-28 relative p-3.5 flex items-start justify-between bg-gradient-to-br from-purple-700 via-indigo-800 to-slate-950 overflow-hidden"
-                      style={item.coverUrl ? { backgroundImage: `url(${item.coverUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
-                    >
-                      {/* Subtle Dark Overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/40 pointer-events-none"></div>
+        ) : (() => {
+          const ITEMS_PER_PAGE = 6
+          const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE)
+          const paginatedItems = filteredItems.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE)
 
-                      <span className="relative z-10 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white font-mono text-[10px] font-black border border-white/20 shadow">
-                        {item.type === 'uploaded' 
-                          ? '📄 โฮสต์ HTML ส่วนตัว' 
-                          : item.isSalepage 
-                          ? '🔥 เซลเพจ Flash Sale' 
-                          : (item.role === 'admin' ? '👑 ADMIN' : '👤 สมาชิกจริง')}
-                      </span>
+          return (
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {paginatedItems.map((item) => (
+              <div
+                key={item.id}
+                className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-[32px] overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between group"
+              >
+                <div>
+                  {/* Card Top Banner */}
+                  <div className="h-28 relative p-3.5 flex items-start justify-between bg-gradient-to-br from-purple-700 via-indigo-800 to-slate-950 overflow-hidden"
+                    style={item.coverUrl ? { backgroundImage: `url(${item.coverUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
+                  >
+                    {/* Subtle Overlay for readable badges */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/40 pointer-events-none"></div>
+
+                    <span className="relative z-10 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white font-mono text-[10px] font-black border border-white/20 shadow">
+                      {item.isSalepage ? '🔥 เซลเพจ Flash Sale' : (item.role === 'admin' ? '👑 ADMIN' : '👤 สมาชิกจริง')}
+                    </span>
+                    
+                    <div className="relative z-10 flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full text-emerald-400 text-[10px] font-black border border-emerald-500/30 shadow">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>Verified</span>
+                    </div>
+                  </div>
+
+                  <div className="p-5 pt-0 space-y-3">
+                    {/* Classic Clean Circular Avatar & Badges */}
+                    <div className="flex items-end justify-between -mt-8 mb-1">
+                      <div className="w-16 h-16 rounded-full p-1 bg-white dark:bg-slate-900 shadow-lg border-2 border-purple-200 dark:border-slate-700 shrink-0 relative z-10">
+                        <img
+                          src={item.avatarUrl}
+                          alt={item.title}
+                          className="w-full h-full rounded-full object-cover bg-slate-100"
+                        />
+                      </div>
                       
-                      <div className="relative z-10 flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full text-emerald-400 text-[10px] font-black border border-emerald-500/30 shadow">
-                        <CheckCircle2 className="w-3 h-3" />
-                        <span>Verified</span>
-                      </div>
-                    </div>
-
-                    <div className="p-5 pt-0 space-y-3">
-                      {/* Classic Circular Avatar & Badges */}
-                      <div className="flex items-end justify-between -mt-8 mb-1">
-                        <div className="w-16 h-16 rounded-full p-1 bg-white dark:bg-slate-900 shadow-lg border-2 border-purple-200 dark:border-slate-700 shrink-0 relative z-10 overflow-hidden">
-                          <img
-                            src={item.avatarUrl}
-                            alt={item.title}
-                            className="w-full h-full rounded-full object-cover bg-slate-100 dark:bg-slate-800"
-                            onError={(e) => {
-                              (e.target as any).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${item.username}`
-                            }}
-                          />
-                        </div>
-                        
-                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                          {item.price && (
-                            <span className="text-[10px] font-mono font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2.5 py-1 rounded-xl border border-amber-200 dark:border-amber-800 shadow-sm">
-                              ฿{parseFloat(String(item.price)).toLocaleString()}
-                            </span>
-                          )}
-                          <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-1 rounded-xl font-bold border border-purple-200 dark:border-purple-800 shadow-sm">
-                            {item.templateName}
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        {item.price && (
+                          <span className="text-[10px] font-mono font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2.5 py-1 rounded-xl border border-amber-200 dark:border-amber-800 shadow-sm">
+                            ฿{parseFloat(String(item.price)).toLocaleString()}
                           </span>
-                        </div>
-                      </div>
-
-                      {/* Title & Description */}
-                      <div className="space-y-1">
-                        <h3 className="font-black text-base text-[#1E1B4B] dark:text-white flex items-center gap-1.5 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition">
-                          <span className="truncate">{item.title}</span>
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                        </h3>
-                        <p className="text-xs text-purple-600 dark:text-purple-400 font-mono font-bold truncate">
-                          {currentHost ? `${currentHost}${item.liveUrl}` : item.liveUrl}
-                        </p>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-2">
-                          {item.description}
-                        </p>
-                      </div>
-
-                      {/* Badges */}
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 rounded-lg text-[10px] font-bold border border-emerald-100 dark:border-emerald-900/40">
-                          ✓ บัญชีจริงในระบบ
+                        )}
+                        <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-1 rounded-xl font-bold border border-purple-200 dark:border-purple-800 shadow-sm">
+                          {item.templateName}
                         </span>
-                        {item.price ? (
-                          <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 rounded-lg text-[10px] font-bold border border-amber-100 dark:border-amber-900/40">
-                            ฿{item.price} บาท
-                          </span>
-                        ) : null}
                       </div>
                     </div>
-                  </div>
 
-                  {/* Action Button Footer */}
-                  <div className="p-6 pt-0 space-y-2">
-                    <a
-                      href={item.liveUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="w-full py-3 bg-[#1E1B4B] dark:bg-white hover:bg-purple-700 dark:hover:bg-slate-200 text-white dark:text-slate-950 font-black rounded-2xl text-xs flex items-center justify-center gap-2 transition shadow-md active:scale-98 cursor-pointer"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      <span>เข้าชมหน้าจริง Live ({item.type === 'bio' ? `@${item.username}` : item.liveUrl})</span>
-                    </a>
+                    {/* Title & Description */}
+                    <div className="space-y-1">
+                      <h3 className="font-black text-base text-[#1E1B4B] dark:text-white flex items-center gap-1.5 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition">
+                        <span className="truncate">{item.title}</span>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      </h3>
+                      <p className="text-xs text-purple-600 dark:text-purple-400 font-mono font-bold truncate">
+                        {currentHost ? `${currentHost}${item.liveUrl}` : item.liveUrl}
+                      </p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-2">
+                        {item.description}
+                      </p>
+                    </div>
+
+                    {/* Badges */}
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 rounded-lg text-[10px] font-bold border border-emerald-100 dark:border-emerald-900/40">
+                        ✓ บัญชีจริงในระบบ
+                      </span>
+                      {item.price ? (
+                        <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 rounded-lg text-[10px] font-bold border border-amber-100 dark:border-amber-900/40">
+                          ฿{item.price} บาท
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
 
-            {/* Interactive Pagination Controls (Only when not showAll and totalPages > 1) */}
-            {!showAll && totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-200/80 dark:border-slate-800">
-                <div className="text-xs text-slate-500 dark:text-slate-400 font-bold">
-                  แสดงหน้า {currentPage} จากทั้งหมด {totalPages} หน้า (รวม {filteredItems.length} รายการตัวอย่าง)
-                </div>
-
-                <div className="flex items-center gap-1.5 flex-wrap justify-center">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className="px-4 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition cursor-pointer shadow-sm"
+                {/* Action Button Footer */}
+                <div className="p-6 pt-0 space-y-2">
+                  <a
+                    href={item.liveUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-3 bg-[#1E1B4B] dark:bg-white hover:bg-purple-700 dark:hover:bg-slate-200 text-white dark:text-slate-950 font-black rounded-2xl text-xs flex items-center justify-center gap-2 transition shadow-md active:scale-98 cursor-pointer"
                   >
-                    ← ย้อนกลับ
-                  </button>
-
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                    <button
-                      key={pageNum}
-                      type="button"
-                      onClick={() => setCurrentPage(pageNum)}
-                      className={`w-9 h-9 rounded-2xl font-bold text-xs flex items-center justify-center transition cursor-pointer shadow-sm ${
-                        currentPage === pageNum
-                          ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-purple-500/25'
-                          : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  ))}
-
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                    className="px-4 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition cursor-pointer shadow-sm"
-                  >
-                    ถัดไป →
-                  </button>
+                    <ExternalLink className="w-4 h-4" />
+                    <span>เข้าชมหน้าจริง Live ({item.isSalepage ? `/p/${item.username}` : `@${item.username}`})</span>
+                  </a>
                 </div>
               </div>
-            )}
-          </div>
-        )}
+            ))}
+              </div>
+
+              {/* Interactive Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-200/80 dark:border-slate-800">
+                  <div className="text-xs text-slate-500 dark:text-slate-400 font-bold">
+                    แสดงหน้า {currentPage} จากทั้งหมด {totalPages} หน้า (รวม {filteredItems.length} รายการในระบบ)
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition cursor-pointer shadow-sm"
+                    >
+                      ← ย้อนกลับ
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-9 h-9 rounded-2xl font-bold text-xs flex items-center justify-center transition cursor-pointer shadow-sm ${
+                          currentPage === pageNum
+                            ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-purple-500/25'
+                            : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition cursor-pointer shadow-sm"
+                    >
+                      ถัดไป →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {/* Bottom CTA */}
         <section className="bg-gradient-to-r from-purple-600 via-indigo-600 to-[#34D399] p-8 sm:p-12 rounded-[36px] shadow-2xl text-white text-center space-y-6">

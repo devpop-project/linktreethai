@@ -370,7 +370,7 @@ export default function Template7({ profile, links, products, handleLinkClick, i
                 disabled={leadSending}
                 className="w-full py-3.5 bg-[#C084FC] hover:bg-[#A855F7] text-black font-black rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-0.5 hover:translate-y-0.5 transition active:scale-95 disabled:opacity-50 cursor-pointer mt-2"
               >
-                
+                <Send className="w-4 h-4" />
                 <span>{leadSending ? 'กำลังส่งข้อความ...' : '✈️ ส่งข้อความติดต่อกลับ'}</span>
               </button>
             </form>

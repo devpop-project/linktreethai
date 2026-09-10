@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
 
+export const dynamic = 'force-dynamic'
+
 // AI Key Validator for Google Gemini and OpenAI
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
+    let body: any = {}
+    try {
+      body = await req.json()
+    } catch {
+      body = {}
+    }
     const { apiKey } = body
 
     const key = (apiKey || "").trim()
@@ -23,7 +30,11 @@ export async function POST(req: NextRequest) {
         if (res.ok) {
           return NextResponse.json({ valid: true, provider: "OpenAI GPT-4o / GPT-4o-mini Ready" })
         } else {
-          const err = await res.json()
+          let err: any = {}
+          try {
+            const raw = await res.text()
+            if (raw && !raw.trim().startsWith('<')) err = JSON.parse(raw)
+          } catch {}
           return NextResponse.json({ valid: false, error: err.error?.message || "OpenAI API Key ไม่ถูกต้องหรือหมดอายุ" })
         }
       } catch (e: any) {
@@ -35,14 +46,22 @@ export async function POST(req: NextRequest) {
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`)
       if (res.ok) {
-        const data = await res.json()
+        let data: any = {}
+        try {
+          const raw = await res.text()
+          if (raw && !raw.trim().startsWith('<')) data = JSON.parse(raw)
+        } catch {}
         const count = data.models ? data.models.length : 0
         return NextResponse.json({
           valid: true,
           provider: `Google Gemini AI Vision Ready (${count} Models Available)`
         })
       } else {
-        const err = await res.json()
+        let err: any = {}
+        try {
+          const raw = await res.text()
+          if (raw && !raw.trim().startsWith('<')) err = JSON.parse(raw)
+        } catch {}
         return NextResponse.json({
           valid: false,
           error: err.error?.message || "Google Gemini API Key ไม่ถูกต้องหรือยังไม่ได้เปิดใช้งาน"

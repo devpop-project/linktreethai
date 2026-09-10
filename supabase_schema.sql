@@ -5,9 +5,6 @@
 -- Short Links & Analytics, Pixel Events, Analytics Events, Payment Transactions
 -- ==============================================================================
 
--- Ensure tier column exists
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'free';
-
 -- 1. PROFILES TABLE (ตารางข้อมูลผู้ใช้งานและโปรไฟล์)
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -924,76 +921,38 @@ BEGIN
         EXIT WHEN counter > 10;
     END LOOP;
 
-    -- Ensure tier column exists on profiles table to prevent trigger crash
-    -- Insert into profiles table with EXCEPTION guard
-    BEGIN
-        INSERT INTO public.profiles (
-            id,
-            username,
-            full_name,
-            avatar_url,
-            role,
-            tier,
-            points,
-            template_id,
-            bg_color,
-            text_color,
-            created_at,
-            updated_at
-        ) VALUES (
-            NEW.id,
-            temp_username,
-            user_full_name,
-            user_avatar,
-            'user',
-            'free',
-            100,
-            'template_1',
-            '#0B0F17',
-            '#FFFFFF',
-            NOW(),
-            NOW()
-        )
-        ON CONFLICT (id) DO UPDATE SET
-            full_name = EXCLUDED.full_name,
-            avatar_url = COALESCE(public.profiles.avatar_url, EXCLUDED.avatar_url),
-            updated_at = NOW();
-    EXCEPTION WHEN OTHERS THEN
-        -- Fallback: If tier column does not exist or any schema conflict occurs, insert without tier
-        BEGIN
-            INSERT INTO public.profiles (
-                id,
-                username,
-                full_name,
-                avatar_url,
-                role,
-                points,
-                template_id,
-                bg_color,
-                text_color,
-                created_at,
-                updated_at
-            ) VALUES (
-                NEW.id,
-                temp_username,
-                user_full_name,
-                user_avatar,
-                'user',
-                100,
-                'template_1',
-                '#0B0F17',
-                '#FFFFFF',
-                NOW(),
-                NOW()
-            )
-            ON CONFLICT (id) DO UPDATE SET
-                full_name = EXCLUDED.full_name,
-                avatar_url = COALESCE(public.profiles.avatar_url, EXCLUDED.avatar_url),
-                updated_at = NOW();
-        EXCEPTION WHEN OTHERS THEN
-            RAISE WARNING 'handle_new_user profile creation warning: %', SQLERRM;
-        END;
-    END;
+    -- Insert into profiles table
+    INSERT INTO public.profiles (
+        id,
+        username,
+        full_name,
+        avatar_url,
+        role,
+        tier,
+        points,
+        template_id,
+        bg_color,
+        text_color,
+        created_at,
+        updated_at
+    ) VALUES (
+        NEW.id,
+        temp_username,
+        user_full_name,
+        user_avatar,
+        'user',
+        'free',
+        100,
+        'template_1',
+        '#0B0F17',
+        '#FFFFFF',
+        NOW(),
+        NOW()
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        full_name = EXCLUDED.full_name,
+        avatar_url = COALESCE(public.profiles.avatar_url, EXCLUDED.avatar_url),
+        updated_at = NOW();
 
     RETURN NEW;
 END;
@@ -1196,30 +1155,35 @@ BEGIN
 END $$;
 
 -- ==============================================================================
--- 15. SEPARATION OF /p/[slug] AND /c/[slug] IN LANDING_PAGES
+-- 12. ADMIN DIRECT PASSWORD CHANGE (Admin เปลี่ยนรหัสผ่านให้ผู้ใช้ได้ทันที ไม่ต้องผ่าน Email)
 -- ==============================================================================
--- 1. เพิ่มคอลัมน์ page_type หากยังไม่มี (default 'p' สำหรับ Classic Flash Sale)
-ALTER TABLE public.landing_pages ADD COLUMN IF NOT EXISTS page_type TEXT DEFAULT 'p';
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
--- 2. ปรับปรุงข้อมูลหน้าเดิม: หากเป็น Custom Modular ให้ตั้งเป็น 'c' ส่วนหน้าที่เหลือตั้งเป็น 'p'
-UPDATE public.landing_pages 
-SET page_type = 'c' 
-WHERE card_style = 'custom_modular' 
-   OR page_type = 'custom' 
-   OR page_type = 'modular'
-   OR (jsonb_typeof(features) = 'array' AND jsonb_array_length(features) > 0 AND features->0 ? 'type');
+CREATE OR REPLACE FUNCTION public.admin_set_user_password(target_user_id UUID, new_password TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, extensions
+AS $$
+BEGIN
+  -- 1. ตรวจสอบสิทธิ์ผู้เรียกใช้ว่ามี role = 'admin' หรือไม่
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Access denied: Only admins can change user passwords.';
+  END IF;
 
-UPDATE public.landing_pages 
-SET page_type = 'p' 
-WHERE page_type IS NULL OR page_type = '';
+  -- 2. ตรวจสอบความยาวรหัสผ่าน
+  IF length(new_password) < 6 THEN
+    RAISE EXCEPTION 'Password must be at least 6 characters long.';
+  END IF;
 
--- 3. ยกเลิกเงื่อนไข UNIQUE เดิมที่ล็อคเฉพาะ slug เดี่ยวๆ
-ALTER TABLE public.landing_pages DROP CONSTRAINT IF EXISTS landing_pages_slug_key;
-ALTER TABLE public.landing_pages DROP CONSTRAINT IF EXISTS landing_pages_page_type_slug_key;
+  -- 3. อัปเดต encrypted_password ใน auth.users โดยใช้ bcrypt
+  UPDATE auth.users
+  SET encrypted_password = extensions.crypt(new_password, extensions.gen_salt('bf')),
+      updated_at = NOW()
+  WHERE id = target_user_id;
 
--- 4. กำหนดเงื่อนไข UNIQUE ใหม่เป็นแบบ Composite (page_type, slug)
--- ทำให้สามารถมี /p/linkthaitree และ /c/linkthaitree ร่วมกันได้โดยไม่ชนกันและไม่แทนที่กัน
-ALTER TABLE public.landing_pages ADD CONSTRAINT landing_pages_page_type_slug_key UNIQUE (page_type, slug);
+  RETURN TRUE;
+END;
+$$;
 
--- 5. สร้าง Index เพื่อเพิ่มความเร็วในการค้นหา
-CREATE INDEX IF NOT EXISTS idx_landing_pages_page_type_slug ON public.landing_pages(page_type, slug);
+GRANT EXECUTE ON FUNCTION public.admin_set_user_password(UUID, TEXT) TO authenticated;
