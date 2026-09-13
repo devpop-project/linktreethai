@@ -1,19 +1,43 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { 
-  X, Coins, Sparkles, Check, QrCode, ArrowRight, 
-  CreditCard, ShieldCheck, MessageCircle, ExternalLink, Flame, 
-  Upload, Clock, CheckCircle2, AlertCircle, RefreshCw, Eye, Image as ImageIcon, Send, AlertTriangle
-} from 'lucide-react'
-import { generatePromptPayPayload, PROMPTPAY_PHONE, PROMPTPAY_BANK, PROMPTPAY_ACCOUNT_NAME, PROMPTPAY_LINE_ID, PROMPTPAY_LINE_URL } from '@/lib/promptpay'
+import React, { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import {
+  X,
+  Coins,
+  Sparkles,
+  Check,
+  QrCode,
+  ArrowRight,
+  CreditCard,
+  ShieldCheck,
+  MessageCircle,
+  ExternalLink,
+  Flame,
+  Upload,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  Eye,
+  Image as ImageIcon,
+  Send,
+  AlertTriangle,
+} from "lucide-react";
+import {
+  generatePromptPayPayload,
+  PROMPTPAY_PHONE,
+  PROMPTPAY_BANK,
+  PROMPTPAY_ACCOUNT_NAME,
+  PROMPTPAY_LINE_ID,
+  PROMPTPAY_LINE_URL,
+} from "@/lib/promptpay";
 
 interface TopUpPointsModalProps {
-  isOpen: boolean
-  onClose: () => void
-  profile: any
-  onSuccess?: () => void
+  isOpen: boolean;
+  onClose: () => void;
+  profile: any;
+  onSuccess?: () => void;
 }
 
 export default function TopUpPointsModal({
@@ -22,171 +46,229 @@ export default function TopUpPointsModal({
   profile,
   onSuccess,
 }: TopUpPointsModalProps) {
-  const [activeTab, setActiveTab] = useState<'pay' | 'history'>('pay')
-  const [selectedPkg, setSelectedPkg] = useState<number>(600)
-  const [uploadingSlip, setUploadingSlip] = useState(false)
-  const [slipUrl, setSlipUrl] = useState<string>('')
-  const [userNote, setUserNote] = useState<string>('')
-  const [submitting, setSubmitting] = useState(false)
-  const [submitSuccess, setSubmitSuccess] = useState(false)
-  const [isConfirmPayModalOpen, setIsConfirmPayModalOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<"pay" | "history">("pay");
+  const [selectedPkg, setSelectedPkg] = useState<number>(600);
+  const [uploadingSlip, setUploadingSlip] = useState(false);
+  const [slipUrl, setSlipUrl] = useState<string>("");
+  const [userNote, setUserNote] = useState<string>("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [isConfirmPayModalOpen, setIsConfirmPayModalOpen] = useState(false);
 
   // Dynamic Payment Settings Configured by Admin
   const [paymentConfig, setPaymentConfig] = useState({
     promptpay_phone: PROMPTPAY_PHONE,
     promptpay_bank: PROMPTPAY_BANK,
     promptpay_account_name: PROMPTPAY_ACCOUNT_NAME,
-    promptpay_account_number: '',
+    promptpay_account_number: "",
     contact_line_id: PROMPTPAY_LINE_ID,
     contact_line_url: PROMPTPAY_LINE_URL,
-    payment_instructions: 'สแกน QR Code พร้อมเพย์ด้วยแอปธนาคาร แล้วแนบรูปสลิปเพื่อแจ้งชำระเงิน'
-  })
+    payment_instructions:
+      "สแกน QR Code พร้อมเพย์ด้วยแอปธนาคาร แล้วแนบรูปสลิปเพื่อแจ้งชำระเงิน",
+  });
 
   // Transaction History
-  const [myTransactions, setMyTransactions] = useState<any[]>([])
-  const [loadingHistory, setLoadingHistory] = useState(false)
-  const [zoomSlipUrl, setZoomSlipUrl] = useState<string | null>(null)
+  const [myTransactions, setMyTransactions] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [zoomSlipUrl, setZoomSlipUrl] = useState<string | null>(null);
 
-  const supabase = createClient()
+  const supabase = createClient();
 
-  const pricePro = parseInt((paymentConfig as any).price_pro_thb || '299', 10)
-  const ptsPro = parseInt((paymentConfig as any).points_cost_pro || '299', 10)
-  const priceMaster = parseInt((paymentConfig as any).price_master_thb || '599', 10)
-  const ptsMaster = parseInt((paymentConfig as any).points_cost_master || '599', 10)
-  const ptsCs = parseInt((paymentConfig as any).points_cost_custom_salepage || '990', 10)
-  const ptsUploadIndex = parseInt((paymentConfig as any).points_cost_upload_index || '599', 10)
+  const pricePro = parseInt((paymentConfig as any).price_pro_thb || "299", 10);
+  const ptsPro = parseInt((paymentConfig as any).points_cost_pro || "299", 10);
+  const priceMaster = parseInt(
+    (paymentConfig as any).price_master_thb || "599",
+    10,
+  );
+  const ptsMaster = parseInt(
+    (paymentConfig as any).points_cost_master || "599",
+    10,
+  );
+  const ptsCs = parseInt(
+    (paymentConfig as any).points_cost_custom_salepage || "990",
+    10,
+  );
+  const ptsUploadIndex = parseInt(
+    (paymentConfig as any).points_cost_upload_index || "599",
+    10,
+  );
 
   const packages = [
-    { points: 100, price: 100, desc: 'ปลดล็อกย่อลิงก์ Shortlinks / Tracking Pixels 30 วัน', tag: 'STARTER' },
-    { points: ptsPro, price: pricePro, desc: 'ปลดล็อก PRO VIP 30 วัน (ทุกลิงก์ไม่จำกัด + 10 สินค้า + ซ่อนลายน้ำ)', tag: 'PRO' },
-    { points: ptsUploadIndex, price: ptsUploadIndex, desc: 'โฮสต์ Index.html ส่วนตัว (/uploadindex -> /u/[slug])', tag: 'INDEX.HTML' },
-    { points: ptsMaster, price: priceMaster, desc: 'ปลดล็อก MASTER VIP 30 วัน (ครบทุกฟังก์ชัน + เซลเพจ Flash Sale 1 URL)', tag: 'HOT • POPULAR' },
-    { points: ptsCs, price: ptsCs, desc: '🚀 ปลดล็อกสร้างเซลเพจ 13 บล็อกด้วย AI Vision / Custom Salepage +1 URL ทันที', tag: '✨ แนะนำยิงแอด' },
-    { points: Math.max(1000, ptsMaster * 3), price: Math.round(priceMaster * 2.65), desc: 'MASTER VIP 3 เดือน (ประหยัดพิเศษ • เฉลี่ยสุดคุ้ม)', tag: 'คุ้มค่า' },
-    { points: Math.max(4000, ptsMaster * 12), price: Math.round(priceMaster * 10), desc: 'MASTER VIP รายปี 12 เดือน (คุ้มค่าที่สุด)', tag: 'BEST VALUE' }
-  ]
+    {
+      points: 100,
+      price: 100,
+      desc: "ปลดล็อกย่อลิงก์ Shortlinks / Tracking Pixels 30 วัน",
+      tag: "STARTER",
+    },
+    {
+      points: ptsPro,
+      price: pricePro,
+      desc: "ปลดล็อก PRO VIP 30 วัน (ทุกลิงก์ไม่จำกัด + 10 สินค้า + ซ่อนลายน้ำ)",
+      tag: "PRO",
+    },
+    {
+      points: ptsUploadIndex,
+      price: ptsUploadIndex,
+      desc: "โฮสต์ Index.html ส่วนตัว (/uploadindex -> /u/[slug])",
+      tag: "INDEX.HTML",
+    },
+    {
+      points: ptsMaster,
+      price: priceMaster,
+      desc: "ปลดล็อก MASTER VIP 30 วัน (ครบทุกฟังก์ชัน + เซลเพจ Flash Sale 1 URL)",
+      tag: "HOT • POPULAR",
+    },
+    {
+      points: ptsCs,
+      price: ptsCs,
+      desc: "🚀 ปลดล็อกสร้างเซลเพจ 13 บล็อกด้วย AI Vision / Custom Salepage +1 URL ทันที",
+      tag: "✨ แนะนำยิงแอด",
+    },
+    {
+      points: Math.max(1000, ptsMaster * 3),
+      price: Math.round(priceMaster * 2.65),
+      desc: "MASTER VIP 3 เดือน (ประหยัดพิเศษ • เฉลี่ยสุดคุ้ม)",
+      tag: "คุ้มค่า",
+    },
+    {
+      points: Math.max(4000, ptsMaster * 12),
+      price: Math.round(priceMaster * 10),
+      desc: "MASTER VIP รายปี 12 เดือน (คุ้มค่าที่สุด)",
+      tag: "BEST VALUE",
+    },
+  ];
 
-  const currentPkg = packages.find(p => p.points === selectedPkg) || packages[2]
+  const currentPkg =
+    packages.find((p) => p.points === selectedPkg) || packages[2];
 
   // Generate Real EMVCo PromptPay QR Code Payload based on Admin Configured Phone/ID
-  const promptpayPayload = generatePromptPayPayload(paymentConfig.promptpay_phone || PROMPTPAY_PHONE, currentPkg.price)
-  const qrCodeImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(promptpayPayload)}`
+  const promptpayPayload = generatePromptPayPayload(
+    paymentConfig.promptpay_phone || PROMPTPAY_PHONE,
+    currentPkg.price,
+  );
+  const qrCodeImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(promptpayPayload)}`;
 
   useEffect(() => {
     if (isOpen) {
-      loadPaymentSettings()
+      loadPaymentSettings();
       if (profile?.id) {
-        loadMyTransactions()
+        loadMyTransactions();
       }
     }
-  }, [isOpen, profile?.id])
+  }, [isOpen, profile?.id]);
 
   const loadPaymentSettings = async () => {
     try {
-      const res = await fetch('/api/settings/payment')
-      let data: any = null
+      const res = await fetch("/api/settings/payment");
+      let data: any = null;
       try {
-        const text = await res.text()
-        if (text && !text.trim().startsWith('<')) data = JSON.parse(text)
+        const text = await res.text();
+        if (text && !text.trim().startsWith("<")) data = JSON.parse(text);
       } catch {}
       if (data?.settings) {
-        setPaymentConfig(prev => ({ ...prev, ...data.settings }))
+        setPaymentConfig((prev) => ({ ...prev, ...data.settings }));
       }
     } catch (e) {
       // Fallback to Supabase direct query
       try {
-        const { data } = await supabase.from('system_settings').select('key, value')
+        const { data } = await supabase
+          .from("system_settings")
+          .select("key, value");
         if (data && data.length > 0) {
-          const cfg: any = {}
+          const cfg: any = {};
           data.forEach((row: any) => {
-            if (row.key && row.value) cfg[row.key] = row.value
-          })
-          setPaymentConfig(prev => ({ ...prev, ...cfg }))
+            if (row.key && row.value) cfg[row.key] = row.value;
+          });
+          setPaymentConfig((prev) => ({ ...prev, ...cfg }));
         }
       } catch (err) {}
     }
-  }
+  };
 
   const loadMyTransactions = async () => {
-    if (!profile?.id) return
-    setLoadingHistory(true)
+    if (!profile?.id) return;
+    setLoadingHistory(true);
     try {
       const { data, error } = await supabase
-        .from('payment_transactions')
-        .select('*')
-        .eq('user_id', profile.id)
-        .order('created_at', { ascending: false })
+        .from("payment_transactions")
+        .select("*")
+        .eq("user_id", profile.id)
+        .order("created_at", { ascending: false });
 
       if (!error && data) {
-        setMyTransactions(data)
+        setMyTransactions(data);
       }
     } catch (e) {}
-    setLoadingHistory(false)
-  }
+    setLoadingHistory(false);
+  };
 
   const handleUploadSlip = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !profile?.id) return
+    const file = e.target.files?.[0];
+    if (!file || !profile?.id) return;
 
-    setUploadingSlip(true)
+    setUploadingSlip(true);
     try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `slip-${profile.id}-${Date.now()}.${fileExt}`
-      const filePath = `slips/${fileName}`
+      const fileExt = file.name.split(".").pop();
+      const fileName = `slip-${profile.id}-${Date.now()}.${fileExt}`;
+      const filePath = `slips/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('media')
-        .upload(filePath, file, { upsert: true })
+        .from("media")
+        .upload(filePath, file, { upsert: true });
 
       if (uploadError) {
-        alert('❌ อัปโหลดสลิปไม่สำเร็จ: ' + uploadError.message)
+        alert("❌ อัปโหลดสลิปไม่สำเร็จ: " + uploadError.message);
       } else {
-        const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filePath)
-        setSlipUrl(publicUrl)
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("media").getPublicUrl(filePath);
+        setSlipUrl(publicUrl);
       }
     } catch (err: any) {
-      alert('❌ ข้อผิดพลาด: ' + err.message)
+      alert("❌ ข้อผิดพลาด: " + err.message);
     } finally {
-      setUploadingSlip(false)
+      setUploadingSlip(false);
     }
-  }
+  };
 
   const handlePromptConfirmSlip = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (!slipUrl || !profile?.id) {
-      alert('กรุณาแนบรูปภาพสลิปการโอนเงินก่อนส่งแจ้งชำระเงินครับ')
-      return
+      alert("กรุณาแนบรูปภาพสลิปการโอนเงินก่อนส่งแจ้งชำระเงินครับ");
+      return;
     }
-    setIsConfirmPayModalOpen(true)
-  }
+    setIsConfirmPayModalOpen(true);
+  };
 
   const handleFinalSubmitSlip = async () => {
-    setIsConfirmPayModalOpen(false)
-    setSubmitting(true)
+    setIsConfirmPayModalOpen(false);
+    setSubmitting(true);
     try {
-      const orderRef = 'TOPUP-' + Date.now().toString().slice(-6)
-      const formattedNote = `[💰 แจ้งโอนเติมแต้ม: ${currentPkg.points} แต้ม (฿${currentPkg.price})] ผู้ใช้: @${profile.username || 'user'}${userNote ? ` | โน้ต: ${userNote.trim()}` : ''}`
+      const orderRef = "TOPUP-" + Date.now().toString().slice(-6);
+      const formattedNote = `[💰 แจ้งโอนเติมแต้ม: ${currentPkg.points} แต้ม (฿${currentPkg.price})] ผู้ใช้: @${profile.username || "user"}${userNote ? ` | โน้ต: ${userNote.trim()}` : ""}`;
 
       // 1. Save payment transaction to Supabase
       const { data, error } = await supabase
-        .from('payment_transactions')
-        .insert([{
-          user_id: profile.id,
-          amount: currentPkg.price,
-          points: currentPkg.points,
-          package_name: `${currentPkg.points} แต้ม (฿${currentPkg.price})`,
-          slip_url: slipUrl,
-          status: 'pending',
-          note: userNote.trim() || null
-        }])
-        .select()
+        .from("payment_transactions")
+        .insert([
+          {
+            user_id: profile.id,
+            amount: currentPkg.price,
+            points: currentPkg.points,
+            package_name: `${currentPkg.points} แต้ม (฿${currentPkg.price})`,
+            slip_url: slipUrl,
+            status: "pending",
+            note: userNote.trim() || null,
+          },
+        ])
+        .select();
 
       if (!error && data) {
         // 2. Trigger Real-Time LINE Messaging API Notification with Slip to Admin
         try {
-          await fetch('/api/lead', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+          await fetch("/api/lead", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               user_id: profile.id,
               name: profile.full_name || `@${profile.username}`,
@@ -194,39 +276,39 @@ export default function TopUpPointsModal({
               line_id: profile.social_line || null,
               email: profile.social_email || null,
               amount: currentPkg.price,
-              payment_method: 'promptpay',
+              payment_method: "promptpay",
               slip_url: slipUrl,
               order_code: orderRef,
-              note: formattedNote
-            })
-          })
+              note: formattedNote,
+            }),
+          });
         } catch (lineErr) {
-          console.warn('LINE notification dispatch notice:', lineErr)
+          console.warn("LINE notification dispatch notice:", lineErr);
         }
 
-        setSubmitSuccess(true)
-        setSlipUrl('')
-        setUserNote('')
-        await loadMyTransactions()
-        if (onSuccess) onSuccess()
+        setSubmitSuccess(true);
+        setSlipUrl("");
+        setUserNote("");
+        await loadMyTransactions();
+        if (onSuccess) onSuccess();
       } else {
-        alert('❌ ไม่สามารถบันทึกรายการได้: ' + (error?.message || ''))
+        alert("❌ ไม่สามารถบันทึกรายการได้: " + (error?.message || ""));
       }
     } catch (err: any) {
-      alert('❌ เกิดข้อผิดพลาด: ' + err.message)
+      alert("❌ เกิดข้อผิดพลาด: " + err.message);
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       onClick={onClose}
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-150 cursor-pointer"
     >
-      <div 
+      <div
         onClick={(e) => e.stopPropagation()}
         className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[32px] max-w-xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-5 p-6 text-[#1E1B4B] dark:text-white cursor-default"
       >
@@ -237,9 +319,14 @@ export default function TopUpPointsModal({
               <Coins className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-extrabold text-base sm:text-lg">เติมแต้มสะสม & แนบสลิปพร้อมเพย์</h3>
+              <h3 className="font-extrabold text-base sm:text-lg">
+                เติมแต้มสะสม & แนบสลิปพร้อมเพย์
+              </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                แต้มคงเหลือ: <strong className="text-amber-600 dark:text-amber-400 font-mono">{profile?.points || 0} แต้ม</strong>
+                แต้มคงเหลือ:{" "}
+                <strong className="text-amber-600 dark:text-amber-400 font-mono">
+                  {profile?.points || 0} แต้ม
+                </strong>
               </p>
             </div>
           </div>
@@ -257,13 +344,13 @@ export default function TopUpPointsModal({
           <button
             type="button"
             onClick={() => {
-              setActiveTab('pay')
-              setSubmitSuccess(false)
+              setActiveTab("pay");
+              setSubmitSuccess(false);
             }}
             className={`flex-1 py-2 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 ${
-              activeTab === 'pay'
-                ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              activeTab === "pay"
+                ? "bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-sm"
+                : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
             <QrCode className="w-4 h-4 text-emerald-500" />
@@ -273,13 +360,13 @@ export default function TopUpPointsModal({
           <button
             type="button"
             onClick={() => {
-              setActiveTab('history')
-              loadMyTransactions()
+              setActiveTab("history");
+              loadMyTransactions();
             }}
             className={`flex-1 py-2 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 ${
-              activeTab === 'history'
-                ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              activeTab === "history"
+                ? "bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-sm"
+                : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
             <Clock className="w-4 h-4 text-purple-500" />
@@ -288,7 +375,7 @@ export default function TopUpPointsModal({
         </div>
 
         {/* TAB 1: PAY & UPLOAD SLIP FORM */}
-        {activeTab === 'pay' && (
+        {activeTab === "pay" && (
           <div className="space-y-5">
             {submitSuccess ? (
               <div className="p-6 bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800 rounded-3xl text-center space-y-4 animate-in zoom-in-95">
@@ -300,14 +387,18 @@ export default function TopUpPointsModal({
                     แจ้งชำระเงินเรียบร้อยแล้ว! 🎉
                   </h4>
                   <p className="text-xs text-slate-600 dark:text-slate-300 max-w-sm mx-auto leading-relaxed">
-                    ระบบได้ส่งสลิปให้แอดมินตรวจสอบแล้ว สถานะ: <span className="font-bold text-amber-600 dark:text-amber-400">🟡 รออนุมัติ</span> (โดยปกติแต้มจะเข้าภายใน 1-5 นาทีครับ)
+                    ระบบได้ส่งสลิปให้แอดมินตรวจสอบแล้ว สถานะ:{" "}
+                    <span className="font-bold text-amber-600 dark:text-amber-400">
+                      🟡 รออนุมัติ
+                    </span>{" "}
+                    (โดยปกติแต้มจะเข้าภายใน 1-5 นาทีครับ)
                   </p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
                   <button
                     type="button"
-                    onClick={() => setActiveTab('history')}
+                    onClick={() => setActiveTab("history")}
                     className="w-full sm:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition"
                   >
                     ดูสถานะในประวัติการเติมแต้ม
@@ -335,8 +426,8 @@ export default function TopUpPointsModal({
                         onClick={() => setSelectedPkg(pkg.points)}
                         className={`p-3.5 rounded-2xl border-2 cursor-pointer transition flex items-center justify-between ${
                           selectedPkg === pkg.points
-                            ? 'border-amber-500 bg-amber-50/60 dark:bg-amber-950/40 shadow-sm ring-2 ring-amber-500/20'
-                            : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-950'
+                            ? "border-amber-500 bg-amber-50/60 dark:bg-amber-950/40 shadow-sm ring-2 ring-amber-500/20"
+                            : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-950"
                         }`}
                       >
                         <div className="space-y-0.5">
@@ -350,7 +441,9 @@ export default function TopUpPointsModal({
                               </span>
                             )}
                           </div>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400">{pkg.desc}</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {pkg.desc}
+                          </p>
                         </div>
 
                         <div className="text-right flex-shrink-0">
@@ -381,25 +474,40 @@ export default function TopUpPointsModal({
 
                   <div className="space-y-1 text-xs">
                     <p className="font-extrabold text-[#1E1B4B] dark:text-white">
-                      ยอดชำระ: <span className="text-amber-600 dark:text-amber-400 font-mono text-lg font-black">฿{currentPkg.price}.00 บาท</span>
+                      ยอดชำระ:{" "}
+                      <span className="text-amber-600 dark:text-amber-400 font-mono text-lg font-black">
+                        ฿{currentPkg.price}.00 บาท
+                      </span>
                     </p>
                     <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-[11px] space-y-1 text-left font-medium">
                       <div className="flex justify-between items-center">
-                        <span className="text-slate-500">📱 พร้อมเพย์ (PromptPay):</span>
-                        <span className="font-mono text-emerald-600 dark:text-emerald-400 font-black text-xs">{paymentConfig.promptpay_phone}</span>
+                        <span className="text-slate-500">
+                          📱 พร้อมเพย์ (PromptPay):
+                        </span>
+                        <span className="font-mono text-emerald-600 dark:text-emerald-400 font-black text-xs">
+                          {paymentConfig.promptpay_phone}
+                        </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-slate-500">🏦 ธนาคาร:</span>
-                        <strong className="text-slate-800 dark:text-slate-200">{paymentConfig.promptpay_bank}</strong>
+                        <strong className="text-slate-800 dark:text-slate-200">
+                          {paymentConfig.promptpay_bank}
+                        </strong>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-slate-500">👤 ชื่อบัญชี:</span>
-                        <strong className="text-slate-800 dark:text-slate-200">{paymentConfig.promptpay_account_name}</strong>
+                        <strong className="text-slate-800 dark:text-slate-200">
+                          {paymentConfig.promptpay_account_name}
+                        </strong>
                       </div>
                       {paymentConfig.promptpay_account_number && (
                         <div className="flex justify-between items-center">
-                          <span className="text-slate-500">💳 เลขที่บัญชี:</span>
-                          <strong className="font-mono text-purple-600 dark:text-purple-400">{paymentConfig.promptpay_account_number}</strong>
+                          <span className="text-slate-500">
+                            💳 เลขที่บัญชี:
+                          </span>
+                          <strong className="font-mono text-purple-600 dark:text-purple-400">
+                            {paymentConfig.promptpay_account_number}
+                          </strong>
                         </div>
                       )}
                     </div>
@@ -407,7 +515,10 @@ export default function TopUpPointsModal({
                 </div>
 
                 {/* 3. Slip Upload & Submission Form */}
-                <form onSubmit={handlePromptConfirmSlip} className="space-y-3 pt-1">
+                <form
+                  onSubmit={handlePromptConfirmSlip}
+                  className="space-y-3 pt-1"
+                >
                   <label className="block text-xs font-black text-slate-700 dark:text-slate-300">
                     3. แนบสลิปการโอนเงินเพื่อส่งให้แอดมินตรวจสอบ:
                   </label>
@@ -415,7 +526,11 @@ export default function TopUpPointsModal({
                   <div className="flex flex-col sm:flex-row gap-2">
                     <label className="flex-1 py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-2xl text-xs flex items-center justify-center gap-2 cursor-pointer transition shadow-md shadow-emerald-500/20 active:scale-95">
                       <Upload className="w-4 h-4" />
-                      <span>{uploadingSlip ? 'กำลังอัปโหลดสลิป...' : '📸 เลือกรูปสลิปจากมือถือ/คอม'}</span>
+                      <span>
+                        {uploadingSlip
+                          ? "กำลังอัปโหลดสลิป..."
+                          : "📸 เลือกรูปสลิปจากมือถือ/คอม"}
+                      </span>
                       <input
                         type="file"
                         accept="image/*"
@@ -427,16 +542,22 @@ export default function TopUpPointsModal({
 
                   {slipUrl && (
                     <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex items-center gap-3 animate-in fade-in">
-                      <img src={slipUrl} alt="Slip Preview" className="w-14 h-14 object-cover rounded-xl border shadow-sm" />
+                      <img
+                        src={slipUrl}
+                        alt="Slip Preview"
+                        className="w-14 h-14 object-cover rounded-xl border shadow-sm"
+                      />
                       <div className="flex-1">
                         <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 block">
                           ✓ แนบรูปสลิปเรียบร้อยแล้ว
                         </span>
-                        <span className="text-[10px] text-slate-500">พร้อมส่งแจ้งชำระเงิน</span>
+                        <span className="text-[10px] text-slate-500">
+                          พร้อมส่งแจ้งชำระเงิน
+                        </span>
                       </div>
                       <button
                         type="button"
-                        onClick={() => setSlipUrl('')}
+                        onClick={() => setSlipUrl("")}
                         className="text-xs text-rose-500 font-bold hover:underline"
                       >
                         เปลี่ยนรูป
@@ -459,21 +580,31 @@ export default function TopUpPointsModal({
                     disabled={submitting || uploadingSlip || !slipUrl}
                     className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition active:scale-95 disabled:opacity-50 cursor-pointer"
                   >
-                    <Send className="w-4 h-4" />
-                    <span>{submitting ? 'กำลังส่งข้อมูล...' : `🚀 ยืนยันการแจ้งชำระเงิน (฿${currentPkg.price} บาท)`}</span>
+                    <span>
+                      {submitting
+                        ? "กำลังส่งข้อมูล..."
+                        : `🚀 ยืนยันการแจ้งชำระเงิน (฿${currentPkg.price} บาท)`}
+                    </span>
                   </button>
                 </form>
 
                 {/* LINE OA Alternative Contact */}
                 <div className="pt-1 text-center">
                   <a
-                    href={paymentConfig.contact_line_url || "https://line.me/ti/p/@amth"}
+                    href={
+                      paymentConfig.contact_line_url ||
+                      "https://line.me/ti/p/@amth"
+                    }
                     target="_blank"
                     rel="noreferrer"
                     className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 font-bold"
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
-                    <span>หรือติดต่อ/ส่งสลิปผ่านทาง LINE ({paymentConfig.contact_line_id || '@amth'}) กับแอดมินโดยตรง</span>
+                    <span>
+                      หรือติดต่อ/ส่งสลิปผ่านทาง LINE (
+                      {paymentConfig.contact_line_id || "@amth"})
+                      กับแอดมินโดยตรง
+                    </span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
@@ -483,7 +614,7 @@ export default function TopUpPointsModal({
         )}
 
         {/* TAB 2: MY PAYMENT TRANSACTIONS HISTORY */}
-        {activeTab === 'history' && (
+        {activeTab === "history" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h4 className="font-extrabold text-xs text-[#1E1B4B] dark:text-slate-300 uppercase tracking-wider">
@@ -495,15 +626,21 @@ export default function TopUpPointsModal({
                 className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition"
                 title="รีเฟรชประวัติ"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${loadingHistory ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`w-3.5 h-3.5 ${loadingHistory ? "animate-spin" : ""}`}
+                />
               </button>
             </div>
 
             {myTransactions.length === 0 ? (
               <div className="p-8 text-center bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-3xl space-y-2">
                 <Clock className="w-8 h-8 text-slate-400 mx-auto" />
-                <p className="text-xs text-slate-500 font-bold">ยังไม่มีประวัติการแจ้งชำระเงิน</p>
-                <p className="text-[11px] text-slate-400">เมื่อคุณโอนเงินและแนบสลิป ประวัติและสถานะจะปรากฏที่นี่</p>
+                <p className="text-xs text-slate-500 font-bold">
+                  ยังไม่มีประวัติการแจ้งชำระเงิน
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  เมื่อคุณโอนเงินและแนบสลิป ประวัติและสถานะจะปรากฏที่นี่
+                </p>
               </div>
             ) : (
               <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
@@ -521,7 +658,8 @@ export default function TopUpPointsModal({
                           className="w-12 h-12 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer hover:opacity-80 transition shrink-0"
                           title="คลิกเพื่อดูสลิปขนาดใหญ่"
                         />
-                      ) : (                        <div className="w-12 h-12 rounded-xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400 shrink-0">
+                      ) : (
+                        <div className="w-12 h-12 rounded-xl bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400 shrink-0">
                           <ImageIcon className="w-5 h-5" />
                         </div>
                       )}
@@ -536,20 +674,25 @@ export default function TopUpPointsModal({
                           </span>
                         </div>
                         <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                          {new Date(tx.created_at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}
+                          {new Date(tx.created_at).toLocaleString("th-TH", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })}
                         </p>
                         {tx.admin_note && (
-                          <p className="text-[10px] text-rose-500 font-bold">หมายเหตุ: {tx.admin_note}</p>
+                          <p className="text-[10px] text-rose-500 font-bold">
+                            หมายเหตุ: {tx.admin_note}
+                          </p>
                         )}
                       </div>
                     </div>
 
                     <div className="text-right flex-shrink-0">
-                      {tx.status === 'approved' ? (
+                      {tx.status === "approved" ? (
                         <span className="px-2.5 py-1 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded-full font-bold text-[10px] flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" /> อนุมัติแล้ว
                         </span>
-                      ) : tx.status === 'rejected' ? (
+                      ) : tx.status === "rejected" ? (
                         <span className="px-2.5 py-1 bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 rounded-full font-bold text-[10px] flex items-center gap-1">
                           <AlertCircle className="w-3 h-3" /> ไม่อนุมัติ
                         </span>
@@ -576,16 +719,15 @@ export default function TopUpPointsModal({
             ปิดหน้าต่าง
           </button>
         </div>
-
       </div>
 
       {/* CONFIRMATION POPUP BEFORE FINAL SUBMIT */}
       {isConfirmPayModalOpen && (
-        <div 
+        <div
           onClick={() => setIsConfirmPayModalOpen(false)}
           className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4 cursor-pointer animate-in fade-in"
         >
-          <div 
+          <div
             onClick={(e) => e.stopPropagation()}
             className="bg-white dark:bg-slate-900 border-2 border-amber-500/60 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 text-center cursor-default"
           >
@@ -594,7 +736,9 @@ export default function TopUpPointsModal({
             </div>
 
             <div className="space-y-1">
-              <h4 className="font-extrabold text-base text-[#1E1B4B] dark:text-white">ยืนยันการแจ้งชำระเงิน</h4>
+              <h4 className="font-extrabold text-base text-[#1E1B4B] dark:text-white">
+                ยืนยันการแจ้งชำระเงิน
+              </h4>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 กรุณาตรวจสอบยอดเงินและสลิปก่อนส่งแจ้งแอดมิน
               </p>
@@ -603,15 +747,21 @@ export default function TopUpPointsModal({
             <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs space-y-1.5 text-left font-bold">
               <div className="flex justify-between">
                 <span className="text-slate-500 font-normal">แพ็กเกจแต้ม:</span>
-                <span className="font-mono text-amber-600 dark:text-amber-400">🪙 {currentPkg.points} แต้ม</span>
+                <span className="font-mono text-amber-600 dark:text-amber-400">
+                  🪙 {currentPkg.points} แต้ม
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-normal">ยอดโอนชำระ:</span>
-                <span className="font-mono text-base font-black text-emerald-600 dark:text-emerald-400">฿{currentPkg.price}.00 บาท</span>
+                <span className="font-mono text-base font-black text-emerald-600 dark:text-emerald-400">
+                  ฿{currentPkg.price}.00 บาท
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-normal">สถานะสลิป:</span>
-                <span className="text-emerald-600 font-bold">✓ แนบรูปภาพแล้ว</span>
+                <span className="text-emerald-600 font-bold">
+                  ✓ แนบรูปภาพแล้ว
+                </span>
               </div>
             </div>
 
@@ -637,12 +787,19 @@ export default function TopUpPointsModal({
 
       {/* Fullscreen Zoom Slip Lightbox */}
       {zoomSlipUrl && (
-        <div 
+        <div
           onClick={() => setZoomSlipUrl(null)}
           className="fixed inset-0 z-60 flex items-center justify-center bg-black/90 p-4 cursor-pointer"
         >
-          <div className="relative max-w-lg max-h-[85vh] p-2" onClick={(e) => e.stopPropagation()}>
-            <img src={zoomSlipUrl} alt="Slip Zoom" className="max-w-full max-h-[80vh] rounded-2xl shadow-2xl object-contain" />
+          <div
+            className="relative max-w-lg max-h-[85vh] p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={zoomSlipUrl}
+              alt="Slip Zoom"
+              className="max-w-full max-h-[80vh] rounded-2xl shadow-2xl object-contain"
+            />
             <button
               onClick={() => setZoomSlipUrl(null)}
               className="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-900/80 text-white flex items-center justify-center border border-white/20"
@@ -653,5 +810,5 @@ export default function TopUpPointsModal({
         </div>
       )}
     </div>
-  )
+  );
 }
