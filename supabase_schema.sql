@@ -1,14 +1,27 @@
 -- ==============================================================================
--- LINKTREETHAI COMPLETE DATABASE SCHEMA & MIGRATION (100% PRODUCTION READY)
+-- LINKTREETHAI - COMPLETE NEW SUPABASE DATABASE MIGRATION MASTER SCRIPT
 -- ==============================================================================
--- รองรับทุกฟังก์ชัน: Profiles, Links, Products, Landing Pages, Leads CRM,
--- Short Links & Analytics, Pixel Events, Analytics Events, Payment Transactions
+-- รันไฟล์นี้ครั้งเดียวใน Supabase SQL Editor ของโปรเจกต์ใหม่ เพื่อสร้างระบบทั้งหมด 100%:
+-- 1. ตารางทั้งหมด 13 ตาราง (พร้อม Foreign Keys, CASCADE, Indexes)
+-- 2. ระบบความปลอดภัย Row Level Security (RLS) ครบทุกตาราง
+-- 3. Stored Procedures (RPC Functions)
+-- 4. Auth Trigger (สร้าง Profile อัตโนมัติเมื่อ User สมัครสมาชิกหรือล็อกอิน Google)
+-- 5. Storage Buckets (media, linktree-assets สำหรับเก็บสลิปและรูปภาพ)
+-- 6. Initial Seed Data (การตั้งค่าระบบ, พร้อมเพย์, บริการ Services Hub, แต้ม)
 -- ==============================================================================
 
--- 1. PROFILES TABLE (ตารางข้อมูลผู้ใช้งานและโปรไฟล์)
+-- 0. EXTENSIONS
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+
+-- ==============================================================================
+-- 1. TABLES DEFINITION (สร้างตารางทั้ง 13 ตาราง)
+-- ==============================================================================
+
+-- 1.1 PROFILES TABLE
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    username TEXT UNIQUE NOT NULL,
+    username TEXT NOT NULL UNIQUE,
     full_name TEXT,
     bio TEXT,
     avatar_url TEXT,
@@ -16,8 +29,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     bg_image_url TEXT,
     youtube_url TEXT,
     role TEXT DEFAULT 'user', -- 'user' | 'admin'
-    template_id TEXT DEFAULT 'template_1', -- 'template_1' to 'template_9'
-    points INT DEFAULT 0,
+    tier TEXT DEFAULT 'free', -- 'free' | 'pro' | 'master'
+    template_id TEXT DEFAULT 'template_1',
+    points INT DEFAULT 100,
     pro_expires_at TIMESTAMP WITH TIME ZONE,
     master_expires_at TIMESTAMP WITH TIME ZONE,
     shortener_expires_at TIMESTAMP WITH TIME ZONE,
@@ -31,7 +45,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     custom_button_text_color TEXT DEFAULT '#FFFFFF',
     theme_name TEXT DEFAULT 'default',
     
-    -- Two-Place Background & Colors System
+    -- Two-Place Background System
     bg_color TEXT DEFAULT '#0B0F17',
     inner_bg_color TEXT DEFAULT '#0B0F17',
     inner_bg_image_url TEXT,
@@ -40,6 +54,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     text_color TEXT DEFAULT '#FFFFFF',
     text_secondary_color TEXT DEFAULT '#94A3B8',
     card_bg_color TEXT DEFAULT '#FFFFFF',
+    tab_active_color TEXT DEFAULT '#34D399',
 
     -- Social Dock Icons
     social_facebook TEXT,
@@ -59,11 +74,21 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     google_pixel_id TEXT,
     line_tag_id TEXT,
 
+    -- LINE Notification & CAPI
+    line_notify_token TEXT,
+    line_webhook_url TEXT,
+    line_channel_access_token TEXT,
+    line_user_id TEXT,
+    meta_capi_token TEXT,
+    tiktok_capi_token TEXT,
+    tiktok_tts_expires_at TIMESTAMP WITH TIME ZONE,
+    tiktok_username TEXT,
+
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 2. LINKS TABLE (ตารางลิ้งก์โซเชียลและปุ่มกด)
+-- 1.2 LINKS TABLE
 CREATE TABLE IF NOT EXISTS public.links (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -74,6 +99,7 @@ CREATE TABLE IF NOT EXISTS public.links (
     logo_url TEXT,
     bg_color TEXT DEFAULT '#1e293b',
     text_color TEXT DEFAULT '#ffffff',
+    icon_bg_color TEXT,
     starts_at TIMESTAMP WITH TIME ZONE,
     ends_at TIMESTAMP WITH TIME ZONE,
     position INT DEFAULT 0,
@@ -82,7 +108,7 @@ CREATE TABLE IF NOT EXISTS public.links (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 3. PRODUCTS TABLE (ตารางสินค้าและร้านค้าดิจิทัล)
+-- 1.3 PRODUCTS TABLE
 CREATE TABLE IF NOT EXISTS public.products (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -101,16 +127,16 @@ CREATE TABLE IF NOT EXISTS public.products (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 4. LANDING PAGES TABLE (ตารางเซลเพจสำหรับยิงแอดโดยเฉพาะ)
+-- 1.4 LANDING PAGES TABLE
 CREATE TABLE IF NOT EXISTS public.landing_pages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    slug TEXT UNIQUE NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
     title TEXT NOT NULL,
     headline TEXT NOT NULL,
     subheadline TEXT,
     hero_media_url TEXT,
-    hero_media_type TEXT DEFAULT 'image', -- 'image' | 'video'
+    hero_media_type TEXT DEFAULT 'image',
     body_content TEXT,
     offer_price NUMERIC,
     original_price NUMERIC,
@@ -130,8 +156,9 @@ CREATE TABLE IF NOT EXISTS public.landing_pages (
     tiktok_pixel_id TEXT,
     google_pixel_id TEXT,
     line_tag_id TEXT,
+    meta_capi_token TEXT,
 
-    -- Sales Conversion Elements
+    -- Sales Elements
     pain_headline TEXT DEFAULT 'คุณกำลังเจอปัญหาเหล่านี้อยู่ใช่หรือไม่?',
     pain_points JSONB DEFAULT '[]'::jsonb,
     benefits_headline TEXT DEFAULT 'ทางออกและผลลัพธ์ที่คุณจะได้รับ',
@@ -149,16 +176,16 @@ CREATE TABLE IF NOT EXISTS public.landing_pages (
     bg_image_url TEXT,
     card_style TEXT DEFAULT 'glass',
     text_color TEXT DEFAULT '#FFFFFF',
+    subtext_color TEXT DEFAULT '#E2E8F0',
     trust_badge_1 TEXT DEFAULT 'ส่งฟรีด่วน',
     trust_badge_2 TEXT DEFAULT 'ของแท้ 100%',
     trust_badge_3 TEXT DEFAULT 'ชำระเงินปลอดภัย',
     enable_cod_form BOOLEAN DEFAULT TRUE,
     gallery_images JSONB DEFAULT '[]'::jsonb,
     review_images JSONB DEFAULT '[]'::jsonb,
-    subtext_color TEXT DEFAULT '#E2E8F0',
     enable_review_album BOOLEAN DEFAULT FALSE,
 
-    -- 3 Sticky Action Buttons
+    -- Action Buttons
     sticky_btn1_text TEXT DEFAULT 'ติดต่อสั่งซื้อด่วน',
     sticky_btn1_url TEXT,
     sticky_btn2_text TEXT DEFAULT 'ช่องทางติดต่ออื่นๆ',
@@ -168,29 +195,61 @@ CREATE TABLE IF NOT EXISTS public.landing_pages (
     cta_secondary_text TEXT DEFAULT 'ช่องทางติดต่ออื่นๆ',
     cta_secondary_url TEXT,
     cta_shop_text TEXT DEFAULT 'สั่งซื้อออนไลน์',
-    cta_shop_url TEXT
+    cta_shop_url TEXT,
+
+    -- Expiry & Payment
+    expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '30 days'),
+    promptpay_phone TEXT,
+    promptpay_name TEXT,
+    promptpay_bank TEXT,
+    promptpay_number TEXT,
+    promptpay_amount NUMERIC,
+    enable_promptpay_qr BOOLEAN DEFAULT TRUE,
+    allow_custom_amount BOOLEAN DEFAULT TRUE,
+    line_channel_access_token TEXT,
+    line_user_id TEXT,
+    line_webhook_url TEXT,
+    line_notify_token TEXT,
+    page_type TEXT DEFAULT 'p', -- 'p' (standard) | 'c' (custom/modular)
+
+    -- Background Styling Pro
+    bg_image_opacity INT DEFAULT 85,
+    bg_image_blur INT DEFAULT 0,
+    bg_image_mode TEXT DEFAULT 'cover',
+    inner_bg_image_url TEXT,
+    inner_bg_opacity INT DEFAULT 85,
+    inner_bg_blur INT DEFAULT 0,
+    inner_bg_mode TEXT DEFAULT 'cover'
 );
 
--- 5. LEADS TABLE (ตารางข้อมูลผู้ติดต่อและลีด CRM)
+-- 1.5 LEADS CRM TABLE
 CREATE TABLE IF NOT EXISTS public.leads (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    landing_page_id UUID REFERENCES public.landing_pages(id) ON DELETE SET NULL,
     name TEXT NOT NULL,
     email TEXT,
     phone TEXT,
-    note TEXT,
     line_id TEXT,
-    status TEXT DEFAULT 'pending', -- 'pending' | 'contacted' | 'completed' | 'cancelled'
-    amount NUMERIC,
+    note TEXT,
+    order_note TEXT,
     address TEXT,
+    amount NUMERIC,
+    quantity INT DEFAULT 1,
     order_code TEXT,
+    package_name TEXT,
+    payment_method TEXT DEFAULT 'promptpay', -- 'promptpay' | 'cod' | 'online'
+    slip_url TEXT,
+    status TEXT DEFAULT 'pending', -- 'pending' | 'paid' | 'contacted' | 'completed' | 'cancelled'
+    utm JSONB DEFAULT '{}'::jsonb,
+    source_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 6. SHORT LINKS TABLE (ตารางระบบย่อลิงก์ / URL Shortener)
+-- 1.6 SHORT LINKS TABLE
 CREATE TABLE IF NOT EXISTS public.short_links (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    slug TEXT UNIQUE NOT NULL,
+    slug TEXT NOT NULL UNIQUE,
     original_url TEXT NOT NULL,
     title TEXT,
     clicks INT DEFAULT 0,
@@ -200,7 +259,7 @@ CREATE TABLE IF NOT EXISTS public.short_links (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 7. SHORT LINK ANALYTICS TABLE (ตารางสถิติคลิกย่อลิงก์)
+-- 1.7 SHORT LINK ANALYTICS TABLE
 CREATE TABLE IF NOT EXISTS public.short_link_analytics (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     short_link_id UUID NOT NULL REFERENCES public.short_links(id) ON DELETE CASCADE,
@@ -210,7 +269,7 @@ CREATE TABLE IF NOT EXISTS public.short_link_analytics (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 8. ANALYTICS EVENTS TABLE (ตารางเก็บสถิติเหตุการณ์ทั่วไป)
+-- 1.8 ANALYTICS EVENTS TABLE
 CREATE TABLE IF NOT EXISTS public.analytics_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -220,11 +279,11 @@ CREATE TABLE IF NOT EXISTS public.analytics_events (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 9. PIXEL EVENTS TABLE (ตารางบันทึกข้อมูลสถิติพิกเซลและคอนเวอร์ชัน)
+-- 1.9 PIXEL EVENTS TABLE
 CREATE TABLE IF NOT EXISTS public.pixel_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    landing_page_id UUID REFERENCES public.landing_pages(id) ON DELETE CASCADE,
+    landing_page_id UUID REFERENCES public.landing_pages(id) ON DELETE SET NULL,
     pixel_type TEXT NOT NULL, -- 'facebook' | 'tiktok' | 'google' | 'line'
     pixel_id TEXT,
     event_name TEXT NOT NULL,
@@ -233,196 +292,96 @@ CREATE TABLE IF NOT EXISTS public.pixel_events (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 10. PAYMENT TRANSACTIONS TABLE (ตารางแจ้งชำระเงินและตรวจสอบสลิป)
+-- 1.10 PAYMENT TRANSACTIONS TABLE
 CREATE TABLE IF NOT EXISTS public.payment_transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     amount NUMERIC NOT NULL,
     points INT NOT NULL,
     package_name TEXT NOT NULL,
+    payment_type TEXT DEFAULT 'topup', -- 'topup' | 'product_order'
     slip_url TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'approved' | 'rejected'
     note TEXT,
     admin_note TEXT,
-    approved_by UUID REFERENCES public.profiles(id),
+    approved_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     approved_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- ==============================================================================
--- SAFE MIGRATIONS: AUTOMATICALLY ADD ANY MISSING COLUMNS TO EXISTING TABLES
--- ==============================================================================
-DO $$ 
-BEGIN 
-    -- 1. Profiles columns
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'bg_color') THEN
-        ALTER TABLE public.profiles ADD COLUMN bg_color TEXT DEFAULT '#0B0F17';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'inner_bg_color') THEN
-        ALTER TABLE public.profiles ADD COLUMN inner_bg_color TEXT DEFAULT '#0B0F17';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'inner_bg_image_url') THEN
-        ALTER TABLE public.profiles ADD COLUMN inner_bg_image_url TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'card_bg_image_url') THEN
-        ALTER TABLE public.profiles ADD COLUMN card_bg_image_url TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'outer_bg_color') THEN
-        ALTER TABLE public.profiles ADD COLUMN outer_bg_color TEXT DEFAULT '#0B0F17';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'text_color') THEN
-        ALTER TABLE public.profiles ADD COLUMN text_color TEXT DEFAULT '#FFFFFF';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'text_secondary_color') THEN
-        ALTER TABLE public.profiles ADD COLUMN text_secondary_color TEXT DEFAULT '#94A3B8';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'card_bg_color') THEN
-        ALTER TABLE public.profiles ADD COLUMN card_bg_color TEXT DEFAULT '#FFFFFF';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'pixel_expires_at') THEN
-        ALTER TABLE public.profiles ADD COLUMN pixel_expires_at TIMESTAMP WITH TIME ZONE;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'extra_landing_page_slots') THEN
-        ALTER TABLE public.profiles ADD COLUMN extra_landing_page_slots INT DEFAULT 0;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'shortener_expires_at') THEN
-        ALTER TABLE public.profiles ADD COLUMN shortener_expires_at TIMESTAMP WITH TIME ZONE;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'custom_button_color') THEN
-        ALTER TABLE public.profiles ADD COLUMN custom_button_color TEXT DEFAULT '#1E1B4B';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'custom_button_text_color') THEN
-        ALTER TABLE public.profiles ADD COLUMN custom_button_text_color TEXT DEFAULT '#FFFFFF';
-    END IF;
+-- 1.11 SYSTEM SETTINGS TABLE
+CREATE TABLE IF NOT EXISTS public.system_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    description TEXT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
-    -- 2. Leads columns
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'leads' AND column_name = 'line_id') THEN
-        ALTER TABLE public.leads ADD COLUMN line_id TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'leads' AND column_name = 'status') THEN
-        ALTER TABLE public.leads ADD COLUMN status TEXT DEFAULT 'pending';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'leads' AND column_name = 'amount') THEN
-        ALTER TABLE public.leads ADD COLUMN amount NUMERIC;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'leads' AND column_name = 'address') THEN
-        ALTER TABLE public.leads ADD COLUMN address TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'leads' AND column_name = 'order_code') THEN
-        ALTER TABLE public.leads ADD COLUMN order_code TEXT;
-    END IF;
+-- 1.12 SERVICES TABLE
+CREATE TABLE IF NOT EXISTS public.services (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    subtitle TEXT,
+    description TEXT,
+    category TEXT DEFAULT 'salepage',
+    icon_name TEXT DEFAULT 'LayoutTemplate',
+    icon_bg TEXT DEFAULT 'bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-600',
+    icon_color TEXT DEFAULT 'text-white',
+    badge TEXT DEFAULT '🔥 ยอดนิยม',
+    badge_color TEXT DEFAULT 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+    status TEXT DEFAULT 'active',
+    features JSONB DEFAULT '[]'::jsonb,
+    price_text TEXT,
+    action_label TEXT DEFAULT 'เปิดใช้งาน',
+    action_url TEXT DEFAULT '/custom-salepage',
+    position INT DEFAULT 1,
+    is_active BOOLEAN DEFAULT TRUE,
+    btn_bg TEXT DEFAULT 'bg-purple-600',
+    btn_text_color TEXT DEFAULT '#FFFFFF',
+    text_color TEXT DEFAULT '',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
-    -- 3. Landing Pages columns
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'pain_headline') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN pain_headline TEXT DEFAULT 'คุณกำลังเจอปัญหาเหล่านี้อยู่ใช่หรือไม่?';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'pain_points') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN pain_points JSONB DEFAULT '[]'::jsonb;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'benefits_headline') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN benefits_headline TEXT DEFAULT 'ทางออกและผลลัพธ์ที่คุณจะได้รับ';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'benefits') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN benefits JSONB DEFAULT '[]'::jsonb;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'testimonials') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN testimonials JSONB DEFAULT '[]'::jsonb;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'faqs') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN faqs JSONB DEFAULT '[]'::jsonb;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'guarantee_text') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN guarantee_text TEXT DEFAULT 'รับประกันความพึงพอใจ ของแท้ 100%';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'seo_title') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN seo_title TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'seo_description') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN seo_description TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'seo_keywords') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN seo_keywords TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'og_image_url') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN og_image_url TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'hero_image_url') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN hero_image_url TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'video_url') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN video_url TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'bg_color') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN bg_color TEXT DEFAULT '#0B0F17';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'bg_image_url') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN bg_image_url TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'card_style') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN card_style TEXT DEFAULT 'glass';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'text_color') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN text_color TEXT DEFAULT '#FFFFFF';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'subtext_color') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN subtext_color TEXT DEFAULT '#E2E8F0';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'trust_badge_1') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN trust_badge_1 TEXT DEFAULT 'ส่งฟรีด่วน';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'trust_badge_2') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN trust_badge_2 TEXT DEFAULT 'ของแท้ 100%';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'trust_badge_3') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN trust_badge_3 TEXT DEFAULT 'ชำระเงินปลอดภัย';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'enable_cod_form') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN enable_cod_form BOOLEAN DEFAULT TRUE;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'gallery_images') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN gallery_images JSONB DEFAULT '[]'::jsonb;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'review_images') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN review_images JSONB DEFAULT '[]'::jsonb;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'enable_review_album') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN enable_review_album BOOLEAN DEFAULT FALSE;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'sticky_btn1_text') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN sticky_btn1_text TEXT DEFAULT 'ติดต่อสั่งซื้อด่วน';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'sticky_btn1_url') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN sticky_btn1_url TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'sticky_btn2_text') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN sticky_btn2_text TEXT DEFAULT 'ช่องทางติดต่ออื่นๆ';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'sticky_btn2_url') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN sticky_btn2_url TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'sticky_btn3_text') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN sticky_btn3_text TEXT DEFAULT 'สั่งซื้อออนไลน์';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'sticky_btn3_url') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN sticky_btn3_url TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'cta_secondary_text') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN cta_secondary_text TEXT DEFAULT 'ช่องทางติดต่ออื่นๆ';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'cta_secondary_url') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN cta_secondary_url TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'cta_shop_text') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN cta_shop_text TEXT DEFAULT 'สั่งซื้อออนไลน์';
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'cta_shop_url') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN cta_shop_url TEXT;
-    END IF;
-END $$;
+-- 1.13 UPLOADED INDEX PAGES TABLE (/u/[slug])
+CREATE TABLE IF NOT EXISTS public.uploaded_index_pages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    slug TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    html_content TEXT NOT NULL,
+    fb_pixel_id TEXT,
+    tiktok_pixel_id TEXT,
+    google_pixel_id TEXT,
+    line_tag_id TEXT,
+    meta_capi_token TEXT,
+    views INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
 -- ==============================================================================
--- 11. HELPER FUNCTION: IS_ADMIN()
+-- 2. INDEXES (เพิ่มประสิทธิภาพการค้นหาและป้องกันชื่อซ้ำ)
 -- ==============================================================================
+CREATE INDEX IF NOT EXISTS idx_profiles_username ON public.profiles (username);
+CREATE INDEX IF NOT EXISTS idx_links_user_id ON public.links (user_id);
+CREATE INDEX IF NOT EXISTS idx_products_user_id ON public.products (user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_landing_pages_slug_unique ON public.landing_pages (slug);
+CREATE INDEX IF NOT EXISTS idx_landing_pages_user_id ON public.landing_pages (user_id);
+CREATE INDEX IF NOT EXISTS idx_leads_user_id ON public.leads (user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_short_links_slug_unique ON public.short_links (slug);
+CREATE INDEX IF NOT EXISTS idx_short_links_created_by ON public.short_links (created_by);
+CREATE INDEX IF NOT EXISTS idx_pixel_events_user_id ON public.pixel_events (user_id);
+CREATE INDEX IF NOT EXISTS idx_payment_transactions_user_id ON public.payment_transactions (user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_uploaded_index_pages_slug_unique ON public.uploaded_index_pages (slug);
+CREATE INDEX IF NOT EXISTS idx_uploaded_index_pages_user_id ON public.uploaded_index_pages (user_id);
+
+-- ==============================================================================
+-- 3. HELPER FUNCTIONS & RPC STORED PROCEDURES
+-- ==============================================================================
+
+-- 3.1 Check is_admin()
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN AS $$
 BEGIN
@@ -433,214 +392,108 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ==============================================================================
--- 12. ROW LEVEL SECURITY (RLS) POLICIES
--- ==============================================================================
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.links ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.landing_pages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.short_links ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.short_link_analytics ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.analytics_events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pixel_events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.payment_transactions ENABLE ROW LEVEL SECURITY;
-
--- Drop existing policies to allow clean re-application
-DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
-DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Admins have full access to profiles" ON public.profiles;
-
-DROP POLICY IF EXISTS "Public links are viewable by everyone" ON public.links;
-DROP POLICY IF EXISTS "Users can insert their own links" ON public.links;
-DROP POLICY IF EXISTS "Users can update their own links" ON public.links;
-DROP POLICY IF EXISTS "Users can delete their own links" ON public.links;
-DROP POLICY IF EXISTS "Admins have full access to links" ON public.links;
-
-DROP POLICY IF EXISTS "Public products are viewable by everyone" ON public.products;
-DROP POLICY IF EXISTS "Users can insert their own products" ON public.products;
-DROP POLICY IF EXISTS "Users can update their own products" ON public.products;
-DROP POLICY IF EXISTS "Users can delete their own products" ON public.products;
-DROP POLICY IF EXISTS "Admins have full access to products" ON public.products;
-
-DROP POLICY IF EXISTS "Public landing pages are viewable by everyone" ON public.landing_pages;
-DROP POLICY IF EXISTS "Users can insert their own landing pages" ON public.landing_pages;
-DROP POLICY IF EXISTS "Users can update their own landing pages" ON public.landing_pages;
-DROP POLICY IF EXISTS "Users can delete their own landing pages" ON public.landing_pages;
-DROP POLICY IF EXISTS "Admins have full access to landing pages" ON public.landing_pages;
-
-DROP POLICY IF EXISTS "Users can view their own leads" ON public.leads;
-DROP POLICY IF EXISTS "Anyone can submit leads" ON public.leads;
-DROP POLICY IF EXISTS "Users can update their own leads" ON public.leads;
-DROP POLICY IF EXISTS "Users can delete their own leads" ON public.leads;
-DROP POLICY IF EXISTS "Admins have full access to leads" ON public.leads;
-
-DROP POLICY IF EXISTS "Public short links are viewable by everyone" ON public.short_links;
-DROP POLICY IF EXISTS "Users can manage their own short links" ON public.short_links;
-DROP POLICY IF EXISTS "Admins have full access to short links" ON public.short_links;
-
-DROP POLICY IF EXISTS "Anyone can insert short link analytics" ON public.short_link_analytics;
-DROP POLICY IF EXISTS "Users can view analytics of their short links" ON public.short_link_analytics;
-DROP POLICY IF EXISTS "Admins have full access to short link analytics" ON public.short_link_analytics;
-
-DROP POLICY IF EXISTS "Anyone can insert analytics events" ON public.analytics_events;
-DROP POLICY IF EXISTS "Users can view their analytics events" ON public.analytics_events;
-DROP POLICY IF EXISTS "Admins have full access to analytics events" ON public.analytics_events;
-
-DROP POLICY IF EXISTS "Anyone can insert pixel events" ON public.pixel_events;
-DROP POLICY IF EXISTS "Users can view their own pixel events" ON public.pixel_events;
-DROP POLICY IF EXISTS "Admins have full access to pixel events" ON public.pixel_events;
-
-DROP POLICY IF EXISTS "Users can view their own payment transactions" ON public.payment_transactions;
-DROP POLICY IF EXISTS "Users can create payment transactions" ON public.payment_transactions;
-DROP POLICY IF EXISTS "Admins can view and manage all payment transactions" ON public.payment_transactions;
-
--- PROFILES Policies
-CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
-CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "Admins have full access to profiles" ON public.profiles FOR ALL USING (public.is_admin());
-
--- LINKS Policies
-CREATE POLICY "Public links are viewable by everyone" ON public.links FOR SELECT USING (true);
-CREATE POLICY "Users can insert their own links" ON public.links FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update their own links" ON public.links FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own links" ON public.links FOR DELETE USING (auth.uid() = user_id);
-CREATE POLICY "Admins have full access to links" ON public.links FOR ALL USING (public.is_admin());
-
--- PRODUCTS Policies
-CREATE POLICY "Public products are viewable by everyone" ON public.products FOR SELECT USING (true);
-CREATE POLICY "Users can insert their own products" ON public.products FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update their own products" ON public.products FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own products" ON public.products FOR DELETE USING (auth.uid() = user_id);
-CREATE POLICY "Admins have full access to products" ON public.products FOR ALL USING (public.is_admin());
-
--- LANDING PAGES Policies
-CREATE POLICY "Public landing pages are viewable by everyone" ON public.landing_pages FOR SELECT USING (true);
-CREATE POLICY "Users can insert their own landing pages" ON public.landing_pages FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update their own landing pages" ON public.landing_pages FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own landing pages" ON public.landing_pages FOR DELETE USING (auth.uid() = user_id);
-CREATE POLICY "Admins have full access to landing pages" ON public.landing_pages FOR ALL USING (public.is_admin());
-
--- LEADS Policies
-CREATE POLICY "Users can view their own leads" ON public.leads FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Anyone can submit leads" ON public.leads FOR INSERT WITH CHECK (true);
-CREATE POLICY "Users can update their own leads" ON public.leads FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own leads" ON public.leads FOR DELETE USING (auth.uid() = user_id);
-CREATE POLICY "Admins have full access to leads" ON public.leads FOR ALL USING (public.is_admin());
-
--- SHORT LINKS Policies
-CREATE POLICY "Public short links are viewable by everyone" ON public.short_links FOR SELECT USING (true);
-CREATE POLICY "Users can manage their own short links" ON public.short_links FOR ALL USING (auth.uid() = created_by);
-CREATE POLICY "Admins have full access to short links" ON public.short_links FOR ALL USING (public.is_admin());
-
--- SHORT LINK ANALYTICS Policies
-CREATE POLICY "Anyone can insert short link analytics" ON public.short_link_analytics FOR INSERT WITH CHECK (true);
-CREATE POLICY "Users can view analytics of their short links" ON public.short_link_analytics FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.short_links WHERE id = short_link_analytics.short_link_id AND created_by = auth.uid())
-);
-CREATE POLICY "Admins have full access to short link analytics" ON public.short_link_analytics FOR ALL USING (public.is_admin());
-
--- ANALYTICS EVENTS Policies
-CREATE POLICY "Anyone can insert analytics events" ON public.analytics_events FOR INSERT WITH CHECK (true);
-CREATE POLICY "Users can view their analytics events" ON public.analytics_events FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Admins have full access to analytics events" ON public.analytics_events FOR ALL USING (public.is_admin());
-
--- PIXEL EVENTS Policies
-CREATE POLICY "Anyone can insert pixel events" ON public.pixel_events FOR INSERT WITH CHECK (true);
-CREATE POLICY "Users can view their own pixel events" ON public.pixel_events FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Admins have full access to pixel events" ON public.pixel_events FOR ALL USING (public.is_admin());
-
--- PAYMENT TRANSACTIONS Policies
-CREATE POLICY "Users can view their own payment transactions" ON public.payment_transactions FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can create payment transactions" ON public.payment_transactions FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Admins can view and manage all payment transactions" ON public.payment_transactions FOR ALL USING (public.is_admin());
-
--- ==============================================================================
--- 13. RPC FUNCTIONS (Stored Procedures)
--- ==============================================================================
+-- 3.2 Counter Increments
 CREATE OR REPLACE FUNCTION public.increment_link_clicks(link_id UUID)
 RETURNS VOID AS $$
 BEGIN
-    UPDATE public.links
-    SET clicks = clicks + 1
-    WHERE id = link_id;
+    UPDATE public.links SET clicks = clicks + 1 WHERE id = link_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE OR REPLACE FUNCTION public.increment_landing_page_views(lp_id UUID)
+CREATE OR REPLACE FUNCTION public.increment_landing_page_views(page_id UUID)
 RETURNS VOID AS $$
 BEGIN
-    UPDATE public.landing_pages
-    SET views = views + 1
-    WHERE id = lp_id;
+    UPDATE public.landing_pages SET views = views + 1 WHERE id = page_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE OR REPLACE FUNCTION public.increment_landing_page_clicks(lp_id UUID)
+CREATE OR REPLACE FUNCTION public.increment_landing_page_clicks(page_id UUID)
 RETURNS VOID AS $$
 BEGIN
-    UPDATE public.landing_pages
-    SET clicks = clicks + 1
-    WHERE id = lp_id;
+    UPDATE public.landing_pages SET clicks = clicks + 1 WHERE id = page_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE OR REPLACE FUNCTION public.increment_short_link_clicks(link_id UUID)
 RETURNS VOID AS $$
 BEGIN
-    UPDATE public.short_links
-    SET clicks = clicks + 1
-    WHERE id = link_id;
+    UPDATE public.short_links SET clicks = clicks + 1 WHERE id = link_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- RPC: Unlock Extra Landing Page Slot (350 Points)
-CREATE OR REPLACE FUNCTION public.unlock_extra_landing_page_slot(user_id UUID)
+-- 3.3 Unlock Extra Landing Page Slot (Dynamic from system_settings)
+CREATE OR REPLACE FUNCTION public.unlock_extra_landing_page_slot(user_id UUID DEFAULT NULL)
 RETURNS JSONB AS $$
 DECLARE
-    current_points INT;
+    target_uid UUID;
+    cur_points INT;
+    req_points INT := 350;
 BEGIN
-    SELECT points INTO current_points FROM public.profiles WHERE id = user_id;
-    IF current_points IS NULL OR current_points < 350 THEN
-        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ 350 แต้ม)');
+    target_uid := COALESCE(user_id, auth.uid());
+    IF target_uid IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'กรุณาเข้าสู่ระบบ');
     END IF;
+
+    -- ดึงราคาแต้มจาก system_settings (ถ้าไม่มีให้ใช้ 350)
+    SELECT COALESCE(NULLIF(value, '')::INT, 350) INTO req_points 
+    FROM public.system_settings WHERE key = 'points_cost_extra_landing_slot';
+    IF req_points IS NULL THEN req_points := 350; END IF;
+
+    SELECT points INTO cur_points FROM public.profiles WHERE id = target_uid;
+    IF cur_points IS NULL OR cur_points < req_points THEN
+        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ ' || req_points || ' แต้ม)');
+    END IF;
+
     UPDATE public.profiles
-    SET points = points - 350,
+    SET points = points - req_points,
         extra_landing_page_slots = COALESCE(extra_landing_page_slots, 0) + 1
-    WHERE id = user_id;
-    RETURN jsonb_build_object('success', true, 'message', 'ปลดล็อกโควตาเซลเพจเพิ่มสำเร็จ +1 ช่อง');
+    WHERE id = target_uid;
+
+    RETURN jsonb_build_object('success', true, 'message', 'ปลดล็อกโควตาเซลเพจเพิ่มสำเร็จ +1 ช่อง (ใช้ ' || req_points || ' แต้ม)');
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- RPC: Unlock Shortener (100 Points / 30 Days)
-CREATE OR REPLACE FUNCTION public.unlock_shortener_with_points(user_id UUID)
+-- 3.4 Unlock Shortener (Dynamic from system_settings)
+CREATE OR REPLACE FUNCTION public.unlock_shortener_with_points(user_id UUID DEFAULT NULL)
 RETURNS JSONB AS $$
 DECLARE
-    current_points INT;
+    target_uid UUID;
+    cur_points INT;
+    req_points INT := 100;
     cur_exp TIMESTAMP WITH TIME ZONE;
     new_exp TIMESTAMP WITH TIME ZONE;
 BEGIN
-    SELECT points, shortener_expires_at INTO current_points, cur_exp FROM public.profiles WHERE id = user_id;
-    IF current_points IS NULL OR current_points < 100 THEN
-        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ 100 แต้ม)');
+    target_uid := COALESCE(user_id, auth.uid());
+    IF target_uid IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'กรุณาเข้าสู่ระบบ');
     END IF;
+
+    -- ดึงราคาแต้มจาก system_settings (ถ้าไม่มีให้ใช้ 100)
+    SELECT COALESCE(NULLIF(value, '')::INT, 100) INTO req_points 
+    FROM public.system_settings WHERE key = 'points_cost_shortener';
+    IF req_points IS NULL THEN req_points := 100; END IF;
+
+    SELECT points, shortener_expires_at INTO cur_points, cur_exp FROM public.profiles WHERE id = target_uid;
+    IF cur_points IS NULL OR cur_points < req_points THEN
+        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ ' || req_points || ' แต้ม)');
+    END IF;
+
     IF cur_exp IS NOT NULL AND cur_exp > NOW() THEN
         new_exp := cur_exp + INTERVAL '30 days';
     ELSE
         new_exp := NOW() + INTERVAL '30 days';
     END IF;
+
     UPDATE public.profiles
-    SET points = points - 100,
+    SET points = points - req_points,
         shortener_expires_at = new_exp
-    WHERE id = user_id;
-    RETURN jsonb_build_object('success', true, 'message', 'ปลดล็อกระบบย่อลิงก์สำเร็จ 30 วัน');
+    WHERE id = target_uid;
+
+    RETURN jsonb_build_object('success', true, 'message', 'ปลดล็อกระบบย่อลิงก์สำเร็จ 30 วัน (ใช้ ' || req_points || ' แต้ม)');
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- RPC: Admin Approve Payment Transaction (เติมแต้ม / อนุมัติแพ็กเกจ)
+-- 3.5 Admin Approve Payment Transaction
 CREATE OR REPLACE FUNCTION public.admin_approve_transaction(tx_id UUID, admin_id UUID)
 RETURNS JSONB AS $$
 DECLARE
@@ -668,214 +521,185 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-
--- ============================================================================
--- 11. LINE NOTIFICATION & LANDING PAGE 30-DAYS EXPIRATION SAFE MIGRATION
--- ============================================================================
-DO $$ 
+-- 3.6 Admin Direct Password Change (Admin เปลี่ยนรหัสผ่านให้สมาชิกได้ทันที)
+CREATE OR REPLACE FUNCTION public.admin_set_user_password(target_user_id UUID, new_password TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, extensions
+AS $$
 BEGIN
-    -- 1. Add line_notify_token to profiles
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'line_notify_token') THEN
-        ALTER TABLE public.profiles ADD COLUMN line_notify_token TEXT;
-    END IF;
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Access denied: Only admins can change user passwords.';
+  END IF;
 
-    -- 2. Add line_webhook_url to profiles
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'line_webhook_url') THEN
-        ALTER TABLE public.profiles ADD COLUMN line_webhook_url TEXT;
-    END IF;
+  IF length(new_password) < 6 THEN
+    RAISE EXCEPTION 'Password must be at least 6 characters long.';
+  END IF;
 
-    -- 3. Add expires_at to landing_pages (Default 30 days from creation)
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'landing_pages' AND column_name = 'expires_at') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '30 days');
-    END IF;
+  UPDATE auth.users
+  SET encrypted_password = extensions.crypt(new_password, extensions.gen_salt('bf')),
+      updated_at = NOW()
+  WHERE id = target_user_id;
 
-    -- 4. Add LINE Messaging API fields to profiles (Official Replacement for LINE Notify)
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'line_channel_access_token') THEN
-        ALTER TABLE public.profiles ADD COLUMN line_channel_access_token TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'line_user_id') THEN
-        ALTER TABLE public.profiles ADD COLUMN line_user_id TEXT;
-    END IF;
+  RETURN TRUE;
+END;
+$$;
 
-END $$;
+-- ==============================================================================
 
-
--- ============================================================================
--- 12. SYSTEM SETTINGS & PAYMENT CONFIGURATION (ADMIN MANAGED)
--- ============================================================================
-CREATE TABLE IF NOT EXISTS public.system_settings (
-    key TEXT PRIMARY KEY,
-    value TEXT,
-    description TEXT,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Enable RLS
-ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
-
--- Allow public read access to system settings
-DO $$ 
+-- ==============================================================================
+-- 3.7 SECURE PROFILE UPDATE GUARD (ANTI-TAMPER & ANTI-POINT-FARMING TRIGGER)
+-- ==============================================================================
+-- ป้องกัน 100% ไม่ให้ผู้ใช้งานทั่วไปแอบส่ง API หรือเปิด DevTools console มา:
+-- 1. แอบเปลี่ยน role เป็น 'admin'
+-- 2. แอบปั๊มแต้ม (points) เองโดยตรงผ่าน supabase.from('profiles').update({ points: 99999 })
+-- 3. แอบขยายวันหมดอายุ VIP (pro_expires_at, master_expires_at) หรือปลดล็อกโควตาเอง
+CREATE OR REPLACE FUNCTION public.guard_profile_sensitive_fields()
+RETURNS TRIGGER AS $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'system_settings' AND policyname = 'Allow public read system_settings') THEN
-        CREATE POLICY "Allow public read system_settings" ON public.system_settings FOR SELECT USING (true);
+  -- หากผู้แก้ไขไม่ใช่ Admin
+  IF NOT public.is_admin() THEN
+    -- ป้องกันการแอบเปลี่ยน Role
+    IF NEW.role IS DISTINCT FROM OLD.role THEN
+      RAISE EXCEPTION 'Unauthorized: You cannot modify your own role';
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'system_settings' AND policyname = 'Allow admin manage system_settings') THEN
-        CREATE POLICY "Allow admin manage system_settings" ON public.system_settings FOR ALL USING (
-            EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
-        );
+    
+    -- ป้องกันการปั๊มแต้มโดยตรง (แต้มต้องถูกหัก/เพิ่มผ่าน RPC Stored Procedure เท่านั้น)
+    IF NEW.points IS DISTINCT FROM OLD.points THEN
+      RAISE EXCEPTION 'Unauthorized: Points can only be changed via transactions or authorized actions';
     END IF;
-END $$;
+    
+    -- ป้องกันการแอบขยายวันหมดอายุ VIP หรือโควตาเซลเพจ
+    IF NEW.pro_expires_at IS DISTINCT FROM OLD.pro_expires_at OR
+       NEW.master_expires_at IS DISTINCT FROM OLD.master_expires_at OR
+       NEW.shortener_expires_at IS DISTINCT FROM OLD.shortener_expires_at OR
+       NEW.pixel_expires_at IS DISTINCT FROM OLD.pixel_expires_at OR
+       NEW.extra_landing_page_slots IS DISTINCT FROM OLD.extra_landing_page_slots THEN
+      RAISE EXCEPTION 'Unauthorized: Subscription expiration dates cannot be directly modified';
+    END IF;
+  END IF;
+  
+  NEW.updated_at := NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
--- Insert default payment settings
-INSERT INTO public.system_settings (key, value, description) VALUES
-('promptpay_phone', '0909964514', 'เบอร์พร้อมเพย์รับชำระเงิน'),
-('promptpay_bank', 'ธนาคารกสิกรไทย (KBANK)', 'ชื่อธนาคาร'),
-('promptpay_account_name', 'วันชนะ ขวัญแก้ว', 'ชื่อบัญชีผู้รับเงิน'),
-('promptpay_account_number', '', 'เลขบัญชีธนาคาร (ทางเลือก)'),
-('contact_line_id', '@amth', 'LINE ID สำหรับติดต่อแอดมิน/ส่งสลิป'),
-('contact_line_url', 'https://line.me/ti/p/@amth', 'ลิงก์ LINE Official สำหรับติดต่อ'),
-('payment_instructions', 'สแกน QR Code พร้อมเพย์ด้วยแอปธนาคาร แล้วแนบรูปสลิปเพื่อแจ้งชำระเงิน', 'คำแนะนำการชำระเงิน')
-ON CONFLICT (key) DO NOTHING;
+DROP TRIGGER IF EXISTS trg_guard_profile_sensitive_fields ON public.profiles;
+CREATE TRIGGER trg_guard_profile_sensitive_fields
+BEFORE UPDATE ON public.profiles
+FOR EACH ROW EXECUTE FUNCTION public.guard_profile_sensitive_fields();
 
--- Migration for icon_bg_color on links and tab_active_color on profiles
-DO $$
+-- ==============================================================================
+-- 3.8 SECURE POINT REDEMPTION RPCs (ระบบใช้แต้มฝั่ง Server แบบ Dynamic 100%)
+-- ==============================================================================
+
+-- อัปเกรด Pro VIP ด้วยแต้ม (ดึงราคาจาก key: points_cost_pro อัตโนมัติ)
+CREATE OR REPLACE FUNCTION public.unlock_pro_with_points()
+RETURNS JSONB AS $$
+DECLARE
+    cur_user UUID;
+    cur_points INT;
+    req_points INT := 299;
+    cur_exp TIMESTAMP WITH TIME ZONE;
+    new_exp TIMESTAMP WITH TIME ZONE;
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'links' AND column_name = 'icon_bg_color') THEN
-        ALTER TABLE public.links ADD COLUMN icon_bg_color TEXT;
+    cur_user := auth.uid();
+    IF cur_user IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'กรุณาเข้าสู่ระบบ');
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'tab_active_color') THEN
-        ALTER TABLE public.profiles ADD COLUMN tab_active_color TEXT;
-    END IF;
-END $$;
 
--- ==============================================================================
--- MIGRATION: TAB ACTIVE COLOR & LINK ICON BACKGROUND COLOR
--- ==============================================================================
-DO $$
+    SELECT COALESCE(NULLIF(value, '')::INT, 299) INTO req_points 
+    FROM public.system_settings WHERE key = 'points_cost_pro';
+    IF req_points IS NULL THEN req_points := 299; END IF;
+
+    SELECT points, pro_expires_at INTO cur_points, cur_exp FROM public.profiles WHERE id = cur_user;
+    IF cur_points IS NULL OR cur_points < req_points THEN
+        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ ' || req_points || ' แต้ม)');
+    END IF;
+
+    new_exp := GREATEST(COALESCE(cur_exp, NOW()), NOW()) + INTERVAL '30 days';
+
+    UPDATE public.profiles
+    SET points = points - req_points,
+        pro_expires_at = new_exp
+    WHERE id = cur_user;
+
+    RETURN jsonb_build_object('success', true, 'message', 'อัปเกรด Pro VIP สำเร็จ 30 วัน (ใช้ ' || req_points || ' แต้ม)');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+-- อัปเกรด Master VIP ด้วยแต้ม (ดึงราคาจาก key: points_cost_master อัตโนมัติ)
+CREATE OR REPLACE FUNCTION public.unlock_master_with_points()
+RETURNS JSONB AS $$
+DECLARE
+    cur_user UUID;
+    cur_points INT;
+    req_points INT := 599;
+    cur_exp TIMESTAMP WITH TIME ZONE;
+    new_exp TIMESTAMP WITH TIME ZONE;
 BEGIN
-    -- 1. Add tab_active_color to profiles if not exists
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'tab_active_color') THEN
-        ALTER TABLE public.profiles ADD COLUMN tab_active_color TEXT DEFAULT '#34D399';
+    cur_user := auth.uid();
+    IF cur_user IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'กรุณาเข้าสู่ระบบ');
     END IF;
 
-    -- 2. Add icon_bg_color to links if not exists
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'links' AND column_name = 'icon_bg_color') THEN
-        ALTER TABLE public.links ADD COLUMN icon_bg_color TEXT;
-    END IF;
-END $$;
+    SELECT COALESCE(NULLIF(value, '')::INT, 599) INTO req_points 
+    FROM public.system_settings WHERE key = 'points_cost_master';
+    IF req_points IS NULL THEN req_points := 599; END IF;
 
--- ==============================================================================
--- MIGRATION: META CAPI, TIKTOK CAPI & PROMPTPAY SLIP CHECKOUT
--- ==============================================================================
-DO $$
+    SELECT points, master_expires_at INTO cur_points, cur_exp FROM public.profiles WHERE id = cur_user;
+    IF cur_points IS NULL OR cur_points < req_points THEN
+        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ ' || req_points || ' แต้ม)');
+    END IF;
+
+    new_exp := GREATEST(COALESCE(cur_exp, NOW()), NOW()) + INTERVAL '30 days';
+
+    UPDATE public.profiles
+    SET points = points - req_points,
+        master_expires_at = new_exp
+    WHERE id = cur_user;
+
+    RETURN jsonb_build_object('success', true, 'message', 'อัปเกรด Master VIP สำเร็จ 30 วัน (ใช้ ' || req_points || ' แต้ม)');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+-- ปลดล็อก Pixels Tracking ด้วยแต้ม (ดึงราคาจาก key: points_cost_pixels อัตโนมัติ)
+CREATE OR REPLACE FUNCTION public.unlock_pixels_with_points()
+RETURNS JSONB AS $$
+DECLARE
+    cur_user UUID;
+    cur_points INT;
+    req_points INT := 100;
+    cur_exp TIMESTAMP WITH TIME ZONE;
+    new_exp TIMESTAMP WITH TIME ZONE;
 BEGIN
-    -- 1. Add meta_capi_token to profiles
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'meta_capi_token') THEN
-        ALTER TABLE public.profiles ADD COLUMN meta_capi_token TEXT;
+    cur_user := auth.uid();
+    IF cur_user IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'กรุณาเข้าสู่ระบบ');
     END IF;
 
-    -- 2. Add tiktok_capi_token to profiles
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'tiktok_capi_token') THEN
-        ALTER TABLE public.profiles ADD COLUMN tiktok_capi_token TEXT;
+    SELECT COALESCE(NULLIF(value, '')::INT, 100) INTO req_points 
+    FROM public.system_settings WHERE key = 'points_cost_pixels';
+    IF req_points IS NULL THEN req_points := 100; END IF;
+
+    SELECT points, pixel_expires_at INTO cur_points, cur_exp FROM public.profiles WHERE id = cur_user;
+    IF cur_points IS NULL OR cur_points < req_points THEN
+        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ ' || req_points || ' แต้ม)');
     END IF;
 
-    -- 3. Add payment_method and slip_url to leads
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'leads' AND column_name = 'payment_method') THEN
-        ALTER TABLE public.leads ADD COLUMN payment_method TEXT DEFAULT 'cod';
-    END IF;
+    new_exp := GREATEST(COALESCE(cur_exp, NOW()), NOW()) + INTERVAL '30 days';
 
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'leads' AND column_name = 'slip_url') THEN
-        ALTER TABLE public.leads ADD COLUMN slip_url TEXT;
-    END IF;
-END $$;
+    UPDATE public.profiles
+    SET points = points - req_points,
+        pixel_expires_at = new_exp
+    WHERE id = cur_user;
 
--- Table for storing detailed pixel events & CAPI history
-CREATE TABLE IF NOT EXISTS public.pixel_events (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-    landing_page_id UUID REFERENCES public.landing_pages(id) ON DELETE SET NULL,
-    pixel_type TEXT DEFAULT 'all',
-    pixel_id TEXT,
-    event_name TEXT NOT NULL,
-    event_data JSONB DEFAULT '{}'::jsonb,
-    url TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+    RETURN jsonb_build_object('success', true, 'message', 'ปลดล็อก Pixels สำเร็จ 30 วัน (ใช้ ' || req_points || ' แต้ม)');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
--- Enable RLS on pixel_events
-ALTER TABLE public.pixel_events ENABLE ROW LEVEL SECURITY;
-
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'pixel_events' AND policyname = 'Allow insert pixel_events') THEN
-        CREATE POLICY "Allow insert pixel_events" ON public.pixel_events FOR INSERT WITH CHECK (true);
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'pixel_events' AND policyname = 'Allow users view own pixel_events') THEN
-        CREATE POLICY "Allow users view own pixel_events" ON public.pixel_events FOR SELECT USING (
-            auth.uid() = user_id OR EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
-        );
-    END IF;
-END $$;
-
--- ==============================================================================
--- MIGRATION: SALEPAGE OWNER PROMPTPAY & CUSTOM AMOUNT CONFIGURATION
--- ==============================================================================
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'promptpay_phone') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN promptpay_phone TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'promptpay_name') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN promptpay_name TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'promptpay_bank') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN promptpay_bank TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'allow_custom_amount') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN allow_custom_amount BOOLEAN DEFAULT true;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'owner_line_token') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN owner_line_token TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'owner_line_user_id') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN owner_line_user_id TEXT;
-    END IF;
-END $$;
-
--- ==============================================================================
--- MIGRATION: PER-SALEPAGE LINE MESSAGING API CONFIGURATION
--- ==============================================================================
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'line_channel_access_token') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN line_channel_access_token TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'line_user_id') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN line_user_id TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'line_webhook_url') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN line_webhook_url TEXT;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'landing_pages' AND column_name = 'line_notify_token') THEN
-        ALTER TABLE public.landing_pages ADD COLUMN line_notify_token TEXT;
-    END IF;
-END $$;
-
--- ==============================================================================
--- MIGRATION: SITE LOGO, FAVICON & GLOBAL SEO SETTINGS
--- ==============================================================================
-INSERT INTO public.system_settings (key, value, description) VALUES
-('site_title', 'LinkTreeThai - รวมทุกลิงก์ โซเชียล และร้านค้าดิจิทัลในแอปเดียว', 'ชื่อเว็บไซต์หลัก และ Meta Title'),
-('site_description', 'สร้างหน้า Bio Link สวยทันสมัย สไตล์ Mobile App รวมทุกโซเชียล ขายสินค้าดิจิทัล ย่อลิงก์ พร้อมระบบจัดการครบวงจรด้วย LinkTreeThai', 'คำอธิบายเว็บไซต์ Meta Description สำหรับ Google Search'),
-('site_keywords', 'linktree, biolink, ขายของออนไลน์, รวมลิงก์, เซลเพจ, ย่อลิงก์, linktreethai', 'คีย์เวิร์ดสำหรับค้นหา'),
-('site_logo_url', '', 'URL รูปภาพโลโก้เว็บไซต์หลัก (Header Logo)'),
-('site_favicon_url', '', 'URL ไอคอน Favicon บนแท็บเบราว์เซอร์'),
-('site_og_image_url', '', 'URL รูปภาพสำหรับแชร์ลงโซเชียล (Facebook / LINE)'),
-('site_footer_text', '© 2026 LinkTreeThai. All rights reserved. สร้าง Bio Link & เซลเพจขายของยิงแอดครบวงจร', 'ข้อความท้ายหน้าเว็บ')
-ON CONFLICT (key) DO NOTHING;
-
--- ==============================================================================
--- GOOGLE OAUTH & NEW USER AUTO PROFILE INITIALIZATION TRIGGER
+-- 4. AUTH TRIGGER (สร้างโปรไฟล์อัตโนมัติเมื่อ User ลงทะเบียนหรือเข้าสู่ระบบด้วย Google)
 -- ==============================================================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
@@ -886,7 +710,6 @@ DECLARE
     user_avatar TEXT;
     counter INT := 0;
 BEGIN
-    -- Extract Full Name & Avatar from OAuth Metadata if available
     user_full_name := COALESCE(
         NEW.raw_user_meta_data->>'full_name',
         NEW.raw_user_meta_data->>'name',
@@ -900,7 +723,6 @@ BEGIN
         NULL
     );
 
-    -- Derive base username from email or metadata
     derived_username := LOWER(REGEXP_REPLACE(
         COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1), 'user'),
         '[^a-z0-9_]',
@@ -914,14 +736,12 @@ BEGIN
 
     temp_username := derived_username;
 
-    -- Ensure unique username if conflict occurs
     WHILE EXISTS (SELECT 1 FROM public.profiles WHERE username = temp_username) LOOP
         counter := counter + 1;
         temp_username := derived_username || '_' || (FLOOR(RANDOM() * 900) + 100)::TEXT;
         EXIT WHEN counter > 10;
     END LOOP;
 
-    -- Insert into profiles table
     INSERT INTO public.profiles (
         id,
         username,
@@ -958,50 +778,213 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Bind trigger to auth.users table
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
+-- ==============================================================================
+-- 5. ROW LEVEL SECURITY (RLS) POLICIES
+-- ==============================================================================
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.landing_pages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.short_links ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.short_link_analytics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.analytics_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pixel_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payment_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.uploaded_index_pages ENABLE ROW LEVEL SECURITY;
 
--- ==============================================================================
--- 11. SERVICES TABLE (ตารางข้อมูลบริการเสริมและ Services Hub CRUD)
--- ==============================================================================
-CREATE TABLE IF NOT EXISTS public.services (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    subtitle TEXT,
-    description TEXT,
-    category TEXT DEFAULT 'salepage', -- 'salepage' | 'ai' | 'marketing' | 'system'
-    icon_name TEXT DEFAULT 'LayoutTemplate',
-    icon_bg TEXT DEFAULT 'bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-600',
-    icon_color TEXT DEFAULT 'text-white',
-    badge TEXT DEFAULT '🔥 ยอดนิยม',
-    badge_color TEXT DEFAULT 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
-    status TEXT DEFAULT 'active', -- 'active' | 'updating'
-    features JSONB DEFAULT '[]'::jsonb,
-    price_text TEXT,
-    action_label TEXT DEFAULT 'เปิดใช้งาน',
-    action_url TEXT DEFAULT '/custom-salepage',
-    btn_bg TEXT DEFAULT 'bg-purple-600',
-    btn_text_color TEXT DEFAULT '#FFFFFF',
-    text_color TEXT DEFAULT '',
-    position INT DEFAULT 1,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- 5.1 PROFILES POLICIES
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
+CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
+CREATE POLICY "Users can insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Admins have full access to profiles" ON public.profiles;
+CREATE POLICY "Admins have full access to profiles" ON public.profiles FOR ALL USING (public.is_admin());
+
+-- 5.2 LINKS POLICIES
+DROP POLICY IF EXISTS "Public links are viewable by everyone" ON public.links;
+CREATE POLICY "Public links are viewable by everyone" ON public.links FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can insert their own links" ON public.links;
+CREATE POLICY "Users can insert their own links" ON public.links FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own links" ON public.links;
+CREATE POLICY "Users can update their own links" ON public.links FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own links" ON public.links;
+CREATE POLICY "Users can delete their own links" ON public.links FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Admins have full access to links" ON public.links;
+CREATE POLICY "Admins have full access to links" ON public.links FOR ALL USING (public.is_admin());
+
+-- 5.3 PRODUCTS POLICIES
+DROP POLICY IF EXISTS "Public products are viewable by everyone" ON public.products;
+CREATE POLICY "Public products are viewable by everyone" ON public.products FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can insert their own products" ON public.products;
+CREATE POLICY "Users can insert their own products" ON public.products FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own products" ON public.products;
+CREATE POLICY "Users can update their own products" ON public.products FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own products" ON public.products;
+CREATE POLICY "Users can delete their own products" ON public.products FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Admins have full access to products" ON public.products;
+CREATE POLICY "Admins have full access to products" ON public.products FOR ALL USING (public.is_admin());
+
+-- 5.4 LANDING PAGES POLICIES
+DROP POLICY IF EXISTS "Public landing pages are viewable by everyone" ON public.landing_pages;
+CREATE POLICY "Public landing pages are viewable by everyone" ON public.landing_pages FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can insert their own landing pages" ON public.landing_pages;
+CREATE POLICY "Users can insert their own landing pages" ON public.landing_pages FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update their own landing pages" ON public.landing_pages;
+CREATE POLICY "Users can update their own landing pages" ON public.landing_pages FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own landing pages" ON public.landing_pages;
+CREATE POLICY "Users can delete their own landing pages" ON public.landing_pages FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Admins have full access to landing pages" ON public.landing_pages;
+CREATE POLICY "Admins have full access to landing pages" ON public.landing_pages FOR ALL USING (public.is_admin());
+
+-- 5.5 LEADS POLICIES
+DROP POLICY IF EXISTS "Users can view their own leads" ON public.leads;
+CREATE POLICY "Users can view their own leads" ON public.leads FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Anyone can submit leads" ON public.leads;
+CREATE POLICY "Anyone can submit leads" ON public.leads FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Users can update their own leads" ON public.leads;
+CREATE POLICY "Users can update their own leads" ON public.leads FOR UPDATE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete their own leads" ON public.leads;
+CREATE POLICY "Users can delete their own leads" ON public.leads FOR DELETE USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Admins have full access to leads" ON public.leads;
+CREATE POLICY "Admins have full access to leads" ON public.leads FOR ALL USING (public.is_admin());
+
+-- 5.6 SHORT LINKS POLICIES
+DROP POLICY IF EXISTS "Public short links are viewable by everyone" ON public.short_links;
+CREATE POLICY "Public short links are viewable by everyone" ON public.short_links FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can manage their own short links" ON public.short_links;
+CREATE POLICY "Users can manage their own short links" ON public.short_links FOR ALL USING (auth.uid() = created_by);
+DROP POLICY IF EXISTS "Admins have full access to short links" ON public.short_links;
+CREATE POLICY "Admins have full access to short links" ON public.short_links FOR ALL USING (public.is_admin());
+
+-- 5.7 SHORT LINK ANALYTICS POLICIES
+DROP POLICY IF EXISTS "Anyone can insert short link analytics" ON public.short_link_analytics;
+CREATE POLICY "Anyone can insert short link analytics" ON public.short_link_analytics FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Users can view analytics of their short links" ON public.short_link_analytics;
+CREATE POLICY "Users can view analytics of their short links" ON public.short_link_analytics FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.short_links WHERE id = short_link_analytics.short_link_id AND created_by = auth.uid())
+);
+DROP POLICY IF EXISTS "Admins have full access to short link analytics" ON public.short_link_analytics;
+CREATE POLICY "Admins have full access to short link analytics" ON public.short_link_analytics FOR ALL USING (public.is_admin());
+
+-- 5.8 ANALYTICS EVENTS POLICIES
+DROP POLICY IF EXISTS "Anyone can insert analytics events" ON public.analytics_events;
+CREATE POLICY "Anyone can insert analytics events" ON public.analytics_events FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Users can view their analytics events" ON public.analytics_events;
+CREATE POLICY "Users can view their analytics events" ON public.analytics_events FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Admins have full access to analytics events" ON public.analytics_events;
+CREATE POLICY "Admins have full access to analytics events" ON public.analytics_events FOR ALL USING (public.is_admin());
+
+-- 5.9 PIXEL EVENTS POLICIES
+DROP POLICY IF EXISTS "Anyone can insert pixel events" ON public.pixel_events;
+CREATE POLICY "Anyone can insert pixel events" ON public.pixel_events FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Users can view their own pixel events" ON public.pixel_events;
+CREATE POLICY "Users can view their own pixel events" ON public.pixel_events FOR SELECT USING (
+    auth.uid() = user_id OR EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
 );
 
--- RLS for services table
-ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Public services are viewable by everyone" ON public.services;
-DROP POLICY IF EXISTS "Admins have full access to services" ON public.services;
+-- 5.10 PAYMENT TRANSACTIONS POLICIES
+DROP POLICY IF EXISTS "Users can view their own payment transactions" ON public.payment_transactions;
+CREATE POLICY "Users can view their own payment transactions" ON public.payment_transactions FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can create payment transactions" ON public.payment_transactions;
+CREATE POLICY "Users can create payment transactions" ON public.payment_transactions FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Admins can view and manage all payment transactions" ON public.payment_transactions;
+CREATE POLICY "Admins can view and manage all payment transactions" ON public.payment_transactions FOR ALL USING (public.is_admin());
 
+-- 5.11 SYSTEM SETTINGS POLICIES
+DROP POLICY IF EXISTS "Allow public read system_settings" ON public.system_settings;
+CREATE POLICY "Allow public read system_settings" ON public.system_settings FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow admin manage system_settings" ON public.system_settings;
+CREATE POLICY "Allow admin manage system_settings" ON public.system_settings FOR ALL USING (public.is_admin());
+
+-- 5.12 SERVICES POLICIES
+DROP POLICY IF EXISTS "Public services are viewable by everyone" ON public.services;
 CREATE POLICY "Public services are viewable by everyone" ON public.services FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admins have full access to services" ON public.services;
 CREATE POLICY "Admins have full access to services" ON public.services FOR ALL USING (public.is_admin());
 
--- Seed Initial 4 Services
+-- 5.13 UPLOADED INDEX PAGES POLICIES
+DROP POLICY IF EXISTS "Public can view active uploaded index pages" ON public.uploaded_index_pages;
+CREATE POLICY "Public can view active uploaded index pages" ON public.uploaded_index_pages FOR SELECT USING (is_active = true);
+DROP POLICY IF EXISTS "Users can manage own uploaded index pages" ON public.uploaded_index_pages;
+CREATE POLICY "Users can manage own uploaded index pages" ON public.uploaded_index_pages FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Admins have full access to uploaded index pages" ON public.uploaded_index_pages;
+CREATE POLICY "Admins have full access to uploaded index pages" ON public.uploaded_index_pages FOR ALL USING (public.is_admin());
+
+-- ==============================================================================
+-- 6. PERMISSIONS & GRANTS (มอบสิทธิ์ให้กับ anon และ authenticated)
+-- ==============================================================================
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated;
+
+-- ==============================================================================
+-- 7. SUPABASE STORAGE BUCKETS SETUP ('media' & 'linktree-assets')
+-- ==============================================================================
+INSERT INTO storage.buckets (id, name, public)
+VALUES 
+    ('media', 'media', true),
+    ('linktree-assets', 'linktree-assets', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- Storage Policies for 'media' and 'linktree-assets'
+DROP POLICY IF EXISTS "Public view for media bucket" ON storage.objects;
+CREATE POLICY "Public view for media bucket" ON storage.objects FOR SELECT USING (bucket_id IN ('media', 'linktree-assets'));
+
+DROP POLICY IF EXISTS "Anyone can upload to media bucket" ON storage.objects;
+CREATE POLICY "Anyone can upload to media bucket" ON storage.objects FOR INSERT WITH CHECK (bucket_id IN ('media', 'linktree-assets'));
+
+DROP POLICY IF EXISTS "Anyone can update own files in media bucket" ON storage.objects;
+CREATE POLICY "Anyone can update own files in media bucket" ON storage.objects FOR UPDATE USING (bucket_id IN ('media', 'linktree-assets'));
+
+DROP POLICY IF EXISTS "Anyone can delete files in media bucket" ON storage.objects;
+CREATE POLICY "Anyone can delete files in media bucket" ON storage.objects FOR DELETE USING (bucket_id IN ('media', 'linktree-assets'));
+
+-- ==============================================================================
+-- 8. INITIAL SEED DATA (การตั้งค่าเริ่มต้นและบริการ Services Hub)
+-- ==============================================================================
+
+-- 8.1 System Settings & Payment Info
+INSERT INTO public.system_settings (key, value, description) VALUES
+('site_title', 'LinkTreeThai - รวมทุกลิงก์ โซเชียล และร้านค้าดิจิทัลในแอปเดียว', 'ชื่อเว็บไซต์หลัก และ Meta Title'),
+('site_description', 'สร้างหน้า Bio Link สวยทันสมัย สไตล์ Mobile App รวมทุกโซเชียล ขายสินค้าดิจิทัล ย่อลิงก์ พร้อมระบบจัดการครบวงจรด้วย LinkTreeThai', 'คำอธิบายเว็บไซต์ Meta Description สำหรับ Google Search'),
+('site_keywords', 'linktree, biolink, ขายของออนไลน์, รวมลิงก์, เซลเพจ, ย่อลิงก์, linktreethai', 'คีย์เวิร์ดสำหรับค้นหา'),
+('site_logo_url', '', 'URL รูปภาพโลโก้เว็บไซต์หลัก (Header Logo)'),
+('site_favicon_url', '', 'URL ไอคอน Favicon บนแท็บเบราว์เซอร์'),
+('site_og_image_url', '', 'URL รูปภาพสำหรับแชร์ลงโซเชียล (Facebook / LINE)'),
+('site_footer_text', '© 2026 LinkTreeThai. All rights reserved. สร้าง Bio Link & เซลเพจขายของยิงแอดครบวงจร', 'ข้อความท้ายหน้าเว็บ'),
+('promptpay_phone', '0909964514', 'เบอร์พร้อมเพย์รับชำระเงิน'),
+('promptpay_bank', 'ธนาคารกสิกรไทย (KBANK)', 'ชื่อธนาคาร'),
+('promptpay_account_name', 'วันชนะ ขวัญแก้ว', 'ชื่อบัญชีผู้รับเงิน'),
+('promptpay_account_number', '', 'เลขบัญชีธนาคาร (ทางเลือก)'),
+('contact_line_id', '@amth', 'LINE ID สำหรับติดต่อแอดมิน/ส่งสลิป'),
+('contact_line_url', 'https://line.me/ti/p/@amth', 'ลิงก์ LINE Official สำหรับติดต่อ'),
+('payment_instructions', 'สแกน QR Code พร้อมเพย์ด้วยแอปธนาคาร แล้วแนบรูปสลิปเพื่อแจ้งชำระเงิน', 'คำแนะนำการชำระเงิน'),
+('price_pro_thb', '299', 'ราคาแพ็กเกจ PRO VIP (บาท)'),
+('points_cost_pro', '299', 'แต้มที่ใช้แลก PRO VIP (แต้ม)'),
+('duration_pro_days', '30', 'ระยะเวลาใช้งาน PRO VIP (วัน)'),
+('price_master_thb', '599', 'ราคาแพ็กเกจ MASTER VIP (บาท)'),
+('points_cost_master', '599', 'แต้มที่ใช้แลก MASTER VIP (แต้ม)'),
+('duration_master_days', '30', 'ระยะเวลาใช้งาน MASTER VIP (วัน)'),
+('points_cost_upload_index', '599', 'แต้มสร้างหน้าเว็บ index.html ส่วนตัว (/uploadindex)'),
+('points_cost_custom_salepage', '990', 'แต้มสร้างเซลเพจ Custom / AI Vision Salepage'),
+('points_cost_extra_landing_slot', '350', 'แต้มปลดล็อกโควตาเซลเพจเพิ่ม +1 ช่อง'),
+('points_cost_renew_landing', '350', 'แต้มต่ออายุหน้าเซลเพจ 30 วัน'),
+('points_cost_shortener', '100', 'แต้มปลดล็อกระบบย่อลิงก์สั้น 30 วัน'),
+('points_cost_pixels', '100', 'แต้มปลดล็อกระบบฝัง Pixels 30 วัน')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+
+-- 8.2 Seed Initial Services
 INSERT INTO public.services (id, title, subtitle, description, category, icon_name, icon_bg, icon_color, badge, badge_color, status, price_text, action_label, action_url, position, is_active, features)
 VALUES 
 (
@@ -1080,110 +1063,9 @@ VALUES
     true,
     '["เชื่อมต่อชื่อเว็บไซต์ของคุณได้ 100%", "ลบลายน้ำระบบเพื่อภาพลักษณ์แบรนด์ระดับพรีเมียม", "ติดตั้ง CDN ระดับ Global เพิ่มความเร็วในการโหลดสูงสุด"]'::jsonb
 )
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title;
 
 -- ==============================================================================
--- 11. UPLOADED INDEX PAGES (ระบบโฮสต์ index.html ส่วนตัว Master Pro /u/[slug])
+-- 9. NOTIFY POSTGREST SCHEMA CACHE RELOAD
 -- ==============================================================================
-CREATE TABLE IF NOT EXISTS public.uploaded_index_pages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    slug TEXT UNIQUE NOT NULL,
-    title TEXT NOT NULL,
-    html_content TEXT NOT NULL,
-    fb_pixel_id TEXT,
-    tiktok_pixel_id TEXT,
-    google_pixel_id TEXT,
-    line_tag_id TEXT,
-    views INT DEFAULT 0,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Index สำหรับค้นหา slug และ user_id
-CREATE INDEX IF NOT EXISTS idx_uploaded_index_pages_slug ON public.uploaded_index_pages(slug);
-CREATE INDEX IF NOT EXISTS idx_uploaded_index_pages_user_id ON public.uploaded_index_pages(user_id);
-
--- เปิดใช้งานระบบความปลอดภัย Row Level Security (RLS)
-ALTER TABLE public.uploaded_index_pages ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Public can view active uploaded index pages" ON public.uploaded_index_pages;
-CREATE POLICY "Public can view active uploaded index pages" ON public.uploaded_index_pages 
-    FOR SELECT USING (is_active = true);
-
-DROP POLICY IF EXISTS "Users can manage own uploaded index pages" ON public.uploaded_index_pages;
-CREATE POLICY "Users can manage own uploaded index pages" ON public.uploaded_index_pages 
-    FOR ALL USING (auth.uid() = user_id);
-
-DROP POLICY IF EXISTS "Admins have full access to uploaded index pages" ON public.uploaded_index_pages;
-CREATE POLICY "Admins have full access to uploaded index pages" ON public.uploaded_index_pages 
-    FOR ALL USING (public.is_admin());
-
--- ==============================================================================
--- 13. SEED DYNAMIC PRICING & POINTS IN SYSTEM SETTINGS
--- ==============================================================================
-INSERT INTO public.system_settings (key, value, description)
-VALUES 
-    ('price_pro_thb', '299', 'ราคาแพ็กเกจ PRO VIP (บาท)'),
-    ('points_cost_pro', '299', 'แต้มที่ใช้แลก PRO VIP (แต้ม)'),
-    ('duration_pro_days', '30', 'ระยะเวลาใช้งาน PRO VIP (วัน)'),
-    ('price_master_thb', '599', 'ราคาแพ็กเกจ MASTER VIP (บาท)'),
-    ('points_cost_master', '599', 'แต้มที่ใช้แลก MASTER VIP (แต้ม)'),
-    ('duration_master_days', '30', 'ระยะเวลาใช้งาน MASTER VIP (วัน)'),
-    ('points_cost_upload_index', '599', 'แต้มสร้างหน้าเว็บ index.html ส่วนตัว (/uploadindex)'),
-    ('points_cost_custom_salepage', '990', 'แต้มสร้างเซลเพจ Custom / AI Vision Salepage'),
-    ('points_cost_extra_landing_slot', '350', 'แต้มปลดล็อกโควตาเซลเพจเพิ่ม +1 ช่อง'),
-    ('points_cost_renew_landing', '350', 'แต้มต่ออายุหน้าเซลเพจ 30 วัน'),
-    ('points_cost_shortener', '100', 'แต้มปลดล็อกระบบย่อลิงก์สั้น 30 วัน'),
-    ('points_cost_pixels', '100', 'แต้มปลดล็อกระบบฝัง Pixels 30 วัน')
-ON CONFLICT (key) DO NOTHING;
-
--- ==============================================================================
--- 14. ADD META_CAPI_TOKEN TO UPLOADED_INDEX_PAGES
--- ==============================================================================
-DO $$ 
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_schema = 'public' 
-          AND table_name = 'uploaded_index_pages' 
-          AND column_name = 'meta_capi_token'
-    ) THEN
-        ALTER TABLE public.uploaded_index_pages ADD COLUMN meta_capi_token TEXT;
-    END IF;
-END $$;
-
--- ==============================================================================
--- 12. ADMIN DIRECT PASSWORD CHANGE (Admin เปลี่ยนรหัสผ่านให้ผู้ใช้ได้ทันที ไม่ต้องผ่าน Email)
--- ==============================================================================
-CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
-
-CREATE OR REPLACE FUNCTION public.admin_set_user_password(target_user_id UUID, new_password TEXT)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, auth, extensions
-AS $$
-BEGIN
-  -- 1. ตรวจสอบสิทธิ์ผู้เรียกใช้ว่ามี role = 'admin' หรือไม่
-  IF NOT public.is_admin() THEN
-    RAISE EXCEPTION 'Access denied: Only admins can change user passwords.';
-  END IF;
-
-  -- 2. ตรวจสอบความยาวรหัสผ่าน
-  IF length(new_password) < 6 THEN
-    RAISE EXCEPTION 'Password must be at least 6 characters long.';
-  END IF;
-
-  -- 3. อัปเดต encrypted_password ใน auth.users โดยใช้ bcrypt
-  UPDATE auth.users
-  SET encrypted_password = extensions.crypt(new_password, extensions.gen_salt('bf')),
-      updated_at = NOW()
-  WHERE id = target_user_id;
-
-  RETURN TRUE;
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.admin_set_user_password(UUID, TEXT) TO authenticated;
+NOTIFY pgrst, 'reload schema';

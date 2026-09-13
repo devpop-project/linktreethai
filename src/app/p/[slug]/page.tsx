@@ -24,6 +24,18 @@ function getYouTubeEmbedUrl(url: string | null): string | null {
 }
 
 export default function SalesLandingPage({ params }: { params: { slug: string } }) {
+  const [renewPointsCost, setRenewPointsCost] = useState<string>('350')
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.settings?.points_cost_renew_landing) {
+          setRenewPointsCost(data.settings.points_cost_renew_landing)
+        }
+      })
+      .catch(() => {})
+  }, [])
   const slug = params.slug.toLowerCase()
   const [loading, setLoading] = useState(true)
   const [pageData, setPageData] = useState<any>(null)
@@ -319,7 +331,7 @@ export default function SalesLandingPage({ params }: { params: { slug: string } 
         </div>
         <h2 className="text-2xl font-black text-white mb-2">หน้าเซลเพจนี้หมดอายุการใช้งานชั่วคราว</h2>
         <p className="text-xs sm:text-sm text-slate-400 max-w-md leading-relaxed mb-6">
-          หน้าเซลเพจนี้ครบกำหนดระยะเวลาการแสดงผล 30 วันแล้ว เจ้าของร้านสามารถเข้าสู่ระบบ Dashboard เพื่อใช้ 350 แต้มต่ออายุการแสดงผลได้ทันทีครับ
+          หน้าเซลเพจนี้ครบกำหนดระยะเวลาการแสดงผล 30 วันแล้ว เจ้าของร้านสามารถเข้าสู่ระบบ Dashboard เพื่อใช้ {renewPointsCost} แต้มต่ออายุการแสดงผลได้ทันทีครับ
         </p>
         <div className="flex flex-col sm:flex-row gap-3">
           <a href={`/${ownerProfile?.username || ''}`} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs transition">

@@ -1228,7 +1228,7 @@ function DashboardContent() {
         }).eq('id', user.id)
 
         if (!updErr) {
-          setProfile({ ...profile, points: (profile.points || 0) - 100, shortener_expires_at: newExpiry })
+          setProfile({ ...profile, points: (profile.points || 0) - shortenerCost, shortener_expires_at: newExpiry })
           showToast('🎉 ปลดล็อกระบบย่อลิงก์สำเร็จ 30 วัน!')
         } else {
           showToast('❌ เกิดข้อผิดพลาดในการปลดล็อก: ' + updErr.message)
@@ -1465,22 +1465,23 @@ function DashboardContent() {
 
   const handleUnlockLandingPageSlot = async () => {
     if (!user) return
-    if ((profile.points || 0) < 350) {
-      showToast(`❌ แต้มสะสมไม่เพียงพอ (ต้องการ 350 แต้ม แต่คุณมี ${profile.points || 0} แต้ม) กรุณาเติมแต้มก่อนครับ`)
+    const slotCost = parseInt(siteSettings?.points_cost_extra_landing_slot || '350', 10)
+    if ((profile.points || 0) < slotCost) {
+      showToast(`❌ แต้มสะสมของคุณไม่เพียงพอ (ต้องการ ${slotCost} แต้ม แต่คุณมี ${profile.points || 0} แต้ม) กรุณาเติมแต้มก่อนครับ`)
       setTopUpModalOpen(true)
       return
     }
 
     setUnlockingLandingSlot(true)
     try {
-      const { data, error } = await supabase.rpc('unlock_landing_page_with_points', {
+      const { data, error } = await supabase.rpc('unlock_extra_landing_page_slot', {
         target_user_id: user.id,
-        points_cost: 350
+        points_cost: slotCost
       })
 
       if (error) {
         const newSlots = (profile.extra_landing_page_slots || 0) + 1
-        const newPts = (profile.points || 0) - 350
+        const newPts = (profile.points || 0) - slotCost
         await supabase.from('profiles').update({
           points: newPts,
           extra_landing_page_slots: newSlots
@@ -1512,7 +1513,7 @@ function DashboardContent() {
       return
     }
     if (!editingLandingPageId && isLandingQuotaFull) {
-      showToast('❌ โควตาเซลเพจของคุณเต็มแล้ว กรุณาใช้ 350 แต้มเพื่อปลดล็อกเพิ่ม')
+      showToast(`❌ โควตาเซลเพจของคุณเต็มแล้ว กรุณาใช้ ${parseInt(siteSettings?.points_cost_extra_landing_slot || '350', 10)} แต้มเพื่อปลดล็อกเพิ่ม`)
       return
     }
 
@@ -1533,7 +1534,7 @@ function DashboardContent() {
       return
     }
     if (!editingLandingPageId && isLandingQuotaFull) {
-      showToast('❌ โควตาเซลเพจของคุณเต็มแล้ว กรุณาใช้ 350 แต้มเพื่อปลดล็อกเพิ่ม')
+      showToast(`❌ โควตาเซลเพจของคุณเต็มแล้ว กรุณาใช้ ${parseInt(siteSettings?.points_cost_extra_landing_slot || '350', 10)} แต้มเพื่อปลดล็อกเพิ่ม`)
       setConfirmSaveLpModal(false)
       return
     }
@@ -3519,7 +3520,7 @@ function DashboardContent() {
                         disabled={unlockingShortener}
                         className="flex-1 py-3.5 px-4 bg-[#34D399] hover:bg-[#10B981] text-white font-extrabold rounded-2xl text-xs transition shadow flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50"
                       >
-                        {unlockingShortener ? 'กำลังปลดล็อก...' : '🔓 ปลดล็อก 100 แต้ม (30 วัน)'}
+                        {unlockingShortener ? 'กำลังปลดล็อก...' : `🔓 ปลดล็อก ${ptsShortener} แต้ม (30 วัน)`}
                       </button>
 
                       <button
@@ -3684,7 +3685,7 @@ function DashboardContent() {
                         className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition active:scale-95 cursor-pointer"
                       >
                         <Crown className="w-4 h-4" />
-                        <span>👑 แลก MASTER VIP 30 วัน (599 แต้ม)</span>
+                        <span>👑 แลก MASTER VIP 30 วัน ({ptsMaster} แต้ม)</span>
                       </button>
 
                       <div className="flex items-center gap-2">
@@ -3694,7 +3695,7 @@ function DashboardContent() {
                           className="flex-1 py-3 px-3 bg-[#34D399] hover:bg-[#10B981] text-white font-extrabold rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow transition active:scale-95 cursor-pointer"
                         >
                           <Rocket className="w-4 h-4" />
-                          <span>ปลดล็อก 350 แต้ม (1 URL)</span>
+                          <span>ปลดล็อก {ptsExtraSlot} แต้ม (1 URL)</span>
                         </button>
 
                         <button
@@ -3703,7 +3704,7 @@ function DashboardContent() {
                           className="flex-1 py-3 px-3 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow transition active:scale-95 cursor-pointer"
                         >
                           <Zap className="w-4 h-4 text-amber-300" />
-                          <span>ปลดล็อก Pixels 100 แต้ม</span>
+                          <span>ปลดล็อก Pixels {ptsPixels} แต้ม</span>
                         </button>
                       </div>
 
@@ -3846,7 +3847,7 @@ function DashboardContent() {
                         title="อัปโหลดไฟล์ index.html ส่วนตัว (Master Pro)"
                       >
                         <FileCode className="w-3.5 h-3.5" />
-                        <span>อัปโหลด index.html (599 แต้ม)</span>
+                        <span>อัปโหลด index.html ({ptsUploadIndex} แต้ม)</span>
                       </Link>
                       <span className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-full font-mono">
                         โควตา: {landingPages.length}/{profile.role === 'admin' ? 'ไม่จำกัด (Admin)' : `${totalLandingSlots} เซลเพจ`}
@@ -3857,7 +3858,7 @@ function DashboardContent() {
                         className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs transition shadow flex items-center gap-1 active:scale-95 cursor-pointer"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        <span>{unlockingLandingSlot ? 'กำลังปลดล็อก...' : '+ เพิ่ม URL (350 แต้ม)'}</span>
+                        <span>{unlockingLandingSlot ? 'กำลังปลดล็อก...' : `+ เพิ่ม URL (${ptsExtraSlot} แต้ม)`}</span>
                       </button>
                     </div>
                   </div>
@@ -3866,7 +3867,7 @@ function DashboardContent() {
                   <div className="p-3.5 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-2xl text-xs text-rose-900 dark:text-rose-200 flex items-start gap-2.5">
                     <Sparkles className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-black">👑 สิทธิพิเศษ:</span> สมาชิก <strong>MASTER VIP</strong> สร้างเซลเพจฟรีได้ 1 URL ทันที และสามารถใช้ <strong>350 แต้ม</strong> เพื่อปลดล็อกเพิ่มได้ไม่จำกัด URL
+                      <span className="font-black">👑 สิทธิพิเศษ:</span> สมาชิก <strong>MASTER VIP</strong> สร้างเซลเพจฟรีได้ 1 URL ทันที และสามารถใช้ <strong>{ptsExtraSlot} แต้ม</strong> เพื่อปลดล็อกเพิ่มได้ไม่จำกัด URL
                     </div>
                   </div>
 
@@ -4862,14 +4863,14 @@ function DashboardContent() {
                       <AlertCircle className="w-8 h-8 text-amber-500 mx-auto" />
                       <h4 className="font-extrabold text-sm text-[#1E1B4B] dark:text-white">โควตาเซลเพจของคุณครบแล้ว</h4>
                       <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-                        คุณใช้งานโควตาครบ {totalLandingSlots} เซลเพจแล้ว หากต้องการสร้างเพิ่ม สามารถกดปุ่มปลดล็อกเพิ่ม 1 URL โดยใช้ 350 แต้ม
+                        คุณใช้งานโควตาครบ {totalLandingSlots} เซลเพจแล้ว หากต้องการสร้างเพิ่ม สามารถกดปุ่มปลดล็อกเพิ่ม 1 URL โดยใช้ {ptsExtraSlot} แต้ม
                       </p>
                       <button
                         onClick={handleUnlockLandingPageSlot}
-                        disabled={unlockingLandingSlot || (profile.points || 0) < 350}
+                        disabled={unlockingLandingSlot || (profile.points || 0) < ptsExtraSlot}
                         className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs transition shadow inline-flex items-center gap-1.5"
                       >
-                        <Plus className="w-4 h-4" /> ปลดล็อกเพิ่ม 1 เซลเพจ (350 แต้ม)
+                        <Plus className="w-4 h-4" /> ปลดล็อกเพิ่ม 1 เซลเพจ ({ptsExtraSlot} แต้ม)
                       </button>
                     </div>
                   )}
@@ -4968,8 +4969,8 @@ function DashboardContent() {
                                   setConfirmRedeemModal({
                                     isOpen: true,
                                     title: `ต่ออายุเซลเพจ "${lp.title}" 30 วัน`,
-                                    desc: `ใช้ 350 แต้ม เพื่อต่ออายุหน้าเซลเพจนี้ให้แสดงผลบนเว็บจริงอีก 30 วัน`,
-                                    cost: 350,
+                                    desc: `ใช้ ${ptsRenew} แต้ม เพื่อต่ออายุหน้าเซลเพจนี้ให้แสดงผลบนเว็บจริงอีก 30 วัน`,
+                                    cost: ptsRenew,
                                     onConfirm: () => handleRenewLandingPage(lp.id, lp.expires_at, lp.title)
                                   })
                                 }}
@@ -4978,7 +4979,7 @@ function DashboardContent() {
                                     ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 hover:from-amber-400 animate-pulse' 
                                     : 'bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
                                 }`}
-                                title="ต่ออายุ 30 วัน (350 แต้ม)"
+                                title={`ต่ออายุ 30 วัน (${ptsRenew} แต้ม)`}
                               >
                                 <RefreshCw className="w-3.5 h-3.5" />
                                 <span>ต่ออายุ 30 วัน</span>
@@ -6676,15 +6677,15 @@ function DashboardContent() {
                         setConfirmRedeemModal({
                           isOpen: true,
                           title: 'ปลดล็อกระบบย่อลิงก์สั้น (30 วัน)',
-                          desc: 'ใช้ 100 แต้ม เพื่อปลดล็อกระบบย่อลิงก์ 30 วัน',
-                          cost: 100,
+                          desc: `ใช้ ${ptsShortener} แต้ม เพื่อปลดล็อกระบบย่อลิงก์ 30 วัน`,
+                          cost: ptsShortener,
                           onConfirm: handleUnlockShortener
                         })
                       }}
                       disabled={(profile.points || 0) < 100}
                       className="px-4 py-2 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white font-extrabold rounded-xl text-xs transition active:scale-95 disabled:opacity-40 cursor-pointer shrink-0"
                     >
-                      ✂️ แลก 100 แต้ม (30 วัน)
+                      ✂️ แลก {ptsShortener} แต้ม (30 วัน)
                     </button>
                   </div>
 
@@ -6712,15 +6713,15 @@ function DashboardContent() {
                         setConfirmRedeemModal({
                           isOpen: true,
                           title: 'ปลดล็อกระบบ Tracking Pixels (30 วัน)',
-                          desc: 'ใช้ 100 แต้ม เพื่อปลดล็อกระบบฝัง Pixel ยิงแอด 30 วัน',
-                          cost: 100,
+                          desc: `ใช้ ${ptsPixels} แต้ม เพื่อปลดล็อกระบบฝัง Pixel ยิงแอด 30 วัน`,
+                          cost: ptsPixels,
                           onConfirm: handleUnlockPixels
                         })
                       }}
                       disabled={(profile.points || 0) < 100}
                       className="px-4 py-2 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white font-extrabold rounded-xl text-xs transition active:scale-95 disabled:opacity-40 cursor-pointer shrink-0"
                     >
-                      ⚡ แลก 100 แต้ม (30 วัน)
+                      ⚡ แลก {ptsPixels} แต้ม (30 วัน)
                     </button>
                   </div>
 
@@ -6736,7 +6737,7 @@ function DashboardContent() {
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                        ปลดล็อกเพิ่มจำนวนหน้าเซลเพจสำหรับยิงแอดแยกตามสินค้าได้หลายหน้าพร้อมกัน (ใช้แต้ม 350 แต้ม)
+                        ปลดล็อกเพิ่มจำนวนหน้าเซลเพจสำหรับยิงแอดแยกตามสินค้าได้หลายหน้าพร้อมกัน (ใช้แต้ม {ptsExtraSlot} แต้ม)
                       </p>
                     </div>
 
@@ -6746,15 +6747,15 @@ function DashboardContent() {
                         setConfirmRedeemModal({
                           isOpen: true,
                           title: 'ปลดล็อกช่องเซลเพจยิงแอดเพิ่ม (+1 URL อายุ 30 วัน)',
-                          desc: 'ใช้ 350 แต้ม เพื่อเพิ่มโควตาสร้างหน้าเซลเพจเพิ่มอีก 1 URL',
-                          cost: 350,
+                          desc: `ใช้ ${ptsExtraSlot} แต้ม เพื่อเพิ่มโควตาสร้างหน้าเซลเพจเพิ่มอีก 1 URL`,
+                          cost: ptsExtraSlot,
                           onConfirm: handleUnlockLandingPageSlot
                         })
                       }}
-                      disabled={(profile.points || 0) < 350}
+                      disabled={(profile.points || 0) < ptsExtraSlot}
                       className="px-4 py-2 bg-[#34D399] hover:bg-[#10B981] text-slate-950 font-black rounded-xl text-xs transition active:scale-95 disabled:opacity-40 cursor-pointer shrink-0"
                     >
-                      🚀 ปลดล็อก 350 แต้ม (+1 URL)
+                      🚀 ปลดล็อก {ptsExtraSlot} แต้ม (+1 URL)
                     </button>
                   </div>
                 </div>
@@ -7031,7 +7032,7 @@ function DashboardContent() {
               </div>
 
               <div className="p-3 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-2xl text-[11px] text-purple-900 dark:text-purple-200 leading-relaxed font-medium">
-                💡 หน้าเซลเพจมีอายุการแสดงผล 30 วันนับจากวันที่สร้าง หากหมดอายุ หน้าเว็บจริงจะถูกล็อคชั่วคราว คุณสามารถใช้ <strong>350 แต้ม</strong> เพื่อต่ออายุการแสดงผลอีก 30 วันได้ทันที
+                💡 หน้าเซลเพจมีอายุการแสดงผล 30 วันนับจากวันที่สร้าง หากหมดอายุ หน้าเว็บจริงจะถูกล็อคชั่วคราว คุณสามารถใช้ <strong>{ptsRenew} แต้ม</strong> เพื่อต่ออายุการแสดงผลอีก 30 วันได้ทันที
               </div>
 
               {/* Modal Actions */}
@@ -7044,15 +7045,15 @@ function DashboardContent() {
                     setConfirmRedeemModal({
                       isOpen: true,
                       title: `ต่ออายุเซลเพจ "${targetLp.title}" 30 วัน`,
-                      desc: `ใช้ 350 แต้ม เพื่อต่ออายุหน้าเซลเพจนี้ให้แสดงผลบนเว็บจริงอีก 30 วัน`,
-                      cost: 350,
+                      desc: `ใช้ ${ptsRenew} แต้ม เพื่อต่ออายุหน้าเซลเพจนี้ให้แสดงผลบนเว็บจริงอีก 30 วัน`,
+                      cost: ptsRenew,
                       onConfirm: () => handleRenewLandingPage(targetLp.id, targetLp.expires_at, targetLp.title)
                     })
                   }}
                   className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 text-slate-950 font-black rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition cursor-pointer"
                 >
                   <RefreshCw className="w-4 h-4" />
-                  <span>ต่ออายุ 30 วันทันที (ใช้ 350 แต้ม)</span>
+                  <span>ต่ออายุ 30 วันทันที (ใช้ {ptsRenew} แต้ม)</span>
                 </button>
 
                 <div className="flex gap-2">
