@@ -1019,23 +1019,20 @@ function DashboardContent() {
       return
     }
     try {
-      const baseTime = (currentExp && new Date(currentExp).getTime() > Date.now()) ? new Date(currentExp).getTime() : Date.now()
-      const newExp = new Date(baseTime + 30 * 24 * 60 * 60 * 1000).toISOString()
-      const newPts = (profile.points || 0) - renewCost
+      const { data, error } = await supabase.rpc('renew_landing_page_with_points', {
+        landing_page_id: lpId,
+        points_cost: renewCost,
+        duration_days: 30
+      })
 
-      const { error } = await supabase
-        .from('landing_pages')
-        .update({ expires_at: newExp, updated_at: new Date().toISOString() })
-        .eq('id', lpId)
-        .eq('user_id', user.id)
-
-      if (!error) {
-        await supabase.from('profiles').update({ points: newPts }).eq('id', user.id)
-        setProfile({ ...profile, points: newPts })
-        setLandingPages(landingPages.map(p => p.id === lpId ? { ...p, expires_at: newExp } : p))
-        showToast(`✅ ต่ออายุหน้าเซลเพจ "${title}" อีก 30 วัน เรียบร้อยแล้ว`)
-      } else {
+      if (error) {
         showToast('❌ ไม่สามารถต่ออายุได้: ' + error.message)
+      } else if (data && data.success) {
+        setProfile({ ...profile, points: data.remaining_points })
+        setLandingPages(landingPages.map(p => p.id === lpId ? { ...p, expires_at: data.expires_at } : p))
+        showToast(`✅ ต่ออายุหน้าเซลเพจ "${title}" อีก 30 วัน เรียบร้อยแล้ว`)
+      } else if (data && !data.success) {
+        showToast('❌ ' + data.message)
       }
     } catch (err: any) {
       showToast('❌ ข้อผิดพลาด: ' + err.message)
@@ -1209,6 +1206,7 @@ function DashboardContent() {
     const shortenerCost = parseInt(siteSettings?.points_cost_shortener || '100', 10)
     if ((profile.points || 0) < shortenerCost) {
       showToast(`❌ แต้มสะสมของคุณไม่เพียงพอ (ต้องการ ${shortenerCost} แต้ม แต่คุณมี ${profile.points || 0} แต้ม)`)
+      setTopUpModalOpen(true)
       return
     }
 
@@ -1221,30 +1219,19 @@ function DashboardContent() {
       })
 
       if (error) {
-        const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        const { error: updErr } = await supabase.from('profiles').update({
-          points: (profile.points || 0) - shortenerCost,
-          shortener_expires_at: newExpiry
-        }).eq('id', user.id)
-
-        if (!updErr) {
-          setProfile({ ...profile, points: (profile.points || 0) - shortenerCost, shortener_expires_at: newExpiry })
-          showToast('🎉 ปลดล็อกระบบย่อลิงก์สำเร็จ 30 วัน!')
-        } else {
-          showToast('❌ เกิดข้อผิดพลาดในการปลดล็อก: ' + updErr.message)
-        }
+        showToast('❌ เกิดข้อผิดพลาดในการปลดล็อก: ' + error.message)
       } else if (data && data.success) {
         setProfile({
           ...profile,
           points: data.remaining_points,
-          shortener_expires_at: data.new_expires_at
+          shortener_expires_at: data.expires_at
         })
         showToast('🎉 ' + data.message)
       } else if (data && !data.success) {
         showToast('❌ ' + data.message)
       }
-    } catch (err: any) {
-      showToast('❌ เกิดข้อผิดพลาด: ' + err.message)
+    } catch (e: any) {
+      showToast('❌ เกิดข้อผิดพลาด: ' + e.message)
     } finally {
       setUnlockingShortener(false)
     }
@@ -1267,20 +1254,7 @@ function DashboardContent() {
       })
 
       if (error) {
-        // Fallback direct update
-        const currExp = profile.pixel_expires_at && new Date(profile.pixel_expires_at).getTime() > Date.now()
-          ? new Date(profile.pixel_expires_at)
-          : new Date()
-        const newExp = new Date(currExp.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        const newPts = (profile.points || 0) - pixelsCost
-
-        await supabase.from('profiles').update({
-          points: newPts,
-          pixel_expires_at: newExp
-        }).eq('id', user.id)
-
-        setProfile({ ...profile, points: newPts, pixel_expires_at: newExp })
-        showToast('🎉 ปลดล็อกระบบ Tracking Pixels สำเร็จ 30 วัน!')
+        showToast('❌ ไม่สามารถปลดล็อก Pixels ได้: ' + error.message)
       } else if (data && data.success) {
         setProfile({
           ...profile,
@@ -1480,20 +1454,12 @@ function DashboardContent() {
       })
 
       if (error) {
-        const newSlots = (profile.extra_landing_page_slots || 0) + 1
-        const newPts = (profile.points || 0) - slotCost
-        await supabase.from('profiles').update({
-          points: newPts,
-          extra_landing_page_slots: newSlots
-        }).eq('id', user.id)
-
-        setProfile({ ...profile, points: newPts, extra_landing_page_slots: newSlots })
-        showToast('🎉 ปลดล็อกโควตาเซลเพจเพิ่ม 1 URL สำเร็จ!')
+        showToast('❌ เกิดข้อผิดพลาดในการปลดล็อก: ' + error.message)
       } else if (data && data.success) {
         setProfile({
           ...profile,
           points: data.remaining_points,
-          extra_landing_page_slots: data.new_slots
+          extra_landing_page_slots: data.extra_landing_page_slots
         })
         showToast('🎉 ' + data.message)
       } else if (data && !data.success) {
@@ -1761,31 +1727,30 @@ function DashboardContent() {
 
     if ((profile.points || 0) < cost) {
       showToast(`❌ แต้มสะสมไม่เพียงพอ (ต้องการ ${cost} แต้ม แต่คุณมี ${profile.points || 0} แต้ม)`)
+      setTopUpModalOpen(true)
       return
     }
 
     setRedeemingTier(tierType)
     try {
-      const newExp = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString()
-      const newPoints = (profile.points || 0) - cost
-      const updateData: any = { points: newPoints }
-      
-      if (tierType === 'master') {
-        updateData.master_expires_at = newExp
-      } else {
-        updateData.pro_expires_at = newExp
-      }
+      const rpcName = tierType === 'master' ? 'unlock_master_with_points' : 'unlock_pro_with_points'
+      const { data, error } = await supabase.rpc(rpcName, {
+        target_user_id: user.id,
+        points_cost: cost,
+        duration_days: durationDays
+      })
 
-      const { error } = await supabase.from('profiles').update(updateData).eq('id', user.id)
-      if (!error) {
+      if (error) {
+        showToast('❌ เกิดข้อผิดพลาด: ' + error.message)
+      } else if (data && data.success) {
         setProfile({
           ...profile,
-          points: newPoints,
-          ...(tierType === 'master' ? { master_expires_at: newExp } : { pro_expires_at: newExp })
+          points: data.remaining_points,
+          ...(tierType === 'master' ? { master_expires_at: data.expires_at } : { pro_expires_at: data.expires_at })
         })
-        showToast(`🎉 แลกแพ็กเกจ ${tierType === 'master' ? 'MASTER VIP' : 'PRO VIP'} สำเร็จ 30 วัน!`)
-      } else {
-        showToast(`❌ เกิดข้อผิดพลาด: ${error.message}`)
+        showToast('🎉 ' + data.message)
+      } else if (data && !data.success) {
+        showToast('❌ ' + data.message)
       }
     } catch (e: any) {
       showToast(`❌ เกิดข้อผิดพลาด: ${e.message}`)
@@ -1794,7 +1759,6 @@ function DashboardContent() {
     }
   }
 
-  // --- REORDERING / SWAPPING POSITIONS (LINKS & PRODUCTS) ---
   const handleMoveLink = async (index: number, direction: 'up' | 'down') => {
     if ((direction === 'up' && index === 0) || (direction === 'down' && index === links.length - 1)) return
     const targetIndex = direction === 'up' ? index - 1 : index + 1
@@ -3681,7 +3645,15 @@ function DashboardContent() {
                     <div className="flex flex-col gap-2.5 max-w-sm mx-auto pt-2">
                       <button
                         type="button"
-                        onClick={() => handleFastUpgrade('master')}
+                        onClick={() => {
+                        setConfirmRedeemModal({
+                          isOpen: true,
+                          title: `ยืนยันการแลกสิทธิ์ MASTER VIP (${durationMaster} วัน)`,
+                          desc: 'ปลดล็อกครบทุกฟังก์ชันสูงสุด: 9 เทมเพลต, เซลเพจยิงแอด COD, ย่อลิงก์, Tracking Pixels, และแจ้งเตือน LINE',
+                          cost: ptsMaster,
+                          onConfirm: () => handleRedeemTierWithPoints('master')
+                        })
+                      }}
                         className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition active:scale-95 cursor-pointer"
                       >
                         <Crown className="w-4 h-4" />
@@ -6682,7 +6654,7 @@ function DashboardContent() {
                           onConfirm: handleUnlockShortener
                         })
                       }}
-                      disabled={(profile.points || 0) < 100}
+                      disabled={(profile.points || 0) < ptsShortener}
                       className="px-4 py-2 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white font-extrabold rounded-xl text-xs transition active:scale-95 disabled:opacity-40 cursor-pointer shrink-0"
                     >
                       ✂️ แลก {ptsShortener} แต้ม (30 วัน)
@@ -6718,7 +6690,7 @@ function DashboardContent() {
                           onConfirm: handleUnlockPixels
                         })
                       }}
-                      disabled={(profile.points || 0) < 100}
+                      disabled={(profile.points || 0) < ptsPixels}
                       className="px-4 py-2 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white font-extrabold rounded-xl text-xs transition active:scale-95 disabled:opacity-40 cursor-pointer shrink-0"
                     >
                       ⚡ แลก {ptsPixels} แต้ม (30 วัน)
@@ -6748,7 +6720,7 @@ function DashboardContent() {
                           isOpen: true,
                           title: 'ปลดล็อกช่องเซลเพจยิงแอดเพิ่ม (+1 URL อายุ 30 วัน)',
                           desc: `ใช้ ${ptsExtraSlot} แต้ม เพื่อเพิ่มโควตาสร้างหน้าเซลเพจเพิ่มอีก 1 URL`,
-                          cost: ptsExtraSlot,
+                          cost: ptsRenew,
                           onConfirm: handleUnlockLandingPageSlot
                         })
                       }}

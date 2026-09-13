@@ -421,77 +421,114 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 3.3 Unlock Extra Landing Page Slot (Dynamic from system_settings)
-CREATE OR REPLACE FUNCTION public.unlock_extra_landing_page_slot(user_id UUID DEFAULT NULL)
+-- ==============================================================================
+-- 3.3 UNLOCK EXTRA LANDING PAGE SLOT (RPC)
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.unlock_extra_landing_page_slot(
+    target_user_id UUID DEFAULT NULL,
+    points_cost INT DEFAULT NULL
+)
 RETURNS JSONB AS $$
 DECLARE
-    target_uid UUID;
+    cur_user UUID;
     cur_points INT;
-    req_points INT := 350;
+    cur_slots INT;
+    req_points INT;
 BEGIN
-    target_uid := COALESCE(user_id, auth.uid());
-    IF target_uid IS NULL THEN
-        RETURN jsonb_build_object('success', false, 'message', 'กรุณาเข้าสู่ระบบ');
+    cur_user := COALESCE(target_user_id, auth.uid());
+    IF cur_user IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'กรุณาเข้าสู่ระบบก่อนทำรายการ');
     END IF;
 
-    -- ดึงราคาแต้มจาก system_settings (ถ้าไม่มีให้ใช้ 350)
-    SELECT COALESCE(NULLIF(value, '')::INT, 350) INTO req_points 
-    FROM public.system_settings WHERE key = 'points_cost_extra_landing_slot';
-    IF req_points IS NULL THEN req_points := 350; END IF;
+    IF points_cost IS NOT NULL AND points_cost > 0 THEN
+        req_points := points_cost;
+    ELSE
+        SELECT COALESCE(NULLIF(value, '')::INT, 350) INTO req_points 
+        FROM public.system_settings WHERE key = 'points_cost_extra_landing_slot';
+        IF req_points IS NULL THEN req_points := 350; END IF;
+    END IF;
 
-    SELECT points INTO cur_points FROM public.profiles WHERE id = target_uid;
+    SELECT points, COALESCE(extra_landing_page_slots, 0) INTO cur_points, cur_slots 
+    FROM public.profiles WHERE id = cur_user;
+
     IF cur_points IS NULL OR cur_points < req_points THEN
-        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ ' || req_points || ' แต้ม)');
+        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ ' || req_points || ' แต้ม แต่คุณมี ' || COALESCE(cur_points, 0) || ' แต้ม)');
     END IF;
+
+    PERFORM set_config('app.internal_action', 'true', true);
 
     UPDATE public.profiles
     SET points = points - req_points,
-        extra_landing_page_slots = COALESCE(extra_landing_page_slots, 0) + 1
-    WHERE id = target_uid;
+        extra_landing_page_slots = cur_slots + 1
+    WHERE id = cur_user;
 
-    RETURN jsonb_build_object('success', true, 'message', 'ปลดล็อกโควตาเซลเพจเพิ่มสำเร็จ +1 ช่อง (ใช้ ' || req_points || ' แต้ม)');
+    RETURN jsonb_build_object(
+        'success', true, 
+        'message', 'ปลดล็อกโควตาเซลเพจเพิ่มสำเร็จ +1 ช่อง (ใช้ ' || req_points || ' แต้ม)',
+        'remaining_points', cur_points - req_points,
+        'extra_landing_page_slots', cur_slots + 1
+    );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
--- 3.4 Unlock Shortener (Dynamic from system_settings)
-CREATE OR REPLACE FUNCTION public.unlock_shortener_with_points(user_id UUID DEFAULT NULL)
+-- ==============================================================================
+-- 3.4 UNLOCK SHORTENER (RPC)
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.unlock_shortener_with_points(
+    target_user_id UUID DEFAULT NULL,
+    points_cost INT DEFAULT NULL,
+    duration_days INT DEFAULT 30
+)
 RETURNS JSONB AS $$
 DECLARE
-    target_uid UUID;
+    cur_user UUID;
     cur_points INT;
-    req_points INT := 100;
+    req_points INT;
+    days_to_add INT := COALESCE(duration_days, 30);
     cur_exp TIMESTAMP WITH TIME ZONE;
     new_exp TIMESTAMP WITH TIME ZONE;
 BEGIN
-    target_uid := COALESCE(user_id, auth.uid());
-    IF target_uid IS NULL THEN
-        RETURN jsonb_build_object('success', false, 'message', 'กรุณาเข้าสู่ระบบ');
+    cur_user := COALESCE(target_user_id, auth.uid());
+    IF cur_user IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'กรุณาเข้าสู่ระบบก่อนทำรายการ');
     END IF;
 
-    -- ดึงราคาแต้มจาก system_settings (ถ้าไม่มีให้ใช้ 100)
-    SELECT COALESCE(NULLIF(value, '')::INT, 100) INTO req_points 
-    FROM public.system_settings WHERE key = 'points_cost_shortener';
-    IF req_points IS NULL THEN req_points := 100; END IF;
+    IF points_cost IS NOT NULL AND points_cost > 0 THEN
+        req_points := points_cost;
+    ELSE
+        SELECT COALESCE(NULLIF(value, '')::INT, 100) INTO req_points 
+        FROM public.system_settings WHERE key = 'points_cost_shortener';
+        IF req_points IS NULL THEN req_points := 100; END IF;
+    END IF;
 
-    SELECT points, shortener_expires_at INTO cur_points, cur_exp FROM public.profiles WHERE id = target_uid;
+    SELECT points, shortener_expires_at INTO cur_points, cur_exp 
+    FROM public.profiles WHERE id = cur_user;
+
     IF cur_points IS NULL OR cur_points < req_points THEN
-        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ ' || req_points || ' แต้ม)');
+        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ ' || req_points || ' แต้ม แต่คุณมี ' || COALESCE(cur_points, 0) || ' แต้ม)');
     END IF;
 
     IF cur_exp IS NOT NULL AND cur_exp > NOW() THEN
-        new_exp := cur_exp + INTERVAL '30 days';
+        new_exp := cur_exp + (days_to_add || ' days')::INTERVAL;
     ELSE
-        new_exp := NOW() + INTERVAL '30 days';
+        new_exp := NOW() + (days_to_add || ' days')::INTERVAL;
     END IF;
+
+    PERFORM set_config('app.internal_action', 'true', true);
 
     UPDATE public.profiles
     SET points = points - req_points,
         shortener_expires_at = new_exp
-    WHERE id = target_uid;
+    WHERE id = cur_user;
 
-    RETURN jsonb_build_object('success', true, 'message', 'ปลดล็อกระบบย่อลิงก์สำเร็จ 30 วัน (ใช้ ' || req_points || ' แต้ม)');
+    RETURN jsonb_build_object(
+        'success', true, 
+        'message', 'ปลดล็อกระบบย่อลิงก์สำเร็จ ' || days_to_add || ' วัน (ใช้ ' || req_points || ' แต้ม)',
+        'remaining_points', cur_points - req_points,
+        'expires_at', new_exp
+    );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
 -- 3.5 Admin Approve Payment Transaction
 CREATE OR REPLACE FUNCTION public.admin_approve_transaction(tx_id UUID, admin_id UUID)
@@ -558,28 +595,34 @@ $$;
 CREATE OR REPLACE FUNCTION public.guard_profile_sensitive_fields()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- หากผู้แก้ไขไม่ใช่ Admin
-  IF NOT public.is_admin() THEN
-    -- ป้องกันการแอบเปลี่ยน Role
-    IF NEW.role IS DISTINCT FROM OLD.role THEN
-      RAISE EXCEPTION 'Unauthorized: You cannot modify your own role';
-    END IF;
-    
-    -- ป้องกันการปั๊มแต้มโดยตรง (แต้มต้องถูกหัก/เพิ่มผ่าน RPC Stored Procedure เท่านั้น)
-    IF NEW.points IS DISTINCT FROM OLD.points THEN
-      RAISE EXCEPTION 'Unauthorized: Points can only be changed via transactions or authorized actions';
-    END IF;
-    
-    -- ป้องกันการแอบขยายวันหมดอายุ VIP หรือโควตาเซลเพจ
-    IF NEW.pro_expires_at IS DISTINCT FROM OLD.pro_expires_at OR
-       NEW.master_expires_at IS DISTINCT FROM OLD.master_expires_at OR
-       NEW.shortener_expires_at IS DISTINCT FROM OLD.shortener_expires_at OR
-       NEW.pixel_expires_at IS DISTINCT FROM OLD.pixel_expires_at OR
-       NEW.extra_landing_page_slots IS DISTINCT FROM OLD.extra_landing_page_slots THEN
-      RAISE EXCEPTION 'Unauthorized: Subscription expiration dates cannot be directly modified';
-    END IF;
+  -- อนุญาตให้แก้ไขข้อมูลได้ หาก:
+  -- 1. เรียกผ่าน RPC ภายในที่มีการตั้งค่า app.internal_action = 'true'
+  -- 2. ทำงานภายใต้สิทธิ์ของระบบ/postgres (SECURITY DEFINER)
+  -- 3. ผู้ใช้งานปัจจุบันเป็น Admin (public.is_admin())
+  IF COALESCE(current_setting('app.internal_action', true), 'false') = 'true' 
+     OR current_user NOT IN ('authenticated', 'anon') 
+     OR public.is_admin() THEN
+    NEW.updated_at := NOW();
+    RETURN NEW;
+  END IF;
+
+  -- ป้องกัน User ทั่วไปส่งคำสั่ง UPDATE ตาราง profiles ตรงๆ ผ่าน Client API
+  IF NEW.role IS DISTINCT FROM OLD.role THEN
+    RAISE EXCEPTION 'Unauthorized: You cannot modify your own role';
   END IF;
   
+  IF NEW.points IS DISTINCT FROM OLD.points THEN
+    RAISE EXCEPTION 'Unauthorized: Points can only be changed via transactions or authorized actions';
+  END IF;
+  
+  IF NEW.pro_expires_at IS DISTINCT FROM OLD.pro_expires_at OR
+     NEW.master_expires_at IS DISTINCT FROM OLD.master_expires_at OR
+     NEW.shortener_expires_at IS DISTINCT FROM OLD.shortener_expires_at OR
+     NEW.pixel_expires_at IS DISTINCT FROM OLD.pixel_expires_at OR
+     NEW.extra_landing_page_slots IS DISTINCT FROM OLD.extra_landing_page_slots THEN
+    RAISE EXCEPTION 'Unauthorized: Subscription expiration dates cannot be directly modified';
+  END IF;
+
   NEW.updated_at := NOW();
   RETURN NEW;
 END;
@@ -594,108 +637,244 @@ FOR EACH ROW EXECUTE FUNCTION public.guard_profile_sensitive_fields();
 -- 3.8 SECURE POINT REDEMPTION RPCs (ระบบใช้แต้มฝั่ง Server แบบ Dynamic 100%)
 -- ==============================================================================
 
--- อัปเกรด Pro VIP ด้วยแต้ม (ดึงราคาจาก key: points_cost_pro อัตโนมัติ)
-CREATE OR REPLACE FUNCTION public.unlock_pro_with_points()
+-- 3.8.1 อัปเกรด Pro VIP ด้วยแต้ม
+CREATE OR REPLACE FUNCTION public.unlock_pro_with_points(
+    target_user_id UUID DEFAULT NULL,
+    points_cost INT DEFAULT NULL,
+    duration_days INT DEFAULT 30
+)
 RETURNS JSONB AS $$
 DECLARE
     cur_user UUID;
     cur_points INT;
-    req_points INT := 299;
+    req_points INT;
+    days_to_add INT := COALESCE(duration_days, 30);
     cur_exp TIMESTAMP WITH TIME ZONE;
     new_exp TIMESTAMP WITH TIME ZONE;
 BEGIN
-    cur_user := auth.uid();
+    cur_user := COALESCE(target_user_id, auth.uid());
     IF cur_user IS NULL THEN
-        RETURN jsonb_build_object('success', false, 'message', 'กรุณาเข้าสู่ระบบ');
+        RETURN jsonb_build_object('success', false, 'message', 'กรุณาเข้าสู่ระบบก่อนทำรายการ');
     END IF;
 
-    SELECT COALESCE(NULLIF(value, '')::INT, 299) INTO req_points 
-    FROM public.system_settings WHERE key = 'points_cost_pro';
-    IF req_points IS NULL THEN req_points := 299; END IF;
+    IF points_cost IS NOT NULL AND points_cost > 0 THEN
+        req_points := points_cost;
+    ELSE
+        SELECT COALESCE(NULLIF(value, '')::INT, 299) INTO req_points 
+        FROM public.system_settings WHERE key = 'points_cost_pro';
+        IF req_points IS NULL THEN req_points := 299; END IF;
+    END IF;
 
-    SELECT points, pro_expires_at INTO cur_points, cur_exp FROM public.profiles WHERE id = cur_user;
+    SELECT points, pro_expires_at INTO cur_points, cur_exp 
+    FROM public.profiles WHERE id = cur_user;
+
     IF cur_points IS NULL OR cur_points < req_points THEN
-        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ ' || req_points || ' แต้ม)');
+        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ ' || req_points || ' แต้ม แต่คุณมี ' || COALESCE(cur_points, 0) || ' แต้ม)');
     END IF;
 
-    new_exp := GREATEST(COALESCE(cur_exp, NOW()), NOW()) + INTERVAL '30 days';
+    IF cur_exp IS NOT NULL AND cur_exp > NOW() THEN
+        new_exp := cur_exp + (days_to_add || ' days')::INTERVAL;
+    ELSE
+        new_exp := NOW() + (days_to_add || ' days')::INTERVAL;
+    END IF;
+
+    PERFORM set_config('app.internal_action', 'true', true);
 
     UPDATE public.profiles
     SET points = points - req_points,
         pro_expires_at = new_exp
     WHERE id = cur_user;
 
-    RETURN jsonb_build_object('success', true, 'message', 'อัปเกรด Pro VIP สำเร็จ 30 วัน (ใช้ ' || req_points || ' แต้ม)');
+    RETURN jsonb_build_object(
+        'success', true, 
+        'message', 'อัปเกรด PRO VIP สำเร็จ ' || days_to_add || ' วัน (ใช้ ' || req_points || ' แต้ม)',
+        'remaining_points', cur_points - req_points,
+        'expires_at', new_exp
+    );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
--- อัปเกรด Master VIP ด้วยแต้ม (ดึงราคาจาก key: points_cost_master อัตโนมัติ)
-CREATE OR REPLACE FUNCTION public.unlock_master_with_points()
+-- 3.8.2 อัปเกรด Master VIP ด้วยแต้ม
+CREATE OR REPLACE FUNCTION public.unlock_master_with_points(
+    target_user_id UUID DEFAULT NULL,
+    points_cost INT DEFAULT NULL,
+    duration_days INT DEFAULT 30
+)
 RETURNS JSONB AS $$
 DECLARE
     cur_user UUID;
     cur_points INT;
-    req_points INT := 599;
+    req_points INT;
+    days_to_add INT := COALESCE(duration_days, 30);
     cur_exp TIMESTAMP WITH TIME ZONE;
     new_exp TIMESTAMP WITH TIME ZONE;
 BEGIN
-    cur_user := auth.uid();
+    cur_user := COALESCE(target_user_id, auth.uid());
     IF cur_user IS NULL THEN
-        RETURN jsonb_build_object('success', false, 'message', 'กรุณาเข้าสู่ระบบ');
+        RETURN jsonb_build_object('success', false, 'message', 'กรุณาเข้าสู่ระบบก่อนทำรายการ');
     END IF;
 
-    SELECT COALESCE(NULLIF(value, '')::INT, 599) INTO req_points 
-    FROM public.system_settings WHERE key = 'points_cost_master';
-    IF req_points IS NULL THEN req_points := 599; END IF;
+    IF points_cost IS NOT NULL AND points_cost > 0 THEN
+        req_points := points_cost;
+    ELSE
+        SELECT COALESCE(NULLIF(value, '')::INT, 599) INTO req_points 
+        FROM public.system_settings WHERE key = 'points_cost_master';
+        IF req_points IS NULL THEN req_points := 599; END IF;
+    END IF;
 
-    SELECT points, master_expires_at INTO cur_points, cur_exp FROM public.profiles WHERE id = cur_user;
+    SELECT points, master_expires_at INTO cur_points, cur_exp 
+    FROM public.profiles WHERE id = cur_user;
+
     IF cur_points IS NULL OR cur_points < req_points THEN
-        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ ' || req_points || ' แต้ม)');
+        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ ' || req_points || ' แต้ม แต่คุณมี ' || COALESCE(cur_points, 0) || ' แต้ม)');
     END IF;
 
-    new_exp := GREATEST(COALESCE(cur_exp, NOW()), NOW()) + INTERVAL '30 days';
+    IF cur_exp IS NOT NULL AND cur_exp > NOW() THEN
+        new_exp := cur_exp + (days_to_add || ' days')::INTERVAL;
+    ELSE
+        new_exp := NOW() + (days_to_add || ' days')::INTERVAL;
+    END IF;
+
+    PERFORM set_config('app.internal_action', 'true', true);
 
     UPDATE public.profiles
     SET points = points - req_points,
         master_expires_at = new_exp
     WHERE id = cur_user;
 
-    RETURN jsonb_build_object('success', true, 'message', 'อัปเกรด Master VIP สำเร็จ 30 วัน (ใช้ ' || req_points || ' แต้ม)');
+    RETURN jsonb_build_object(
+        'success', true, 
+        'message', 'อัปเกรด MASTER VIP สำเร็จ ' || days_to_add || ' วัน (ใช้ ' || req_points || ' แต้ม)',
+        'remaining_points', cur_points - req_points,
+        'expires_at', new_exp
+    );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
--- ปลดล็อก Pixels Tracking ด้วยแต้ม (ดึงราคาจาก key: points_cost_pixels อัตโนมัติ)
-CREATE OR REPLACE FUNCTION public.unlock_pixels_with_points()
+-- 3.8.3 ปลดล็อก Pixels Tracking ด้วยแต้ม
+CREATE OR REPLACE FUNCTION public.unlock_pixels_with_points(
+    target_user_id UUID DEFAULT NULL,
+    points_cost INT DEFAULT NULL
+)
 RETURNS JSONB AS $$
 DECLARE
     cur_user UUID;
     cur_points INT;
-    req_points INT := 100;
+    req_points INT;
     cur_exp TIMESTAMP WITH TIME ZONE;
     new_exp TIMESTAMP WITH TIME ZONE;
 BEGIN
-    cur_user := auth.uid();
+    cur_user := COALESCE(target_user_id, auth.uid());
     IF cur_user IS NULL THEN
-        RETURN jsonb_build_object('success', false, 'message', 'กรุณาเข้าสู่ระบบ');
+        RETURN jsonb_build_object('success', false, 'message', 'กรุณาเข้าสู่ระบบก่อนทำรายการ');
     END IF;
 
-    SELECT COALESCE(NULLIF(value, '')::INT, 100) INTO req_points 
-    FROM public.system_settings WHERE key = 'points_cost_pixels';
-    IF req_points IS NULL THEN req_points := 100; END IF;
+    IF points_cost IS NOT NULL AND points_cost > 0 THEN
+        req_points := points_cost;
+    ELSE
+        SELECT COALESCE(NULLIF(value, '')::INT, 100) INTO req_points 
+        FROM public.system_settings WHERE key = 'points_cost_pixels';
+        IF req_points IS NULL THEN req_points := 100; END IF;
+    END IF;
 
-    SELECT points, pixel_expires_at INTO cur_points, cur_exp FROM public.profiles WHERE id = cur_user;
+    SELECT points, pixel_expires_at INTO cur_points, cur_exp 
+    FROM public.profiles WHERE id = cur_user;
+
     IF cur_points IS NULL OR cur_points < req_points THEN
-        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ ' || req_points || ' แต้ม)');
+        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ ' || req_points || ' แต้ม แต่คุณมี ' || COALESCE(cur_points, 0) || ' แต้ม)');
     END IF;
 
-    new_exp := GREATEST(COALESCE(cur_exp, NOW()), NOW()) + INTERVAL '30 days';
+    IF cur_exp IS NOT NULL AND cur_exp > NOW() THEN
+        new_exp := cur_exp + INTERVAL '30 days';
+    ELSE
+        new_exp := NOW() + INTERVAL '30 days';
+    END IF;
+
+    PERFORM set_config('app.internal_action', 'true', true);
 
     UPDATE public.profiles
     SET points = points - req_points,
         pixel_expires_at = new_exp
     WHERE id = cur_user;
 
-    RETURN jsonb_build_object('success', true, 'message', 'ปลดล็อก Pixels สำเร็จ 30 วัน (ใช้ ' || req_points || ' แต้ม)');
+    RETURN jsonb_build_object(
+        'success', true, 
+        'message', 'ปลดล็อกระบบ Tracking Pixels สำเร็จ 30 วัน (ใช้ ' || req_points || ' แต้ม)',
+        'remaining_points', cur_points - req_points,
+        'expires_at', new_exp
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+-- 3.8.4 ต่ออายุหน้าเซลเพจด้วยแต้ม (30 วัน)
+CREATE OR REPLACE FUNCTION public.renew_landing_page_with_points(
+    landing_page_id UUID,
+    points_cost INT DEFAULT NULL,
+    duration_days INT DEFAULT 30
+)
+RETURNS JSONB AS $$
+DECLARE
+    cur_user UUID;
+    cur_points INT;
+    req_points INT;
+    days_to_add INT := COALESCE(duration_days, 30);
+    lp_owner UUID;
+    cur_exp TIMESTAMP WITH TIME ZONE;
+    new_exp TIMESTAMP WITH TIME ZONE;
+BEGIN
+    cur_user := auth.uid();
+    IF cur_user IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'กรุณาเข้าสู่ระบบก่อนทำรายการ');
+    END IF;
+
+    SELECT user_id, expires_at INTO lp_owner, cur_exp 
+    FROM public.landing_pages WHERE id = landing_page_id;
+
+    IF lp_owner IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'message', 'ไม่พบข้อมูลหน้าเซลเพจที่ระบุ');
+    END IF;
+
+    IF lp_owner != cur_user AND NOT public.is_admin() THEN
+        RETURN jsonb_build_object('success', false, 'message', 'คุณไม่มีสิทธิ์จัดการหน้าเซลเพจนี้');
+    END IF;
+
+    IF points_cost IS NOT NULL AND points_cost > 0 THEN
+        req_points := points_cost;
+    ELSE
+        SELECT COALESCE(NULLIF(value, '')::INT, 350) INTO req_points 
+        FROM public.system_settings WHERE key = 'points_cost_renew_landing';
+        IF req_points IS NULL THEN req_points := 350; END IF;
+    END IF;
+
+    SELECT points INTO cur_points FROM public.profiles WHERE id = cur_user;
+
+    IF cur_points IS NULL OR cur_points < req_points THEN
+        RETURN jsonb_build_object('success', false, 'message', 'แต้มสะสมไม่เพียงพอ (ต้องการ ' || req_points || ' แต้ม แต่คุณมี ' || COALESCE(cur_points, 0) || ' แต้ม)');
+    END IF;
+
+    IF cur_exp IS NOT NULL AND cur_exp > NOW() THEN
+        new_exp := cur_exp + (days_to_add || ' days')::INTERVAL;
+    ELSE
+        new_exp := NOW() + (days_to_add || ' days')::INTERVAL;
+    END IF;
+
+    PERFORM set_config('app.internal_action', 'true', true);
+
+    UPDATE public.profiles
+    SET points = points - req_points
+    WHERE id = cur_user;
+
+    UPDATE public.landing_pages
+    SET expires_at = new_exp,
+        updated_at = NOW()
+    WHERE id = landing_page_id;
+
+    RETURN jsonb_build_object(
+        'success', true, 
+        'message', 'ต่ออายุหน้าเซลเพจสำเร็จ ' || days_to_add || ' วัน (ใช้ ' || req_points || ' แต้ม)',
+        'remaining_points', cur_points - req_points,
+        'expires_at', new_exp
+    );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
 
